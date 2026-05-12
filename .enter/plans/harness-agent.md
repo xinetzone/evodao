@@ -1,67 +1,81 @@
-# Harness Agent — ZIP Export for Multi-File Agent Projects
+# Harness Agent — Self-Evolution (Reflexion) Plan
 
 ## Context
-User wants a dedicated "Agent Build" mode where the LLM outputs structured source files.
-Files are parsed from code blocks, shown in a file tree, and exported as a `.zip` archive.
+"自我进化" implements the Reflexion pattern: after a run completes, the Agent reflects on its own output, scores quality, identifies weaknesses, and proposes specific improvements. The user can then trigger an "evolved" re-run where those insights are baked into the prompts — creating a genuine iterative improvement loop.
 
 ---
 
-## Architecture Overview
+## User Flow
 
 ```
-User toggles "Agent Build" mode
-  → GoalInput sends outputMode: "agent"
-  → Edge Function uses file-oriented prompts
-  → LLM outputs code blocks: ```lang:path/to/file
-  → Frontend parses AgentFile[] after each task
-  → FileTree component displays files
-  → "Download ZIP" button packs all files via jszip
-```
-
----
-
-## File Convention (LLM output format)
-
-```
-```python:agents/main.py
-...code content...
-```
-
-```json:config/settings.json
-...json content...
-```
-```
-
-Parser regex: `` /```(\w+):([^\n]+)\n([\s\S]*?)```/g ``
-
----
-
-## New Dependency
-
-```
-jszip
+1. Run completes → "MISSION ACCOMPLISHED" + EVOLVE button appears
+2. User clicks EVOLVE → Reflection phase runs (streaming critique)
+3. Reflection shows: quality score, strengths, weaknesses, improvement directions
+4. User clicks "APPLY EVOLUTION →" → Agent re-runs with reflection insights in prompts
+5. New run completes with "Round 2" badge
+6. Can repeat N times (max 5 rounds to prevent infinite loops)
 ```
 
 ---
 
-## New Types (add to `useHarnessAgent.ts`)
+## New Types
 
 ```typescript
-export type OutputMode = "text" | "agent";
+// src/hooks/useHarnessAgent.ts additions
 
-export interface AgentFile {
-  path: string;
-  content: string;
-  language: string;
-  taskId: number;
+export interface ReflectionResult {
+  qualityScore: number;          // 0–100
+  strengths: string[];
+  weaknesses: string[];
+  improvements: string[];
+  evolvedGoal: string;           // refined goal for next round
 }
 
-// Add to HistoryEntry:
-export interface HistoryEntry {
-  ...existing fields...
-  outputMode?: OutputMode;
-  extractedFiles?: AgentFile[];
+export type EvolutionStatus = "idle" | "reflecting" | "reflected";
+```
+
+---
+
+## New Edge Function Mode: `reflect`
+
+Input:
+```json
+{ "mode": "reflect", "goal": "...", "tasks": [...], "taskOutputs": {...} }
+```
+
+System prompt — asks LLM to return a **streaming** JSON-structured critique:
+```
+You are a critical AI evaluator. Analyze the completed agent run:
+- Score overall quality (0-100)
+- List 2-3 concrete strengths
+- List 2-3 specific weaknesses or missed aspects
+- Propose 2-3 actionable improvements for the next iteration
+- Suggest a refined version of the original goal that captures what was missed
+
+Respond ONLY in this JSON format (no markdown fences):
+{
+  "qualityScore": 75,
+  "strengths": ["..."],
+  "weaknesses": ["..."],
+  "improvements": ["..."],
+  "evolvedGoal": "..."
 }
+```
+
+Non-streaming call (single JSON response, not SSE).
+
+---
+
+## Evolution in Subsequent Runs
+
+When `evolutionRound > 0`, add to plan/execute system prompts:
+```
+EVOLUTION CONTEXT (Round N):
+Previous quality score: X/100
+Improvements to apply:
+- [improvement 1]
+- [improvement 2]
+Refined goal: [evolvedGoal]
 ```
 
 ---
@@ -71,126 +85,105 @@ export interface HistoryEntry {
 ### New
 | File | Purpose |
 |---|---|
-| `src/lib/parseFiles.ts` | Parse `\`\`\`lang:path` code blocks from text |
-| `src/components/agent/FileTree.tsx` | Display extracted files with expand/collapse |
+| `src/components/agent/EvolutionPanel.tsx` | Reflection display + EVOLVE / APPLY buttons |
 
 ### Modified
 | File | Change |
 |---|---|
-| `supabase/functions/harness-agent/index.ts` | Add `outputMode` param + agent-mode system prompts |
-| `src/hooks/useHarnessAgent.ts` | Add `outputMode`, `extractedFiles` state; parse after each task |
-| `src/components/agent/GoalInput.tsx` | Add mode toggle (Task / Agent Build) |
-| `src/components/agent/ExportActions.tsx` | Add ZIP download button (shown when files > 0) |
-| `src/lib/exportUtils.ts` | Add `downloadZip(files, name)` using jszip |
-| `src/pages/Index.tsx` | Show `<FileTree>` when `extractedFiles.length > 0` |
-| `src/i18n/locales/en.json` + `zh.json` | Add `mode.*` and `fileTree.*` i18n keys |
+| `supabase/functions/harness-agent/index.ts` | Add `reflect` mode handler |
+| `src/hooks/useHarnessAgent.ts` | Add `evolutionStatus`, `reflection`, `evolutionRound`, `evolve()`, `applyEvolution()` |
+| `src/pages/Index.tsx` | Show `EvolutionPanel` below completion banner |
+| `src/i18n/locales/en.json` + `zh.json` | Add `evolution.*` keys |
 
 ---
 
-## Implementation Details
+## `EvolutionPanel` Component
 
-### 1. `src/lib/parseFiles.ts`
+States:
+1. **Idle** (status=done, evolutionStatus=idle) — show `[EVOLVE ↻]` button
+2. **Reflecting** — show streaming spinner + "AGENT SELF-REFLECTING..."
+3. **Reflected** — show:
+   - Quality score ring (e.g. `74 / 100`)
+   - Strengths (green bullet list)
+   - Weaknesses (amber bullet list)
+   - Improvements (primary bullet list)
+   - Round badge: "Round 1 → Round 2"
+   - `[APPLY EVOLUTION →]` button + `[DISMISS]`
+
+---
+
+## `useHarnessAgent` additions
+
 ```typescript
-export function parseFilesFromOutput(output: string, taskId: number): AgentFile[] {
-  const regex = /```(\w+):([^\n]+)\n([\s\S]*?)```/g;
-  const files: AgentFile[] = [];
-  let match;
-  while ((match = regex.exec(output)) !== null) {
-    files.push({ language: match[1], path: match[2].trim(), content: match[3], taskId });
-  }
-  return files;
-}
+// New state
+const [evolutionStatus, setEvolutionStatus] = useState<EvolutionStatus>("idle");
+const [reflection, setReflection] = useState<ReflectionResult | null>(null);
+const [evolutionRound, setEvolutionRound] = useState(0);
+
+// New function: triggers reflection phase
+const evolve = useCallback(async () => { ... }, [...]);
+
+// New function: re-runs with reflection insights
+const applyEvolution = useCallback(async (onComplete?) => { ... }, [...]);
 ```
 
-### 2. Edge Function — agent mode prompts
+`evolve()`:
+1. `setEvolutionStatus("reflecting")`
+2. Call edge function `reflect` mode (non-streaming fetch)
+3. Parse JSON → `setReflection(result)`
+4. `setEvolutionStatus("reflected")`
 
-**Plan (agent mode):**
-```
-You are a software architect. Decompose this agent project goal into 3-6 implementation tasks (files/modules).
-Each task should correspond to a specific component of the agent (e.g., "Core Agent Logic", "Config & Dependencies", "README").
-Return JSON only: [{"id":1,"title":"...","description":"..."}]
-```
+`applyEvolution(onComplete?)`:
+1. `setEvolutionRound(r => r + 1)`
+2. Calls `runAgent(reflection.evolvedGoal, outputMode, onComplete, { evolutionRound: r+1, reflection })`
+3. The extra context is passed to the edge function so plan/execute prompts include it
 
-**Execute (agent mode):**
-```
-You are an expert software engineer building an agent project.
-For each file you create, use EXACTLY this format (no exceptions):
-```language:path/to/filename.ext
-...file content...
-```
-Multiple files per task are allowed. Write complete, production-ready code.
-```
+---
 
-### 3. `useHarnessAgent` changes
-- Add `outputMode: OutputMode` state (default `"text"`)
-- Add `extractedFiles: AgentFile[]` state
-- Pass `outputMode` to Edge Function in plan/execute requests
-- After each task completes: parse output → append to `extractedFiles`
-- Expose `setOutputMode` for GoalInput toggle
-- Clear `extractedFiles` on `reset()`
-- Include `outputMode` + `extractedFiles` in `HistoryEntry` (so history can also ZIP-export)
+## Edge Function Changes
 
-### 4. `GoalInput` mode toggle
-- Two-state pill toggle: `[TASK] [AGENT BUILD]`
-- Only shown when `status === "idle"` (can't switch mid-run)
-- Calls `onModeChange(mode)` prop
-
-### 5. `FileTree` component
-- Shows files grouped by `taskId` (collapsible task group headers)
-- Each file row: language icon (via extension mapping) + path + expand button
-- Expanded: `<pre>` with file content (monospace, scrollable, max-h-48)
-- Header: "X files extracted" + `<ExportActions>` ZIP button
-
-### 6. `exportUtils.ts` addition
-```typescript
-export async function downloadZip(files: AgentFile[], name: string) {
-  const JSZip = (await import("jszip")).default;
-  const zip = new JSZip();
-  files.forEach((f) => zip.file(f.path, f.content));
-  const blob = await zip.generateAsync({ type: "blob" });
-  downloadMarkdown(blob, `${name}.zip`); // reuse download helper
-}
-```
-
-### 7. `ExportActions` ZIP button
-- Show "DOWNLOAD .ZIP" button only when `files` prop is provided and `files.length > 0`
-- Existing Copy/Download .MD buttons unchanged
-
-### 8. i18n keys to add
+Add `evolutionContext` to request body for plan/execute:
 ```json
-"mode": {
-  "task": "TASK",
-  "agent": "AGENT BUILD",
-  "toggle": "Output Mode"
-},
-"fileTree": {
-  "header": "{{count}} files extracted",
-  "expand": "Expand",
-  "collapse": "Collapse"
-},
-"export": {
-  "downloadZip": "DOWNLOAD .ZIP"
+{
+  "mode": "plan",
+  "goal": "...",
+  "outputMode": "text",
+  "evolutionContext": {
+    "round": 2,
+    "qualityScore": 74,
+    "improvements": ["..."],
+    "evolvedGoal": "..."
+  }
 }
 ```
+When `evolutionContext` is present, prepend it to the system prompts.
 
 ---
 
-## Index.tsx layout change
-```tsx
-{extractedFiles.length > 0 && (
-  <FileTree files={extractedFiles} goal={currentGoal} />
-)}
+## i18n Keys
+
+```json
+"evolution": {
+  "evolveBtn": "EVOLVE",
+  "reflecting": "AGENT SELF-REFLECTING...",
+  "qualityScore": "QUALITY SCORE",
+  "strengths": "STRENGTHS",
+  "weaknesses": "WEAKNESSES",
+  "improvements": "IMPROVEMENT DIRECTIONS",
+  "applyBtn": "APPLY EVOLUTION",
+  "dismissBtn": "DISMISS",
+  "roundBadge": "Round {{from}} → Round {{to}}",
+  "maxRounds": "Maximum evolution rounds reached (5)"
+}
 ```
-Placed after `<TaskList>` and before `<TerminalOutput>`.
 
 ---
 
 ## Verification
-1. Toggle to "Agent Build" mode
-2. Enter goal like "Build a Python RSS monitoring agent"
-3. Tasks are planned with agent-oriented descriptions
-4. Each task execution outputs ` ```lang:path ` blocks
-5. FileTree populates as tasks complete
-6. "Download .ZIP" button downloads archive with correct file structure
-7. ZIP contains all extracted source files at correct paths
-8. History detail view also shows ZIP download for agent-mode sessions
+
+1. Run any goal → completion banner + "EVOLVE" button visible
+2. Click EVOLVE → "REFLECTING..." spinner shows, then report appears
+3. Report shows quality score (0-100), 3 sections (strengths/weaknesses/improvements)
+4. Click "APPLY EVOLUTION" → agent re-runs with Round 2 badge
+5. New run uses evolved goal + improvements in prompts
+6. Can repeat up to 5 rounds (button disabled after round 5)
