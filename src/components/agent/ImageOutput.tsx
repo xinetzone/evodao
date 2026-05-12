@@ -12,6 +12,7 @@ interface ImageOutputProps {
   isPolling: boolean;
   error: string | null;
   taskId: string | null;
+  modelName?: string;
   onDownload: (index: number) => Promise<void>;
   onDownloadAll: () => Promise<void>;
 }
@@ -23,6 +24,7 @@ export function ImageOutput({
   isPolling,
   error,
   taskId,
+  modelName,
   onDownload,
   onDownloadAll,
 }: ImageOutputProps) {
@@ -51,9 +53,11 @@ export function ImageOutput({
           {t("imageGen.title")}
         </span>
         <span className="ml-auto flex items-center gap-1.5 text-[9px] text-muted-foreground/50 tracking-widest font-mono">
-          <span className="px-1.5 py-0.5 rounded bg-primary/10 border border-primary/20 text-primary/60">
-            GPT IMAGE 2
-          </span>
+          {modelName && (
+            <span className="px-1.5 py-0.5 rounded bg-primary/10 border border-primary/20 text-primary/60">
+              {modelName.toUpperCase()}
+            </span>
+          )}
           {taskId && (
             <span className="truncate max-w-[120px]" title={taskId}>
               {t("imageGen.taskId")}: {taskId.slice(0, 12)}…

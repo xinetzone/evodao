@@ -27,6 +27,7 @@ const Index = () => {
   const [taskManagerOpen, setTaskManagerOpen] = useState(false);
   const [activeModel, setActiveModel] = useState("GLM 5.1");
   const [lastRunMode, setLastRunMode] = useState<string>("");
+  const [activeImageModelId, setActiveImageModelId] = useState<string>("openai/gpt-image-2");
   // Prompt suggestions state
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [suggestionsLoading, setSuggestionsLoading] = useState(false);
@@ -163,8 +164,9 @@ const Index = () => {
             onRun={(goal, mode, model) => {
               setLastRunMode(mode);
               if (mode === "image") {
-                setActiveModel("GPT Image 2");
-                aiImage.submitAndPoll({ model: "openai/gpt-image-2", prompt: goal, type: "txt_2_img" });
+                setActiveImageModelId(model);
+                setActiveModel(t(`modelSelector.models.${model}.name`, { defaultValue: "Image Model" }));
+                aiImage.submitAndPoll({ model, prompt: goal, type: "txt_2_img" });
               } else {
                 setActiveModel(model.split("/")[1] || model);
                 runAgent(goal, mode, history.addEntry, undefined, model);
@@ -256,6 +258,7 @@ const Index = () => {
               isPolling={aiImage.isPolling}
               error={aiImage.error}
               taskId={aiImage.taskId}
+              modelName={t(`modelSelector.models.${activeImageModelId}.name`, { defaultValue: activeImageModelId })}
               onDownload={aiImage.downloadImage}
               onDownloadAll={aiImage.downloadAllImages}
             />

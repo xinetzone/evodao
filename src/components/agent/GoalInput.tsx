@@ -3,7 +3,7 @@ import { Play, RotateCcw, Square, Wand2, Loader, Sparkles, ImageIcon } from "luc
 import { useTranslation } from "react-i18next";
 import { AgentStatus, OutputMode } from "@/hooks/useEvodaoAgent";
 import { ModelSelector } from "@/components/agent/ModelSelector";
-import { ModelId, getAutoModel } from "@/lib/models";
+import { ModelId, ImageModelId, IMAGE_MODELS, getAutoModel } from "@/lib/models";
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from "@/lib/config";
 import { cn } from "@/lib/utils";
 
@@ -28,6 +28,7 @@ export function GoalInput({
   const [goal, setGoal] = useState("");
   const [outputMode, setOutputMode] = useState<OutputMode>("text");
   const [manualModel, setManualModel] = useState<ModelId | null>(null);
+  const [imageModel, setImageModel] = useState<ImageModelId>("openai/gpt-image-2");
   const [isOptimizing, setIsOptimizing] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -55,7 +56,7 @@ export function GoalInput({
   const handleRun = () => {
     if (!goal.trim() || isRunning) return;
     if (outputMode === "image") {
-      onRun(goal.trim(), "image", "openai/gpt-image-2");
+      onRun(goal.trim(), "image", imageModel);
       return;
     }
     const model = manualModel ?? getAutoModel(outputMode);
@@ -142,11 +143,25 @@ export function GoalInput({
             ))}
           </div>
 
-          {/* Model selector — hidden in image mode (fixed model) */}
+          {/* Image model selector — visible in image mode only */}
           {outputMode === "image" ? (
-            <div className="flex items-center gap-1 px-2 py-1 rounded border border-border bg-card text-[9px] text-primary/60 font-bold tracking-widest">
-              <ImageIcon className="w-2.5 h-2.5" />
-              GPT IMAGE 2
+            <div className="flex items-center gap-0.5 p-0.5 rounded border border-border bg-card">
+              <ImageIcon className="w-2.5 h-2.5 text-primary/50 ml-1.5 shrink-0" />
+              {IMAGE_MODELS.map((m) => (
+                <button
+                  key={m}
+                  onClick={() => setImageModel(m)}
+                  disabled={isRunning}
+                  className={cn(
+                    "px-2 py-0.5 text-[9px] font-bold tracking-widest rounded transition-all duration-150",
+                    imageModel === m
+                      ? "bg-primary text-primary-foreground"
+                      : "text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  {t(`modelSelector.models.${m}.name`)}
+                </button>
+              ))}
             </div>
           ) : (
             <ModelSelector

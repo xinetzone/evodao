@@ -13,6 +13,14 @@ export const MODELS = [
 
 export type ModelId = (typeof MODELS)[number];
 
+/** Image generation models */
+export const IMAGE_MODELS = [
+  "openai/gpt-image-2",
+  "google/gemini-3.1-flash-image-preview",
+] as const;
+
+export type ImageModelId = (typeof IMAGE_MODELS)[number];
+
 /** Auto-selects the optimal model based on output mode */
 export function getAutoModel(outputMode: OutputMode): ModelId {
   if (outputMode === "agent") return "deepseek/deepseek-v4-pro";
