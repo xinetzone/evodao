@@ -7,7 +7,8 @@ import { GoalInput } from "@/components/agent/GoalInput";
 import { TaskList } from "@/components/agent/TaskList";
 import { TerminalOutput } from "@/components/agent/TerminalOutput";
 import { HistoryPanel } from "@/components/agent/HistoryPanel";
-import { AlertCircle, CircleCheck, Trophy, RotateCcw, X } from "lucide-react";
+import { ExportActions } from "@/components/agent/ExportActions";
+import { AlertCircle, Trophy, RotateCcw, X } from "lucide-react";
 
 const Index = () => {
   const { t } = useTranslation();
@@ -137,9 +138,9 @@ const Index = () => {
 
           {/* Completion message */}
           {status === "done" && (
-            <div className="animate-fade-in flex items-center gap-3 px-4 py-3 rounded border border-primary/40 bg-primary/5 terminal-glow">
+            <div className="animate-fade-in flex flex-wrap items-center gap-3 px-4 py-3 rounded border border-primary/40 bg-primary/5 terminal-glow">
               <Trophy className="w-4 h-4 text-primary shrink-0" />
-              <div>
+              <div className="flex-1 min-w-0">
                 <p className="text-xs font-bold text-primary tracking-wider text-glow">
                   {t("index.missionAccomplished")}
                 </p>
@@ -147,7 +148,12 @@ const Index = () => {
                   {t("index.missionDone", { count: tasks.length })}
                 </p>
               </div>
-              <CircleCheck className="w-4 h-4 text-primary ml-auto" />
+              <ExportActions
+                goal={currentGoal}
+                tasks={tasks}
+                taskOutputs={taskOutputs}
+                taskStatuses={taskStatuses}
+              />
             </div>
           )}
 

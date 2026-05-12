@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { X, Trash2, ArrowLeft, Clock, CheckCircle, AlertCircle, ChevronRight } from "lucide-react";
 import { HistoryEntry } from "@/hooks/useAgentHistory";
+import { ExportActions } from "./ExportActions";
 import { cn } from "@/lib/utils";
 
 function relativeTime(ms: number, lang: string): string {
@@ -84,17 +85,17 @@ export function HistoryPanel({ open, onClose, entries, onRemove, onClear }: Hist
         )}
       >
         {/* Panel header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-border shrink-0">
+        <div className="flex items-center gap-2 px-5 py-4 border-b border-border shrink-0">
           {view === "detail" ? (
             <button
               onClick={backToList}
-              className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+              className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors shrink-0"
             >
               <ArrowLeft className="w-3.5 h-3.5" />
               {t("history.back")}
             </button>
           ) : (
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-1">
               <Clock className="w-3.5 h-3.5 text-primary" />
               <span className="text-xs font-bold tracking-widest text-primary">
                 {t("history.title")}
@@ -106,9 +107,23 @@ export function HistoryPanel({ open, onClose, entries, onRemove, onClear }: Hist
               )}
             </div>
           )}
+
+          {/* Export actions shown in detail view */}
+          {view === "detail" && selected && (
+            <div className="flex-1 flex justify-end">
+              <ExportActions
+                goal={selected.goal}
+                tasks={selected.tasks}
+                taskOutputs={selected.taskOutputs}
+                taskStatuses={selected.taskStatuses}
+                compact
+              />
+            </div>
+          )}
+
           <button
             onClick={handleClose}
-            className="p-1 rounded text-muted-foreground hover:text-foreground transition-colors"
+            className="p-1 rounded text-muted-foreground hover:text-foreground transition-colors shrink-0"
           >
             <X className="w-4 h-4" />
           </button>

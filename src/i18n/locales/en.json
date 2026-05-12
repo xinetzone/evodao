@@ -40,6 +40,11 @@
     "failed": "FAILED",
     "generating": "Generating output..."
   },
+  "export": {
+    "copy": "COPY",
+    "copied": "COPIED!",
+    "download": "DOWNLOAD .MD"
+  },
   "history": {
     "title": "HISTORY",
     "empty": "No completed sessions yet",
