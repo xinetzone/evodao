@@ -116,6 +116,7 @@ export function HistoryPanel({ open, onClose, entries, onRemove, onClear }: Hist
                 tasks={selected.tasks}
                 taskOutputs={selected.taskOutputs}
                 taskStatuses={selected.taskStatuses}
+                extractedFiles={selected.outputMode === "agent" ? (selected.extractedFiles ?? []) : undefined}
                 compact
               />
             </div>

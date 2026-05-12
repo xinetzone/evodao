@@ -43,7 +43,9 @@
   "export": {
     "copy": "COPY",
     "copied": "COPIED!",
-    "download": "DOWNLOAD .MD"
+    "download": "DOWNLOAD .MD",
+    "downloadZip": "DOWNLOAD .ZIP",
+    "zipping": "PACKING..."
   },
   "history": {
     "title": "HISTORY",
@@ -59,6 +61,16 @@
     "tasksProgress": "{{done}} of {{total}} tasks completed",
     "resumeBtn": "RESUME",
     "dismissBtn": "DISMISS"
+  },
+  "agentMode": {
+    "taskMode": "Task Mode",
+    "agentBuild": "Agent Build",
+    "agentBuildHint": "LLM outputs structured code files for ZIP export"
+  },
+  "fileTree": {
+    "title": "FILES",
+    "copy": "Copy",
+    "copied": "Copied"
   },
   "index": {
     "planning": "ANALYZING GOAL — DECOMPOSING INTO SUB-TASKS...",

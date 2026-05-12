@@ -1,4 +1,5 @@
-import { Task, TaskStatus } from "@/hooks/useHarnessAgent";
+import { Task, TaskStatus, AgentFile } from "@/hooks/useHarnessAgent";
+import JSZip from "jszip";
 
 export function buildMarkdown(
   goal: string,
@@ -34,6 +35,19 @@ export function buildMarkdown(
 
 export function downloadMarkdown(content: string, filename: string) {
   const blob = new Blob([content], { type: "text/markdown;charset=utf-8" });
+  downloadBlob(blob, filename);
+}
+
+export function slugify(text: string, maxLen = 40): string {
+  return text
+    .toLowerCase()
+    .replace(/[^\w\s-]/g, "")
+    .trim()
+    .replace(/\s+/g, "-")
+    .substring(0, maxLen);
+}
+
+function downloadBlob(blob: Blob, filename: string) {
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
@@ -44,11 +58,9 @@ export function downloadMarkdown(content: string, filename: string) {
   URL.revokeObjectURL(url);
 }
 
-export function slugify(text: string, maxLen = 40): string {
-  return text
-    .toLowerCase()
-    .replace(/[^\w\s-]/g, "")
-    .trim()
-    .replace(/\s+/g, "-")
-    .substring(0, maxLen);
+export async function downloadZip(files: AgentFile[], goalSlug: string) {
+  const zip = new JSZip();
+  files.forEach((f) => zip.file(f.path, f.content));
+  const blob = await zip.generateAsync({ type: "blob" });
+  downloadBlob(blob, `harness-${goalSlug}.zip`);
 }

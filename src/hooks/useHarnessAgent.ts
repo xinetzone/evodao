@@ -1,14 +1,23 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { fetchEventSource } from "@microsoft/fetch-event-source";
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from "@/lib/config";
+import { parseFilesFromOutput } from "@/lib/parseFiles";
 
 export type AgentStatus = "idle" | "planning" | "executing" | "done" | "error";
 export type TaskStatus = "pending" | "running" | "completed" | "error";
+export type OutputMode = "text" | "agent";
 
 export interface Task {
   id: number;
   title: string;
   description: string;
+}
+
+export interface AgentFile {
+  path: string;
+  content: string;
+  language: string;
+  taskId: number;
 }
 
 export interface HistoryEntry {
@@ -18,6 +27,8 @@ export interface HistoryEntry {
   taskOutputs: Record<number, string>;
   taskStatuses: Record<number, TaskStatus>;
   completedAt: number;
+  outputMode?: OutputMode;
+  extractedFiles?: AgentFile[];
 }
 
 export interface SavedSession {
@@ -26,6 +37,8 @@ export interface SavedSession {
   taskStatuses: Record<number, TaskStatus>;
   taskOutputs: Record<number, string>;
   savedAt: number;
+  outputMode?: OutputMode;
+  extractedFiles?: AgentFile[];
 }
 
 const STORAGE_KEY = "harness-agent-session";
@@ -51,7 +64,6 @@ function loadSavedSession(): SavedSession | null {
     const data = localStorage.getItem(STORAGE_KEY);
     if (!data) return null;
     const session = JSON.parse(data) as SavedSession;
-    // Only return if there are incomplete tasks
     const hasIncomplete = session.tasks.some(
       (t) => session.taskStatuses[t.id] !== "completed"
     );
@@ -69,18 +81,19 @@ export function useHarnessAgent() {
   const [activeTaskId, setActiveTaskId] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [currentGoal, setCurrentGoal] = useState<string>("");
+  const [outputMode, setOutputMode] = useState<OutputMode>("text");
+  const [extractedFiles, setExtractedFiles] = useState<AgentFile[]>([]);
   const [savedSession, setSavedSession] = useState<SavedSession | null>(loadSavedSession);
 
   const abortControllerRef = useRef<AbortController | null>(null);
-  // Keep a ref of taskOutputs to read in the save effect without triggering it on every chunk
   const taskOutputsRef = useRef<Record<number, string>>({});
+  const extractedFilesRef = useRef<AgentFile[]>([]);
 
-  // Sync ref with state
-  useEffect(() => {
-    taskOutputsRef.current = taskOutputs;
-  }, [taskOutputs]);
+  // Sync refs with state
+  useEffect(() => { taskOutputsRef.current = taskOutputs; }, [taskOutputs]);
+  useEffect(() => { extractedFilesRef.current = extractedFiles; }, [extractedFiles]);
 
-  // Auto-save: fires when task statuses or task list changes (not on every streaming chunk)
+  // Auto-save: fires when task statuses or task list changes
   useEffect(() => {
     if (tasks.length === 0 || !currentGoal) return;
 
@@ -89,7 +102,6 @@ export function useHarnessAgent() {
       return;
     }
 
-    // Normalize "running" → "pending" so resume always starts clean
     const normalizedStatuses: Record<number, TaskStatus> = {};
     const savedOutputs: Record<number, string> = {};
     tasks.forEach((t) => {
@@ -106,9 +118,11 @@ export function useHarnessAgent() {
       taskStatuses: normalizedStatuses,
       taskOutputs: savedOutputs,
       savedAt: Date.now(),
+      outputMode,
+      extractedFiles: extractedFilesRef.current,
     };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(session));
-  }, [tasks, taskStatuses, status, currentGoal]);
+  }, [tasks, taskStatuses, status, currentGoal, outputMode]);
 
   const reset = useCallback(() => {
     abortControllerRef.current?.abort();
@@ -121,6 +135,8 @@ export function useHarnessAgent() {
     setActiveTaskId(null);
     setError(null);
     setCurrentGoal("");
+    setOutputMode("text");
+    setExtractedFiles([]);
   }, []);
 
   const dismissSavedSession = useCallback(() => {
@@ -130,14 +146,14 @@ export function useHarnessAgent() {
 
   // ── Core helpers ──────────────────────────────────────────────────────────
 
-  const planTasks = async (goal: string): Promise<Task[]> => {
+  const planTasks = async (goal: string, mode: OutputMode): Promise<Task[]> => {
     const response = await fetch(EDGE_FUNCTION_URL, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
       },
-      body: JSON.stringify({ mode: "plan", goal }),
+      body: JSON.stringify({ mode: "plan", goal, outputMode: mode }),
     });
 
     if (!response.ok) {
@@ -156,6 +172,7 @@ export function useHarnessAgent() {
     goal: string,
     task: Task,
     context: string[],
+    mode: OutputMode,
     onChunk: (chunk: string) => void
   ): Promise<void> => {
     return new Promise((resolve, reject) => {
@@ -176,7 +193,7 @@ export function useHarnessAgent() {
           "Content-Type": "application/json",
           Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
         },
-        body: JSON.stringify({ mode: "execute", goal, task, context }),
+        body: JSON.stringify({ mode: "execute", goal, task, context, outputMode: mode }),
         signal: controller.signal,
 
         async onopen(response) {
@@ -249,21 +266,27 @@ export function useHarnessAgent() {
     });
   };
 
-  // Shared execution loop — used by both runAgent and resumeAgent
+  // Shared execution loop
   const runExecutionLoop = async (
     goal: string,
     plannedTasks: Task[],
     startStatuses: Record<number, TaskStatus>,
     startOutputs: Record<number, string>,
+    mode: OutputMode,
+    startFiles: AgentFile[],
     onComplete?: (entry: HistoryEntry) => void
   ) => {
-    // Build context from already-completed tasks
     const completedSummaries: string[] = plannedTasks
       .filter((t) => startStatuses[t.id] === "completed")
       .map((t) => {
         const out = startOutputs[t.id] || "";
         return `[Task ${t.id}: ${t.title}]\n${out.substring(0, 400)}${out.length > 400 ? "..." : ""}`;
       });
+
+    // Restore any files from resumed session
+    if (startFiles.length > 0) {
+      setExtractedFiles(startFiles);
+    }
 
     for (const task of plannedTasks) {
       if (startStatuses[task.id] === "completed") continue;
@@ -275,7 +298,7 @@ export function useHarnessAgent() {
       let taskContent = "";
 
       try {
-        await executeTask(goal, task, completedSummaries, (chunk) => {
+        await executeTask(goal, task, completedSummaries, mode, (chunk) => {
           taskContent += chunk;
           setTaskOutputs((prev) => ({
             ...prev,
@@ -284,6 +307,15 @@ export function useHarnessAgent() {
         });
 
         setTaskStatuses((prev) => ({ ...prev, [task.id]: "completed" }));
+
+        // Parse files in agent mode
+        if (mode === "agent") {
+          const newFiles = parseFilesFromOutput(taskContent, task.id);
+          if (newFiles.length > 0) {
+            setExtractedFiles((prev) => [...prev, ...newFiles]);
+          }
+        }
+
         completedSummaries.push(
           `[Task ${task.id}: ${task.title}]\n${taskContent.substring(0, 400)}${taskContent.length > 400 ? "..." : ""}`
         );
@@ -306,6 +338,8 @@ export function useHarnessAgent() {
         taskOutputs: { ...taskOutputsRef.current },
         taskStatuses: finalStatuses,
         completedAt: Date.now(),
+        outputMode: mode,
+        extractedFiles: [...extractedFilesRef.current],
       });
     }
 
@@ -314,18 +348,24 @@ export function useHarnessAgent() {
 
   // ── Public actions ────────────────────────────────────────────────────────
 
-  const runAgent = useCallback(async (goal: string, onComplete?: (entry: HistoryEntry) => void) => {
+  const runAgent = useCallback(async (
+    goal: string,
+    mode: OutputMode = "text",
+    onComplete?: (entry: HistoryEntry) => void
+  ) => {
     setCurrentGoal(goal);
+    setOutputMode(mode);
     setStatus("planning");
     setError(null);
     setTasks([]);
     setTaskStatuses({});
     setTaskOutputs({});
     setActiveTaskId(null);
+    setExtractedFiles([]);
     setSavedSession(null);
 
     try {
-      const plannedTasks = await planTasks(goal);
+      const plannedTasks = await planTasks(goal, mode);
       setTasks(plannedTasks);
 
       const initialStatuses: Record<number, TaskStatus> = {};
@@ -333,7 +373,7 @@ export function useHarnessAgent() {
       setTaskStatuses(initialStatuses);
 
       setStatus("executing");
-      await runExecutionLoop(goal, plannedTasks, initialStatuses, {}, onComplete);
+      await runExecutionLoop(goal, plannedTasks, initialStatuses, {}, mode, [], onComplete);
     } catch (err: unknown) {
       if (err instanceof Error && err.name === "AbortError") return;
       setError(err instanceof Error ? err.message : "Agent failed");
@@ -345,9 +385,17 @@ export function useHarnessAgent() {
   const resumeAgent = useCallback(async (onComplete?: (entry: HistoryEntry) => void) => {
     if (!savedSession) return;
 
-    const { goal, tasks: rTasks, taskStatuses: rStatuses, taskOutputs: rOutputs } = savedSession;
+    const {
+      goal,
+      tasks: rTasks,
+      taskStatuses: rStatuses,
+      taskOutputs: rOutputs,
+      outputMode: rMode = "text",
+      extractedFiles: rFiles = [],
+    } = savedSession;
 
     setCurrentGoal(goal);
+    setOutputMode(rMode);
     setTasks(rTasks);
     setTaskStatuses(rStatuses);
     setTaskOutputs(rOutputs);
@@ -356,7 +404,7 @@ export function useHarnessAgent() {
     setSavedSession(null);
 
     try {
-      await runExecutionLoop(goal, rTasks, rStatuses, rOutputs, onComplete);
+      await runExecutionLoop(goal, rTasks, rStatuses, rOutputs, rMode, rFiles, onComplete);
     } catch (err: unknown) {
       if (err instanceof Error && err.name === "AbortError") return;
       setError(err instanceof Error ? err.message : "Agent failed");
@@ -373,6 +421,8 @@ export function useHarnessAgent() {
     activeTaskId,
     error,
     currentGoal,
+    outputMode,
+    extractedFiles,
     savedSession,
     runAgent,
     resumeAgent,

@@ -6,6 +6,7 @@ import { AgentHeader } from "@/components/agent/AgentHeader";
 import { GoalInput } from "@/components/agent/GoalInput";
 import { TaskList } from "@/components/agent/TaskList";
 import { TerminalOutput } from "@/components/agent/TerminalOutput";
+import { FileTree } from "@/components/agent/FileTree";
 import { HistoryPanel } from "@/components/agent/HistoryPanel";
 import { ExportActions } from "@/components/agent/ExportActions";
 import { AlertCircle, Trophy, RotateCcw, X } from "lucide-react";
@@ -22,6 +23,8 @@ const Index = () => {
     activeTaskId,
     error,
     currentGoal,
+    outputMode,
+    extractedFiles,
     savedSession,
     runAgent,
     resumeAgent,
@@ -55,7 +58,11 @@ const Index = () => {
             }}
           />
 
-          <GoalInput status={status} onRun={(goal) => runAgent(goal, history.addEntry)} onReset={reset} />
+          <GoalInput
+            status={status}
+            onRun={(goal, mode) => runAgent(goal, mode, history.addEntry)}
+            onReset={reset}
+          />
 
           {/* Resume banner */}
           {savedSession && status === "idle" && (
@@ -136,6 +143,11 @@ const Index = () => {
             activeTaskId={activeTaskId}
           />
 
+          {/* File tree — shown in agent build mode when files are extracted */}
+          {extractedFiles.length > 0 && (
+            <FileTree files={extractedFiles} tasks={tasks} />
+          )}
+
           {/* Completion message */}
           {status === "done" && (
             <div className="animate-fade-in flex flex-wrap items-center gap-3 px-4 py-3 rounded border border-primary/40 bg-primary/5 terminal-glow">
@@ -153,6 +165,7 @@ const Index = () => {
                 tasks={tasks}
                 taskOutputs={taskOutputs}
                 taskStatuses={taskStatuses}
+                extractedFiles={outputMode === "agent" ? extractedFiles : undefined}
               />
             </div>
           )}

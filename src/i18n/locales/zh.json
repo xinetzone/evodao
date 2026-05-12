@@ -43,7 +43,9 @@
   "export": {
     "copy": "复制",
     "copied": "已复制",
-    "download": "下载 .MD"
+    "download": "下载 .MD",
+    "downloadZip": "下载 .ZIP",
+    "zipping": "打包中..."
   },
   "history": {
     "title": "历史记录",
@@ -59,6 +61,16 @@
     "tasksProgress": "已完成 {{done}} / {{total}} 个任务",
     "resumeBtn": "继续执行",
     "dismissBtn": "忽略"
+  },
+  "agentMode": {
+    "taskMode": "任务模式",
+    "agentBuild": "智能体构建",
+    "agentBuildHint": "LLM 输出结构化代码文件，可导出为 ZIP"
+  },
+  "fileTree": {
+    "title": "生成文件",
+    "copy": "复制",
+    "copied": "已复制"
   },
   "index": {
     "planning": "分析目标中 — 正在拆解子任务...",

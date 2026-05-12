@@ -1,18 +1,19 @@
 import { useState, useRef } from "react";
 import { Play, RotateCcw, Square } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { AgentStatus } from "@/hooks/useHarnessAgent";
+import { AgentStatus, OutputMode } from "@/hooks/useHarnessAgent";
 import { cn } from "@/lib/utils";
 
 interface GoalInputProps {
   status: AgentStatus;
-  onRun: (goal: string) => void;
+  onRun: (goal: string, outputMode: OutputMode) => void;
   onReset: () => void;
 }
 
 export function GoalInput({ status, onRun, onReset }: GoalInputProps) {
   const { t } = useTranslation();
   const [goal, setGoal] = useState("");
+  const [outputMode, setOutputMode] = useState<OutputMode>("text");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const placeholders: string[] = t("goalInput.placeholders", { returnObjects: true }) as string[];
@@ -24,7 +25,7 @@ export function GoalInput({ status, onRun, onReset }: GoalInputProps) {
 
   const handleRun = () => {
     if (!goal.trim() || isRunning) return;
-    onRun(goal.trim());
+    onRun(goal.trim(), outputMode);
   };
 
   const handleReset = () => {
@@ -42,12 +43,49 @@ export function GoalInput({ status, onRun, onReset }: GoalInputProps) {
 
   return (
     <div className="animate-fade-in">
-      {/* Terminal prompt header */}
-      <div className="flex items-center gap-2 mb-3 text-xs text-muted-foreground">
-        <span className="text-primary">$</span>
-        <span className="tracking-wider">{t("goalInput.prompt")}</span>
-        <span className="text-muted-foreground/40">{t("goalInput.hint")}</span>
+      {/* Mode toggle + prompt header */}
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+          <span className="text-primary">$</span>
+          <span className="tracking-wider">{t("goalInput.prompt")}</span>
+          <span className="text-muted-foreground/40">{t("goalInput.hint")}</span>
+        </div>
+
+        {/* Mode toggle pills */}
+        <div className="flex items-center gap-0.5 p-0.5 rounded border border-border bg-card">
+          <button
+            onClick={() => setOutputMode("text")}
+            disabled={isRunning}
+            className={cn(
+              "px-2.5 py-1 text-[10px] font-semibold tracking-widest rounded transition-all duration-150",
+              outputMode === "text"
+                ? "bg-primary text-primary-foreground"
+                : "text-muted-foreground hover:text-foreground"
+            )}
+          >
+            {t("agentMode.taskMode")}
+          </button>
+          <button
+            onClick={() => setOutputMode("agent")}
+            disabled={isRunning}
+            className={cn(
+              "px-2.5 py-1 text-[10px] font-semibold tracking-widest rounded transition-all duration-150",
+              outputMode === "agent"
+                ? "bg-primary text-primary-foreground"
+                : "text-muted-foreground hover:text-foreground"
+            )}
+          >
+            {t("agentMode.agentBuild")}
+          </button>
+        </div>
       </div>
+
+      {/* Agent build mode hint */}
+      {outputMode === "agent" && (
+        <p className="text-[10px] text-primary/60 tracking-wider mb-2 pl-4 border-l border-primary/30">
+          {t("agentMode.agentBuildHint")}
+        </p>
+      )}
 
       {/* Input area */}
       <div
@@ -55,6 +93,8 @@ export function GoalInput({ status, onRun, onReset }: GoalInputProps) {
           "relative rounded border bg-card transition-all duration-300",
           isRunning
             ? "border-primary/60 terminal-glow"
+            : outputMode === "agent"
+            ? "border-primary/30 hover:border-primary/50 focus-within:border-primary/60 focus-within:terminal-glow"
             : "border-border hover:border-primary/40 focus-within:border-primary/60 focus-within:terminal-glow"
         )}
       >

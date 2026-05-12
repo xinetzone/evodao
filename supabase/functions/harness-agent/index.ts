@@ -5,6 +5,40 @@ const corsHeaders = {
 
 const API_BASE = "https://api.enter.pro/code/api/v1/ai/chat/completions";
 
+function getPlanSystemPrompt(outputMode: string): string {
+  if (outputMode === "agent") {
+    return `You are a senior software architect planning the implementation of an agent project.
+Decompose the goal into 3-6 implementation tasks. Each task should produce one or more concrete code files.
+Return ONLY a valid JSON array with no markdown fences, no explanation. Use this exact format:
+[{"id":1,"title":"Short Task Title","description":"One or two sentences describing what files this task creates."},{"id":2,"title":"...","description":"..."}]`;
+  }
+  return `You are a precise task planning agent. Given a goal, decompose it into 3-6 concrete, actionable sub-tasks.
+Return ONLY a valid JSON array with no markdown fences, no explanation, no extra text. Use this exact format:
+[{"id":1,"title":"Short Task Title","description":"One or two sentences describing what this task involves."},{"id":2,"title":"...","description":"..."}]`;
+}
+
+function getExecuteSystemPrompt(outputMode: string): string {
+  if (outputMode === "agent") {
+    return `You are an expert software engineer implementing part of an agent project.
+For EVERY file you create, you MUST use this exact format (language:filepath on the opening fence):
+
+\`\`\`python:src/agent.py
+# full file content here
+\`\`\`
+
+\`\`\`json:config/settings.json
+{ "key": "value" }
+\`\`\`
+
+Rules:
+- Use realistic relative file paths (e.g. src/agent.py, config/settings.json, README.md)
+- Write complete, working code — no placeholders or TODOs
+- Multiple files per task is encouraged
+- Always include a README.md with setup and usage instructions in the first or last task`;
+  }
+  return `You are a skilled execution agent. Carry out assigned tasks thoroughly and produce high-quality, detailed outputs. Be specific, practical, and thorough. Use clear structure with headers and bullet points where helpful.`;
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -17,10 +51,9 @@ Deno.serve(async (req) => {
       throw new Error("AI_API_TOKEN is not configured");
     }
 
-    const { mode, goal, task, context } = await req.json();
+    const { mode, goal, task, context, outputMode = "text" } = await req.json();
 
     if (mode === "plan") {
-      // Non-streaming: decompose goal into sub-tasks
       const response = await fetch(API_BASE, {
         method: "POST",
         headers: {
@@ -32,9 +65,7 @@ Deno.serve(async (req) => {
           messages: [
             {
               role: "system",
-              content: `You are a precise task planning agent. Given a goal, decompose it into 3-6 concrete, actionable sub-tasks.
-Return ONLY a valid JSON array with no markdown fences, no explanation, no extra text. Use this exact format:
-[{"id":1,"title":"Short Task Title","description":"One or two sentences describing what this task involves."},{"id":2,"title":"...","description":"..."}]`,
+              content: getPlanSystemPrompt(outputMode),
             },
             {
               role: "user",
@@ -64,12 +95,28 @@ Return ONLY a valid JSON array with no markdown fences, no explanation, no extra
       return new Response(JSON.stringify({ tasks }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
+
     } else if (mode === "execute") {
-      // Streaming: execute a specific task
       const contextSection =
         context && context.length > 0
           ? `\n\nContext from previously completed tasks:\n${context.join("\n\n")}`
           : "";
+
+      const userPrompt = outputMode === "agent"
+        ? `Overall Goal: ${goal}
+
+Current Task:
+Title: ${task.title}
+Description: ${task.description}${contextSection}
+
+Implement this task completely. Output every file using the \`\`\`language:path format. Write full, working code.`
+        : `Overall Goal: ${goal}
+
+Current Task to Execute:
+Title: ${task.title}
+Description: ${task.description}${contextSection}
+
+Please execute this task completely and provide detailed, actionable output.`;
 
       const response = await fetch(API_BASE, {
         method: "POST",
@@ -82,17 +129,11 @@ Return ONLY a valid JSON array with no markdown fences, no explanation, no extra
           messages: [
             {
               role: "system",
-              content: `You are a skilled execution agent. Carry out assigned tasks thoroughly and produce high-quality, detailed outputs. Be specific, practical, and thorough. Use clear structure with headers and bullet points where helpful.`,
+              content: getExecuteSystemPrompt(outputMode),
             },
             {
               role: "user",
-              content: `Overall Goal: ${goal}
-
-Current Task to Execute:
-Title: ${task.title}
-Description: ${task.description}${contextSection}
-
-Please execute this task completely and provide detailed, actionable output.`,
+              content: userPrompt,
             },
           ],
           stream: true,
@@ -125,6 +166,7 @@ Please execute this task completely and provide detailed, actionable output.`,
           "Cache-Control": "no-cache",
         },
       });
+
     } else {
       throw new Error(`Unknown mode: ${mode}`);
     }
