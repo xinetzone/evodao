@@ -23,6 +23,7 @@
     "abort": "ABORT",
     "execute": "EXECUTE",
     "send": "SEND",
+    "generate": "GENERATE",
     "optimize": "OPTIMIZE",
     "optimizing": "OPTIMIZING...",
     "optimizeTitle": "Optimize prompt with AI",
@@ -65,7 +66,23 @@
     "generating": "Generating image, please wait...",
     "download": "Download",
     "downloadAll": "Download All ({{count}})",
-    "imageAlt": "Generated image"
+    "imageAlt": "Generated image",
+    "errors": {
+      "authentication_error": "Authentication failed, please refresh the page",
+      "rate_limit_error": "Too many requests, please try again later",
+      "invalid_request_error": "Invalid request, please try again",
+      "overloaded_error": "Service is busy, please try again later",
+      "insufficient_credits": "AI credits exhausted, please contact admin",
+      "permission_error": "AI feature not enabled, please contact admin",
+      "api_error": "AI service temporarily unavailable",
+      "not_found_error": "Resource not found",
+      "internal_error": "Internal error, please try again later",
+      "configuration_error": "AI service not configured",
+      "network_error": "Network connection error, please check your connection",
+      "fetch_error": "Network request failed, please try again later",
+      "timeout_error": "Image generation timed out, please try again",
+      "poll_error": "Failed to get task status"
+    }
   },
   "taskList": {
     "heading": "TASK DECOMPOSITION",
@@ -132,7 +149,7 @@
       "Explain the CAP theorem"
     ],
     "imageGen": "Image Gen",
-    "imageGenHint": "Describe an image in natural language — GPT Image 2 generates it",
+    "imageGenHint": "Describe an image in natural language — AI will generate it for you",
     "imageGenPlaceholders": [
       "Cyberpunk futuristic cityscape at night with neon reflections on rain-soaked streets",
       "Minimalist black and white abstract landscape painting",
@@ -206,6 +223,8 @@
       { "label": "AUTO PLAN",   "desc": "Agent decomposes your goal into concrete sub-tasks" },
       { "label": "PARALLEL EXEC", "desc": "All sub-tasks execute in parallel with live output" }
     ],
-    "footer": "EVODAO © 2026"
+    "footer": "EVODAO © 2026",
+    "protocolLLM": "openai_chat_completions",
+    "protocolImage": "image_generation"
   }
 }

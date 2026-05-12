@@ -324,7 +324,7 @@ export function GoalInput({
                   )}
                 >
                   <Play className="w-3 h-3" />
-                  {outputMode === "qa" ? t("goalInput.send") : t("goalInput.execute")}
+                  {outputMode === "qa" ? t("goalInput.send") : outputMode === "image" ? t("goalInput.generate") : t("goalInput.execute")}
                 </button>
               )}
             </div>

@@ -1,4 +1,5 @@
 import { useCallback, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   FunctionsFetchError,
   FunctionsHttpError,
@@ -38,23 +39,15 @@ interface TaskStatusResponse {
   error?: string;
 }
 
-const FALLBACK_MESSAGES: Record<string, string> = {
-  authentication_error: "认证失败，请刷新页面。",
-  rate_limit_error: "请求过于频繁，请稍后再试。",
-  invalid_request_error: "请求无效，请重试。",
-  overloaded_error: "服务繁忙，请稍后再试。",
-  insufficient_credits: "AI 额度已耗尽，请联系管理员。",
-  permission_error: "AI 功能未启用，请联系管理员。",
-  api_error: "服务暂时不可用。",
-  not_found_error: "资源不存在。",
-  internal_error: "内部错误，请稍后再试。",
-  configuration_error: "AI 服务未配置。",
-};
+const ERROR_CODES = [
+  "authentication_error", "rate_limit_error", "invalid_request_error",
+  "overloaded_error", "insufficient_credits", "permission_error",
+  "api_error", "not_found_error", "internal_error", "configuration_error",
+] as const;
+type ErrorCode = (typeof ERROR_CODES)[number];
 
-function getUserMessage(code?: string, backendMessage?: string): string {
-  if (backendMessage) return backendMessage;
-  if (code) return FALLBACK_MESSAGES[code] || "服务暂时不可用。";
-  return "服务暂时不可用。";
+function isKnownCode(code: string): code is ErrorCode {
+  return ERROR_CODES.includes(code as ErrorCode);
 }
 
 async function downloadImageFile(url: string, filename: string) {
@@ -71,7 +64,14 @@ async function downloadImageFile(url: string, filename: string) {
 }
 
 export function useAIImage() {
+  const { t } = useTranslation();
   const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  const getUserMessage = useCallback((code?: string, backendMessage?: string): string => {
+    if (backendMessage) return backendMessage;
+    if (code && isKnownCode(code)) return t(`imageGen.errors.${code}`);
+    return t("imageGen.errors.api_error");
+  }, [t]);
   const [images, setImages] = useState<GeneratedImage[]>([]);
   const [taskId, setTaskId] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -84,14 +84,14 @@ export function useAIImage() {
       throw new Error(getUserMessage((errorBody as Record<string, string>).code, (errorBody as Record<string, string>).message));
     }
     if (invokeError instanceof FunctionsRelayError) {
-      throw new Error("网络连接错误，请检查网络后重试。");
+      throw new Error(t("imageGen.errors.network_error"));
     }
     if (invokeError instanceof FunctionsFetchError) {
-      throw new Error("网络请求失败，请稍后再试。");
+      throw new Error(t("imageGen.errors.fetch_error"));
     }
     if (invokeError instanceof Error) throw invokeError;
-    throw new Error("网络请求失败");
-  }, []);
+    throw new Error(t("imageGen.errors.fetch_error"));
+  }, [getUserMessage, t]);
 
   const submit = useCallback(async (options: GenerateImageOptions) => {
     setError(null);
@@ -121,19 +121,19 @@ export function useAIImage() {
 
       if (invokeError) await handleInvokeError(invokeError);
       if (!data?.success || !data.task_id) {
-        throw new Error(getUserMessage(data?.code, data?.message || "图像生成失败"));
+        throw new Error(getUserMessage(data?.code, data?.message || t("imageGen.errors.api_error")));
       }
 
       setTaskId(data.task_id);
       return data.task_id;
     } catch (err) {
-      const message = err instanceof Error ? err.message : "提交图像生成失败";
+      const message = err instanceof Error ? err.message : t("imageGen.errors.api_error");
       setError(message);
       return null;
     } finally {
       setIsSubmitting(false);
     }
-  }, [handleInvokeError, supabase]);
+  }, [handleInvokeError, getUserMessage, t, supabase]);
 
   const poll = useCallback(async (currentTaskId: string, maxAttempts = 60) => {
     setError(null);
@@ -147,8 +147,8 @@ export function useAIImage() {
         );
 
         if (invokeError) await handleInvokeError(invokeError);
-        if (!data) throw new Error("未获取到任务状态");
-        if (data.status === "failed") throw new Error(data.error || "图像生成失败");
+        if (!data) throw new Error(t("imageGen.errors.poll_error"));
+        if (data.status === "failed") throw new Error(data.error || t("imageGen.errors.api_error"));
         if (data.status === "succeed") {
           const nextImages = data.images || [];
           setImages(nextImages);
@@ -157,15 +157,15 @@ export function useAIImage() {
 
         await new Promise((resolve) => setTimeout(resolve, 2000));
       }
-      throw new Error("图像生成超时，请重试");
+      throw new Error(t("imageGen.errors.timeout_error"));
     } catch (err) {
-      const message = err instanceof Error ? err.message : "轮询图像生成状态失败";
+      const message = err instanceof Error ? err.message : t("imageGen.errors.poll_error");
       setError(message);
       return null;
     } finally {
       setIsPolling(false);
     }
-  }, [handleInvokeError, supabase]);
+  }, [handleInvokeError, t, supabase]);
 
   const submitAndPoll = useCallback(async (options: GenerateImageOptions) => {
     const nextTaskId = await submit(options);

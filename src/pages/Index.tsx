@@ -231,8 +231,8 @@ const Index = () => {
             </div>
           )}
 
-          {/* Error banner */}
-          {error && (
+          {/* Error banner — agent errors only, hidden during image runs */}
+          {error && lastRunMode !== "image" && (
             <div className="animate-fade-in flex items-start gap-3 px-4 py-3 rounded border border-destructive/40 bg-destructive/10">
               <AlertCircle className="w-4 h-4 text-destructive shrink-0 mt-0.5" />
               <div>
@@ -285,7 +285,7 @@ const Index = () => {
           )}
 
           {/* Completion message — task/agent modes only */}
-          {status === "done" && outputMode !== "qa" && (
+          {status === "done" && outputMode !== "qa" && lastRunMode !== "image" && (
             <div className="animate-fade-in flex flex-wrap items-center gap-3 px-4 py-3 rounded border border-primary/40 bg-primary/5 terminal-glow">
               <Trophy className="w-4 h-4 text-primary shrink-0" />
               <div className="flex-1 min-w-0">
@@ -307,7 +307,7 @@ const Index = () => {
           )}
 
           {/* Evolution panel — task/agent modes only */}
-          {(status === "done" || evolutionStatus !== "idle") && outputMode !== "qa" && (
+          {(status === "done" || evolutionStatus !== "idle") && outputMode !== "qa" && lastRunMode !== "image" && (
             <EvolutionPanel
               evolutionStatus={evolutionStatus}
               reflection={reflection}
@@ -368,7 +368,7 @@ const Index = () => {
               {activeModel}
             </span>
             <span>|</span>
-            <span>openai_chat_completions</span>
+            <span>{lastRunMode === "image" ? t("index.protocolImage") : t("index.protocolLLM")}</span>
           </div>
           <div className="text-[10px] text-muted-foreground tracking-wider">
             {t("index.footer")}
