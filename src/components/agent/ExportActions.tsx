@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Copy, Download, Check, Package } from "lucide-react";
-import { Task, TaskStatus, AgentFile } from "@/hooks/useHarnessAgent";
+import { Task, TaskStatus, AgentFile } from "@/hooks/useEvodaoAgent";
 import { buildMarkdown, downloadMarkdown, downloadZip, slugify } from "@/lib/exportUtils";
 import { cn } from "@/lib/utils";
 
@@ -37,7 +37,7 @@ export function ExportActions({
 
   const handleDownloadMd = () => {
     const md = buildMarkdown(goal, tasks, taskOutputs, taskStatuses);
-    const filename = `harness-${slugify(goal)}.md`;
+    const filename = `evodao-${slugify(goal)}.md`;
     downloadMarkdown(md, filename);
   };
 

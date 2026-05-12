@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback } from "react";
-import { Task, TaskStatus, AgentStatus, OutputMode } from "@/hooks/useHarnessAgent";
+import { Task, TaskStatus, AgentStatus, OutputMode } from "@/hooks/useEvodaoAgent";
 import { planTasksCore, executeTaskCore } from "@/lib/agentCore";
 
 export interface AgentSession {

@@ -1,6 +1,6 @@
 import { Check, Loader, AlertCircle, Clock } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { Task, TaskStatus } from "@/hooks/useHarnessAgent";
+import { Task, TaskStatus } from "@/hooks/useEvodaoAgent";
 import { cn } from "@/lib/utils";
 
 interface TaskListProps {

@@ -7,7 +7,7 @@ export function LanguageSwitcher() {
 
   const toggle = (lang: string) => {
     i18n.changeLanguage(lang);
-    localStorage.setItem("harness-lang", lang);
+    localStorage.setItem("evodao-lang", lang);
   };
 
   return (

@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { ChevronDown, Cpu, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { OutputMode } from "@/hooks/useHarnessAgent";
+import { OutputMode } from "@/hooks/useEvodaoAgent";
 import { MODELS, ModelId, getAutoModel } from "@/lib/models";
 
 interface ModelSelectorProps {

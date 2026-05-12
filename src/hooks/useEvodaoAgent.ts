@@ -70,7 +70,7 @@ export interface TokenUsage {
   totalTokens: number;
 }
 
-const STORAGE_KEY = "harness-agent-session";
+const STORAGE_KEY = "evodao-session";
 const EDGE_FUNCTION_URL = `${SUPABASE_URL}/functions/v1/harness-agent`;
 
 const FALLBACK_MESSAGES: Record<string, string> = {
@@ -106,7 +106,7 @@ const MAX_EVOLUTION_ROUNDS = 5;
 
 type RawUsage = { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number };
 
-export function useHarnessAgent() {
+export function useEvodaoAgent() {
   const [status, setStatus] = useState<AgentStatus>("idle");
   const [tasks, setTasks] = useState<Task[]>([]);
   const [taskStatuses, setTaskStatuses] = useState<Record<number, TaskStatus>>({});

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Folder, FileCode, ChevronRight, Copy, Check } from "lucide-react";
-import { AgentFile } from "@/hooks/useHarnessAgent";
+import { AgentFile } from "@/hooks/useEvodaoAgent";
 import { cn } from "@/lib/utils";
 
 const LANG_COLORS: Record<string, string> = {

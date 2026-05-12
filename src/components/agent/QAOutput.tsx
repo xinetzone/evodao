@@ -1,7 +1,7 @@
 import { useRef, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Trash2, Copy, Check, MessageSquare } from "lucide-react";
-import { QAMessage } from "@/hooks/useHarnessAgent";
+import { QAMessage } from "@/hooks/useEvodaoAgent";
 import { cn } from "@/lib/utils";
 
 interface QAOutputProps {

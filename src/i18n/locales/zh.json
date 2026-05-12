@@ -1,7 +1,7 @@
 {
   "header": {
-    "title": "HARNESS AGENT",
-    "subtitle": "自主任务执行器 v1.0",
+    "title": "EVODAO",
+    "subtitle": "演绎大道 · 自主智能体",
     "goalPrefix": "目标://",
     "promptTokens": "输入 Token",
     "completionTokens": "输出 Token",
@@ -60,7 +60,7 @@
   },
   "terminal": {
     "heading": "执行输出",
-    "windowTitle": "harness-agent — 输出",
+    "windowTitle": "evodao — 输出",
     "taskLabel": "任务 {{id}}: {{title}}",
     "processing": "处理中...",
     "done": "完成",
@@ -166,6 +166,6 @@
       { "label": "自动规划", "desc": "代理将目标分解为具体的子任务" },
       { "label": "逐步执行", "desc": "每个子任务依次执行并显示实时输出" }
     ],
-    "footer": "HARNESS AGENT © 2026"
+    "footer": "EVODAO © 2026"
   }
 }

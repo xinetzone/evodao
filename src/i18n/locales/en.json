@@ -1,7 +1,7 @@
 {
   "header": {
-    "title": "HARNESS AGENT",
-    "subtitle": "AUTONOMOUS TASK EXECUTOR v1.0",
+    "title": "EVODAO",
+    "subtitle": "EVOLVE THE WAY · AUTONOMOUS AGENT",
     "goalPrefix": "goal://",
     "promptTokens": "Prompt tokens",
     "completionTokens": "Completion tokens",
@@ -60,7 +60,7 @@
   },
   "terminal": {
     "heading": "EXECUTION OUTPUT",
-    "windowTitle": "harness-agent — output",
+    "windowTitle": "evodao — output",
     "taskLabel": "TASK {{id}}: {{title}}",
     "processing": "PROCESSING...",
     "done": "DONE",
@@ -166,6 +166,6 @@
       { "label": "AUTO PLAN",   "desc": "Agent decomposes your goal into concrete sub-tasks" },
       { "label": "EXECUTE",     "desc": "Each sub-task is executed sequentially with live output" }
     ],
-    "footer": "HARNESS AGENT © 2026"
+    "footer": "EVODAO © 2026"
   }
 }

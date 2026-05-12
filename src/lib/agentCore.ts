@@ -4,7 +4,7 @@
  */
 import { fetchEventSource } from "@microsoft/fetch-event-source";
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from "@/lib/config";
-import { Task, OutputMode } from "@/hooks/useHarnessAgent";
+import { Task, OutputMode } from "@/hooks/useEvodaoAgent";
 
 const EDGE_FUNCTION_URL = `${SUPABASE_URL}/functions/v1/harness-agent`;
 

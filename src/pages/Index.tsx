@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useTranslation } from "react-i18next";
-import { useHarnessAgent } from "@/hooks/useHarnessAgent";
+import { useEvodaoAgent } from "@/hooks/useEvodaoAgent";
 import { useAgentHistory } from "@/hooks/useAgentHistory";
 import { useTaskManager } from "@/hooks/useTaskManager";
 import { AgentHeader } from "@/components/agent/AgentHeader";
@@ -53,7 +53,7 @@ const Index = () => {
     qaMessages,
     resetQA,
     sessionUsage,
-  } = useHarnessAgent();
+  } = useEvodaoAgent();
 
   const steps: Array<{ label: string; desc: string }> = t("index.steps", {
     returnObjects: true,

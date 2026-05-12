@@ -1,4 +1,4 @@
-import { OutputMode } from "@/hooks/useHarnessAgent";
+import { OutputMode } from "@/hooks/useEvodaoAgent";
 
 export const MODELS = [
   "deepseek/deepseek-v4-pro",

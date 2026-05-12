@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { X, Square, Trash2, LayoutGrid, Plus, Check, AlertCircle, Loader, Clock, ChevronDown, ChevronRight } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { AgentSession } from "@/hooks/useTaskManager";
-import { OutputMode } from "@/hooks/useHarnessAgent";
+import { OutputMode } from "@/hooks/useEvodaoAgent";
 import { ModelSelector } from "@/components/agent/ModelSelector";
 import { ModelId, getAutoModel } from "@/lib/models";
 import { cn } from "@/lib/utils";
@@ -392,7 +392,7 @@ export function TaskManagerPanel({
         {/* Footer */}
         <div className="px-5 py-3 border-t border-border bg-card/30 text-[10px] text-muted-foreground tracking-wider flex items-center justify-between">
           <span>{sessions.length} 个会话</span>
-          <span>HARNESS AGENT TASK MANAGER</span>
+          <span>EVODAO TASK MANAGER</span>
         </div>
       </div>
     </>

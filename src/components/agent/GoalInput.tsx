@@ -1,7 +1,7 @@
 import { useState, useRef } from "react";
 import { Play, RotateCcw, Square, Wand2, Loader, Sparkles } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { AgentStatus, OutputMode } from "@/hooks/useHarnessAgent";
+import { AgentStatus, OutputMode } from "@/hooks/useEvodaoAgent";
 import { ModelSelector } from "@/components/agent/ModelSelector";
 import { ModelId, getAutoModel } from "@/lib/models";
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from "@/lib/config";

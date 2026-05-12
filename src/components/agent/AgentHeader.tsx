@@ -1,6 +1,6 @@
 import { Cpu, Zap, CircleCheck, AlertCircle, Loader, Clock, LayoutGrid } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { AgentStatus, TokenUsage } from "@/hooks/useHarnessAgent";
+import { AgentStatus, TokenUsage } from "@/hooks/useEvodaoAgent";
 import { LanguageSwitcher } from "./LanguageSwitcher";
 import { cn } from "@/lib/utils";
 

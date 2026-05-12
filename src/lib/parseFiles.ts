@@ -1,4 +1,4 @@
-import { AgentFile } from "@/hooks/useHarnessAgent";
+import { AgentFile } from "@/hooks/useEvodaoAgent";
 
 /**
  * Extracts structured files from LLM output.

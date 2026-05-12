@@ -1,6 +1,6 @@
 import { useTranslation } from "react-i18next";
 import { Dna, Loader, CheckCircle, AlertTriangle, ArrowRight, X, Sparkles } from "lucide-react";
-import { ReflectionResult, EvolutionStatus } from "@/hooks/useHarnessAgent";
+import { ReflectionResult, EvolutionStatus } from "@/hooks/useEvodaoAgent";
 import { cn } from "@/lib/utils";
 
 interface EvolutionPanelProps {

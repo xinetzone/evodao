@@ -1,9 +1,9 @@
 import { useState, useCallback } from "react";
-import { HistoryEntry } from "./useHarnessAgent";
+import { HistoryEntry } from "./useEvodaoAgent";
 
 export type { HistoryEntry };
 
-const HISTORY_KEY = "harness-agent-history";
+const HISTORY_KEY = "evodao-history";
 const MAX_ENTRIES = 20;
 
 function loadHistory(): HistoryEntry[] {
