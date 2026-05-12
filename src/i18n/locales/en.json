@@ -163,7 +163,8 @@
       "moonshotai/kimi-k2.6": { "name": "Kimi K2.6", "desc": "Multimodal & tool use" },
       "minimax/minimax-m2.7": { "name": "MiniMax M2.7", "desc": "Coding & workflows" },
       "openai/gpt-image-2": { "name": "GPT Image 2", "desc": "High-quality text-to-image generation" },
-      "google/gemini-3.1-flash-image-preview": { "name": "Nano Banana 2", "desc": "Text-to-image & image-to-image, balanced speed and quality" }
+      "google/gemini-3.1-flash-image-preview": { "name": "Nano Banana 2", "desc": "Text-to-image & image-to-image, balanced speed and quality" },
+      "doubao/seedream-4.5": { "name": "Seedream 4.5", "desc": "High-aesthetics image generation, supports Chinese prompts" }
     }
   },
   "qaOutput": {

@@ -17,6 +17,7 @@ export type ModelId = (typeof MODELS)[number];
 export const IMAGE_MODELS = [
   "openai/gpt-image-2",
   "google/gemini-3.1-flash-image-preview",
+  "doubao/seedream-4.5",
 ] as const;
 
 export type ImageModelId = (typeof IMAGE_MODELS)[number];

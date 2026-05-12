@@ -163,7 +163,8 @@
       "moonshotai/kimi-k2.6": { "name": "Kimi K2.6", "desc": "多模态与工具调用" },
       "minimax/minimax-m2.7": { "name": "MiniMax M2.7", "desc": "编码与工作流" },
       "openai/gpt-image-2": { "name": "GPT Image 2", "desc": "高质量文生图，创意图像生成" },
-      "google/gemini-3.1-flash-image-preview": { "name": "Nano Banana 2", "desc": "文生图与图生图，速度与质量均衡" }
+      "google/gemini-3.1-flash-image-preview": { "name": "Nano Banana 2", "desc": "文生图与图生图，速度与质量均衡" },
+      "doubao/seedream-4.5": { "name": "Seedream 4.5", "desc": "高美感图像生成，支持中文提示词" }
     }
   },
   "qaOutput": {
