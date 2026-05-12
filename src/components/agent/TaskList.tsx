@@ -1,4 +1,5 @@
 import { Check, Loader, AlertCircle, Clock } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { Task, TaskStatus } from "@/hooks/useHarnessAgent";
 import { cn } from "@/lib/utils";
 
@@ -8,7 +9,7 @@ interface TaskListProps {
   activeTaskId: number | null;
 }
 
-const statusConfig: Record<
+const statusStyleMap: Record<
   TaskStatus,
   {
     icon: React.ReactNode;
@@ -49,45 +50,34 @@ const statusConfig: Record<
 };
 
 export function TaskList({ tasks, taskStatuses, activeTaskId }: TaskListProps) {
+  const { t } = useTranslation();
+
   if (tasks.length === 0) return null;
+
+  const completedCount = Object.values(taskStatuses).filter((s) => s === "completed").length;
+  const progress = tasks.length > 0 ? (completedCount / tasks.length) * 100 : 0;
 
   return (
     <div className="animate-fade-in">
       <div className="flex items-center gap-2 mb-3 text-xs text-muted-foreground">
         <span className="text-primary">$</span>
-        <span className="tracking-wider">TASK DECOMPOSITION</span>
-        <span className="text-muted-foreground/40">// {tasks.length} sub-tasks identified</span>
+        <span className="tracking-wider">{t("taskList.heading")}</span>
+        <span className="text-muted-foreground/40">
+          {t("taskList.subTaskCount", { count: tasks.length })}
+        </span>
       </div>
 
       {/* Progress bar */}
       <div className="mb-4">
         <div className="h-px bg-border relative overflow-hidden">
-          {(() => {
-            const completed = Object.values(taskStatuses).filter(
-              (s) => s === "completed"
-            ).length;
-            const progress = tasks.length > 0 ? (completed / tasks.length) * 100 : 0;
-            return (
-              <div
-                className="absolute left-0 top-0 h-full bg-primary transition-all duration-700 ease-out"
-                style={{ width: `${progress}%` }}
-              />
-            );
-          })()}
+          <div
+            className="absolute left-0 top-0 h-full bg-primary transition-all duration-700 ease-out"
+            style={{ width: `${progress}%` }}
+          />
         </div>
         <div className="flex justify-between mt-1 text-[10px] text-muted-foreground/60">
-          <span>
-            {Object.values(taskStatuses).filter((s) => s === "completed").length} /{" "}
-            {tasks.length} completed
-          </span>
-          <span>
-            {Math.round(
-              (Object.values(taskStatuses).filter((s) => s === "completed").length /
-                Math.max(tasks.length, 1)) *
-                100
-            )}
-            %
-          </span>
+          <span>{t("taskList.completed", { done: completedCount, total: tasks.length })}</span>
+          <span>{Math.round(progress)}%</span>
         </div>
       </div>
 
@@ -95,7 +85,7 @@ export function TaskList({ tasks, taskStatuses, activeTaskId }: TaskListProps) {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
         {tasks.map((task, index) => {
           const taskStatus = taskStatuses[task.id] || "pending";
-          const config = statusConfig[taskStatus];
+          const style = statusStyleMap[taskStatus];
           const isActive = activeTaskId === task.id;
 
           return (
@@ -103,22 +93,19 @@ export function TaskList({ tasks, taskStatuses, activeTaskId }: TaskListProps) {
               key={task.id}
               className={cn(
                 "relative rounded border p-3 transition-all duration-300",
-                config.cardClass,
+                style.cardClass,
                 isActive && "terminal-glow"
               )}
-              style={{ animationDelay: `${index * 0.1}s` }}
             >
-              {/* Active indicator line */}
               {isActive && (
                 <div className="absolute top-0 left-0 right-0 h-px bg-primary animate-pulse" />
               )}
 
               <div className="flex items-start gap-2.5">
-                {/* Task number */}
                 <div
                   className={cn(
                     "w-5 h-5 rounded text-[10px] font-bold flex items-center justify-center shrink-0 mt-0.5 transition-all duration-300",
-                    config.numberClass
+                    style.numberClass
                   )}
                 >
                   {index + 1}
@@ -126,10 +113,8 @@ export function TaskList({ tasks, taskStatuses, activeTaskId }: TaskListProps) {
 
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-1.5 mb-1">
-                    {config.icon}
-                    <span
-                      className={cn("text-xs font-semibold truncate transition-colors", config.titleClass)}
-                    >
+                    {style.icon}
+                    <span className={cn("text-xs font-semibold truncate transition-colors", style.titleClass)}>
                       {task.title}
                     </span>
                   </div>
@@ -139,9 +124,8 @@ export function TaskList({ tasks, taskStatuses, activeTaskId }: TaskListProps) {
                 </div>
               </div>
 
-              {/* Status dot */}
-              <div className="absolute bottom-2 right-2 flex items-center gap-1">
-                <div className={cn("w-1.5 h-1.5 rounded-full transition-colors", config.dotClass)} />
+              <div className="absolute bottom-2 right-2">
+                <div className={cn("w-1.5 h-1.5 rounded-full transition-colors", style.dotClass)} />
               </div>
             </div>
           );

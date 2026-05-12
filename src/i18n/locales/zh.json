@@ -1,0 +1,57 @@
+{
+  "header": {
+    "title": "HARNESS AGENT",
+    "subtitle": "自主任务执行器 v1.0",
+    "goalPrefix": "目标://",
+    "status": {
+      "idle": "待机",
+      "planning": "规划中",
+      "executing": "执行中",
+      "done": "已完成",
+      "error": "错误"
+    }
+  },
+  "goalInput": {
+    "prompt": "输入任务目标",
+    "hint": "// Ctrl+Enter 执行",
+    "chars": "{{count}} 字符",
+    "awaiting": "等待输入",
+    "reset": "重置",
+    "abort": "中止",
+    "execute": "执行",
+    "placeholders": [
+      "构建个人财务管理 Web 应用",
+      "制定 SaaS 产品的营销策略",
+      "设计并实现博客平台的 REST API",
+      "分析并优化 React 应用的性能"
+    ]
+  },
+  "taskList": {
+    "heading": "任务分解",
+    "subTaskCount": "// 识别到 {{count}} 个子任务",
+    "completed": "{{done}} / {{total}} 已完成"
+  },
+  "terminal": {
+    "heading": "执行输出",
+    "windowTitle": "harness-agent — 输出",
+    "taskLabel": "任务 {{id}}: {{title}}",
+    "processing": "处理中...",
+    "done": "完成",
+    "failed": "失败",
+    "generating": "正在生成输出..."
+  },
+  "index": {
+    "planning": "分析目标中 — 正在拆解子任务...",
+    "errorTitle": "代理错误",
+    "missionAccomplished": "任务全部完成",
+    "missionDone": "全部 {{count}} 个任务成功完成。重置以运行新任务。",
+    "standby": "代理待机",
+    "standbyDesc": "在上方输入任何目标，代理将自动将其分解为可操作的子任务并逐步执行。",
+    "steps": [
+      { "label": "定义目标", "desc": "用自然语言描述任何目标或任务" },
+      { "label": "自动规划", "desc": "代理将目标分解为具体的子任务" },
+      { "label": "逐步执行", "desc": "每个子任务依次执行并显示实时输出" }
+    ],
+    "footer": "HARNESS AGENT © 2026"
+  }
+}

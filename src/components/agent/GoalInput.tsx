@@ -1,5 +1,6 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef } from "react";
 import { Play, RotateCcw, Square } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { AgentStatus } from "@/hooks/useHarnessAgent";
 import { cn } from "@/lib/utils";
 
@@ -9,28 +10,17 @@ interface GoalInputProps {
   onReset: () => void;
 }
 
-const PLACEHOLDER_GOALS = [
-  "Build a personal finance tracker web application",
-  "Create a marketing strategy for a SaaS product",
-  "Design and implement a REST API for a blog platform",
-  "Analyze and optimize the performance of a React application",
-];
-
 export function GoalInput({ status, onRun, onReset }: GoalInputProps) {
+  const { t } = useTranslation();
   const [goal, setGoal] = useState("");
-  const [placeholderIndex, setPlaceholderIndex] = useState(0);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  const placeholders: string[] = t("goalInput.placeholders", { returnObjects: true }) as string[];
+  const [placeholderIndex] = useState(() => Math.floor(Math.random() * 4));
 
   const isRunning = status === "planning" || status === "executing";
   const isDone = status === "done" || status === "error";
   const isIdle = status === "idle";
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setPlaceholderIndex((i) => (i + 1) % PLACEHOLDER_GOALS.length);
-    }, 4000);
-    return () => clearInterval(interval);
-  }, []);
 
   const handleRun = () => {
     if (!goal.trim() || isRunning) return;
@@ -54,8 +44,8 @@ export function GoalInput({ status, onRun, onReset }: GoalInputProps) {
       {/* Terminal prompt header */}
       <div className="flex items-center gap-2 mb-3 text-xs text-muted-foreground">
         <span className="text-primary">$</span>
-        <span className="tracking-wider">ENTER MISSION OBJECTIVE</span>
-        <span className="text-muted-foreground/40">// Ctrl+Enter to execute</span>
+        <span className="tracking-wider">{t("goalInput.prompt")}</span>
+        <span className="text-muted-foreground/40">{t("goalInput.hint")}</span>
       </div>
 
       {/* Input area */}
@@ -84,7 +74,7 @@ export function GoalInput({ status, onRun, onReset }: GoalInputProps) {
               onChange={(e) => setGoal(e.target.value)}
               onKeyDown={handleKeyDown}
               disabled={isRunning}
-              placeholder={PLACEHOLDER_GOALS[placeholderIndex]}
+              placeholder={placeholders[placeholderIndex % placeholders.length]}
               rows={3}
               className={cn(
                 "w-full bg-transparent text-sm resize-none outline-none placeholder:text-muted-foreground/40",
@@ -97,7 +87,9 @@ export function GoalInput({ status, onRun, onReset }: GoalInputProps) {
           {/* Bottom toolbar */}
           <div className="flex items-center justify-between mt-3 pt-3 border-t border-border">
             <p className="text-[10px] text-muted-foreground/60 tracking-wider">
-              {goal.length > 0 ? `${goal.length} chars` : "AWAITING INPUT"}
+              {goal.length > 0
+                ? t("goalInput.chars", { count: goal.length })
+                : t("goalInput.awaiting")}
             </p>
 
             <div className="flex items-center gap-2">
@@ -107,7 +99,7 @@ export function GoalInput({ status, onRun, onReset }: GoalInputProps) {
                   className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-muted-foreground border border-border rounded hover:border-primary/40 hover:text-foreground transition-all duration-200"
                 >
                   <RotateCcw className="w-3 h-3" />
-                  RESET
+                  {t("goalInput.reset")}
                 </button>
               )}
 
@@ -117,7 +109,7 @@ export function GoalInput({ status, onRun, onReset }: GoalInputProps) {
                   className="flex items-center gap-1.5 px-4 py-1.5 text-xs text-destructive border border-destructive/40 rounded hover:bg-destructive/10 transition-all duration-200"
                 >
                   <Square className="w-3 h-3" />
-                  ABORT
+                  {t("goalInput.abort")}
                 </button>
               ) : (
                 <button
@@ -131,7 +123,7 @@ export function GoalInput({ status, onRun, onReset }: GoalInputProps) {
                   )}
                 >
                   <Play className="w-3 h-3" />
-                  EXECUTE
+                  {t("goalInput.execute")}
                 </button>
               )}
             </div>

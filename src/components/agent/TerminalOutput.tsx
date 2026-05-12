@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import { Terminal, ChevronRight } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { Task, TaskStatus } from "@/hooks/useHarnessAgent";
 import { cn } from "@/lib/utils";
 
@@ -10,19 +11,15 @@ interface TerminalOutputProps {
   activeTaskId: number | null;
 }
 
-function formatOutput(text: string): string {
-  return text;
-}
-
 export function TerminalOutput({
   tasks,
   taskStatuses,
   taskOutputs,
   activeTaskId,
 }: TerminalOutputProps) {
+  const { t } = useTranslation();
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  // Auto-scroll to bottom when new content arrives
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
@@ -30,7 +27,10 @@ export function TerminalOutput({
   }, [taskOutputs]);
 
   const visibleTasks = tasks.filter(
-    (t) => taskStatuses[t.id] === "running" || taskStatuses[t.id] === "completed" || taskStatuses[t.id] === "error"
+    (t) =>
+      taskStatuses[t.id] === "running" ||
+      taskStatuses[t.id] === "completed" ||
+      taskStatuses[t.id] === "error"
   );
 
   if (visibleTasks.length === 0) return null;
@@ -39,7 +39,7 @@ export function TerminalOutput({
     <div className="animate-fade-in">
       <div className="flex items-center gap-2 mb-3 text-xs text-muted-foreground">
         <span className="text-primary">$</span>
-        <span className="tracking-wider">EXECUTION OUTPUT</span>
+        <span className="tracking-wider">{t("terminal.heading")}</span>
         <Terminal className="w-3 h-3 text-muted-foreground/60" />
       </div>
 
@@ -54,7 +54,7 @@ export function TerminalOutput({
           <div className="w-2.5 h-2.5 rounded-full bg-yellow-500/60" />
           <div className="w-2.5 h-2.5 rounded-full bg-primary/60" />
           <span className="ml-2 text-[10px] text-muted-foreground tracking-widest">
-            harness-agent — output
+            {t("terminal.windowTitle")}
           </span>
         </div>
 
@@ -68,10 +68,7 @@ export function TerminalOutput({
             return (
               <div
                 key={task.id}
-                className={cn(
-                  "space-y-2 transition-all duration-300",
-                  isActive && "animate-fade-in"
-                )}
+                className={cn("space-y-2 transition-all duration-300", isActive && "animate-fade-in")}
               >
                 {/* Task header */}
                 <div className="flex items-center gap-2">
@@ -86,18 +83,18 @@ export function TerminalOutput({
                         : "text-primary border-primary/40 bg-primary/10"
                     )}
                   >
-                    TASK {task.id}: {task.title.toUpperCase()}
+                    {t("terminal.taskLabel", { id: task.id, title: task.title.toUpperCase() })}
                   </div>
                   {isRunning && (
                     <span className="text-[10px] text-primary animate-blink tracking-widest">
-                      PROCESSING...
+                      {t("terminal.processing")}
                     </span>
                   )}
                   {status === "completed" && (
-                    <span className="text-[10px] text-primary/60 tracking-widest">DONE</span>
+                    <span className="text-[10px] text-primary/60 tracking-widest">{t("terminal.done")}</span>
                   )}
                   {status === "error" && (
-                    <span className="text-[10px] text-destructive/80 tracking-widest">FAILED</span>
+                    <span className="text-[10px] text-destructive/80 tracking-widest">{t("terminal.failed")}</span>
                   )}
                 </div>
 
@@ -110,7 +107,7 @@ export function TerminalOutput({
                         status === "error" ? "text-destructive/80" : "text-foreground/90"
                       )}
                     >
-                      {formatOutput(output)}
+                      {output}
                       {isRunning && (
                         <span className="inline-block w-1.5 h-3 bg-primary ml-0.5 animate-blink align-middle" />
                       )}
@@ -123,7 +120,7 @@ export function TerminalOutput({
                   <div className="ml-5 pl-3 border-l border-primary/20">
                     <div className="flex items-center gap-2 text-xs text-muted-foreground">
                       <span className="inline-block w-1.5 h-3 bg-primary animate-blink" />
-                      <span className="animate-pulse">Generating output...</span>
+                      <span className="animate-pulse">{t("terminal.generating")}</span>
                     </div>
                   </div>
                 )}

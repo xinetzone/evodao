@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useHarnessAgent } from "@/hooks/useHarnessAgent";
 import { AgentHeader } from "@/components/agent/AgentHeader";
 import { GoalInput } from "@/components/agent/GoalInput";
@@ -6,6 +7,7 @@ import { TerminalOutput } from "@/components/agent/TerminalOutput";
 import { AlertCircle, CircleCheck, Trophy } from "lucide-react";
 
 const Index = () => {
+  const { t } = useTranslation();
   const {
     status,
     tasks,
@@ -18,12 +20,14 @@ const Index = () => {
     reset,
   } = useHarnessAgent();
 
+  const steps: Array<{ label: string; desc: string }> = t("index.steps", {
+    returnObjects: true,
+  }) as Array<{ label: string; desc: string }>;
+
   return (
     <div className="w-full h-full flex flex-col bg-background overflow-hidden">
-      {/* Header */}
       <AgentHeader status={status} currentGoal={currentGoal} />
 
-      {/* Main content */}
       <main className="flex-1 overflow-y-auto">
         <div className="max-w-6xl mx-auto px-6 py-8 space-y-8">
 
@@ -37,7 +41,6 @@ const Index = () => {
             }}
           />
 
-          {/* Goal Input */}
           <GoalInput status={status} onRun={runAgent} onReset={reset} />
 
           {/* Planning indicator */}
@@ -49,7 +52,7 @@ const Index = () => {
                 <span className="w-1.5 h-1.5 rounded-full bg-yellow-400 animate-bounce" style={{ animationDelay: "300ms" }} />
               </div>
               <span className="text-xs text-yellow-400 tracking-wider">
-                ANALYZING GOAL — DECOMPOSING INTO SUB-TASKS...
+                {t("index.planning")}
               </span>
             </div>
           )}
@@ -59,22 +62,20 @@ const Index = () => {
             <div className="animate-fade-in flex items-start gap-3 px-4 py-3 rounded border border-destructive/40 bg-destructive/10">
               <AlertCircle className="w-4 h-4 text-destructive shrink-0 mt-0.5" />
               <div>
-                <p className="text-xs font-semibold text-destructive tracking-wider mb-0.5">AGENT ERROR</p>
+                <p className="text-xs font-semibold text-destructive tracking-wider mb-0.5">
+                  {t("index.errorTitle")}
+                </p>
                 <p className="text-xs text-destructive/80">{error}</p>
               </div>
             </div>
           )}
 
-          {/* Task decomposition list */}
+          {/* Task list */}
           {tasks.length > 0 && (
-            <TaskList
-              tasks={tasks}
-              taskStatuses={taskStatuses}
-              activeTaskId={activeTaskId}
-            />
+            <TaskList tasks={tasks} taskStatuses={taskStatuses} activeTaskId={activeTaskId} />
           )}
 
-          {/* Terminal execution output */}
+          {/* Terminal output */}
           <TerminalOutput
             tasks={tasks}
             taskStatuses={taskStatuses}
@@ -88,17 +89,17 @@ const Index = () => {
               <Trophy className="w-4 h-4 text-primary shrink-0" />
               <div>
                 <p className="text-xs font-bold text-primary tracking-wider text-glow">
-                  MISSION ACCOMPLISHED
+                  {t("index.missionAccomplished")}
                 </p>
                 <p className="text-[11px] text-foreground/60 mt-0.5">
-                  All {tasks.length} tasks completed successfully. Reset to run a new mission.
+                  {t("index.missionDone", { count: tasks.length })}
                 </p>
               </div>
               <CircleCheck className="w-4 h-4 text-primary ml-auto" />
             </div>
           )}
 
-          {/* Idle hero state */}
+          {/* Idle hero */}
           {status === "idle" && (
             <div className="animate-fade-in text-center py-16">
               <div className="relative inline-block mb-6">
@@ -109,26 +110,20 @@ const Index = () => {
                 </div>
               </div>
               <h2 className="text-lg font-bold text-foreground/80 tracking-widest mb-2">
-                AGENT STANDBY
+                {t("index.standby")}
               </h2>
               <p className="text-sm text-muted-foreground max-w-md mx-auto leading-relaxed">
-                Enter any goal or objective above. The agent will automatically decompose it into
-                actionable sub-tasks and execute each one step-by-step.
+                {t("index.standbyDesc")}
               </p>
 
-              {/* Feature hints */}
               <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-4 max-w-2xl mx-auto text-left">
-                {[
-                  { step: "01", label: "DEFINE GOAL", desc: "Describe any objective or task in natural language" },
-                  { step: "02", label: "AUTO PLAN", desc: "Agent decomposes your goal into concrete sub-tasks" },
-                  { step: "03", label: "EXECUTE", desc: "Each sub-task is executed sequentially with live output" },
-                ].map((item) => (
+                {steps.map((item, i) => (
                   <div
-                    key={item.step}
+                    key={i}
                     className="rounded border border-border bg-card/50 p-3 hover:border-primary/30 transition-colors"
                   >
                     <div className="text-[10px] text-primary/60 tracking-widest font-bold mb-1">
-                      STEP {item.step}
+                      STEP {String(i + 1).padStart(2, "0")}
                     </div>
                     <div className="text-xs font-semibold text-foreground/80 tracking-wider mb-1">
                       {item.label}
@@ -144,7 +139,7 @@ const Index = () => {
         </div>
       </main>
 
-      {/* Footer status bar */}
+      {/* Footer */}
       <footer className="border-t border-border bg-card/50 px-6 py-2">
         <div className="max-w-6xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-3 text-[10px] text-muted-foreground tracking-wider">
@@ -156,7 +151,7 @@ const Index = () => {
             <span>openai_chat_completions</span>
           </div>
           <div className="text-[10px] text-muted-foreground tracking-wider">
-            HARNESS AGENT © 2026
+            {t("index.footer")}
           </div>
         </div>
       </footer>
