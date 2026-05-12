@@ -79,7 +79,17 @@ export function useHarnessAgent() {
     onChunk: (chunk: string) => void
   ): Promise<void> => {
     return new Promise((resolve, reject) => {
-      abortControllerRef.current = new AbortController();
+      const controller = new AbortController();
+      abortControllerRef.current = controller;
+      let settled = false;
+
+      // Ensure only one resolution/rejection, and abort the SSE connection
+      const settle = (fn: () => void) => {
+        if (settled) return;
+        settled = true;
+        controller.abort();
+        fn();
+      };
 
       fetchEventSource(EDGE_FUNCTION_URL, {
         method: "POST",
@@ -88,7 +98,7 @@ export function useHarnessAgent() {
           Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
         },
         body: JSON.stringify({ mode: "execute", goal, task, context }),
-        signal: abortControllerRef.current.signal,
+        signal: controller.signal,
 
         async onopen(response) {
           const contentType = response.headers.get("content-type");
@@ -100,19 +110,24 @@ export function useHarnessAgent() {
                 try {
                   const errorData = JSON.parse(dataMatch[1]);
                   const msg = errorData.error?.message;
-                  if (msg) throw new Error(msg);
+                  if (msg) {
+                    settle(() => reject(new Error(msg)));
+                    throw new Error(msg);
+                  }
                 } catch (e) {
                   if (e instanceof Error && !e.message.includes("Unexpected token")) throw e;
                 }
               }
             }
-            throw new Error(`Request failed: ${response.status}`);
+            const err = new Error(`Request failed: ${response.status}`);
+            settle(() => reject(err));
+            throw err;
           }
         },
 
         onmessage(event) {
           if (event.data === "[DONE]") {
-            resolve();
+            settle(() => resolve());
             return;
           }
           if (!event.data) return;
@@ -124,11 +139,11 @@ export function useHarnessAgent() {
             return;
           }
 
-          // Level 1 - stream error
+          // Stream-level error from edge function
           if ((data as { error?: { type?: string; message?: string } }).error) {
             const err = (data as { error: { type?: string; message?: string } }).error;
             const errorMsg = getUserErrorMessage(err.type || "api_error", err.message || "");
-            reject(new Error(errorMsg));
+            settle(() => reject(new Error(errorMsg)));
             return;
           }
 
@@ -140,12 +155,21 @@ export function useHarnessAgent() {
           }
 
           if (choice.finish_reason) {
-            resolve();
+            settle(() => resolve());
           }
         },
 
         onerror(err) {
-          reject(err);
+          // Already settled (e.g. we aborted after [DONE]): silently stop retrying
+          if (settled) {
+            throw err;
+          }
+          // User-triggered abort: don't reject with error
+          if (err instanceof Error && err.name === "AbortError") {
+            throw err;
+          }
+          // Real network/server error
+          settle(() => reject(err));
           throw err; // stop retrying
         },
       });
