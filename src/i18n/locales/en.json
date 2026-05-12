@@ -123,6 +123,10 @@
     "auto": "AUTO",
     "autoDesc": "Auto-selects the best model for each mode",
     "models": {
+      "openai/gpt-5.4-pro": {
+        "name": "GPT 5.4 Pro",
+        "desc": "Advanced reasoning, coding & complex tasks"
+      },
       "deepseek/deepseek-v4-pro": { "name": "DeepSeek V4 Pro", "desc": "Coding, math & deep reasoning" },
       "z-ai/glm-5.1": { "name": "GLM 5.1", "desc": "Long-horizon agent tasks" },
       "z-ai/glm-5": { "name": "GLM 5", "desc": "Complex system design" },

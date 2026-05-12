@@ -123,6 +123,10 @@
     "auto": "自动",
     "autoDesc": "根据模式自动选择最优模型",
     "models": {
+      "openai/gpt-5.4-pro": {
+        "name": "GPT 5.4 Pro",
+        "desc": "高级推理、编码与复杂任务"
+      },
       "deepseek/deepseek-v4-pro": { "name": "DeepSeek V4 Pro", "desc": "编码、数学与深度推理" },
       "z-ai/glm-5.1": { "name": "GLM 5.1", "desc": "长程智能体任务" },
       "z-ai/glm-5": { "name": "GLM 5", "desc": "复杂系统设计" },
