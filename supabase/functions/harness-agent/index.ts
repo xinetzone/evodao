@@ -5,19 +5,41 @@ const corsHeaders = {
 
 const API_BASE = "https://api.enter.pro/code/api/v1/ai/chat/completions";
 
-function getPlanSystemPrompt(outputMode: string): string {
+interface EvolutionContext {
+  round: number;
+  qualityScore: number;
+  improvements: string[];
+  evolvedGoal: string;
+}
+
+function getEvolutionSection(evolutionContext?: EvolutionContext): string {
+  if (!evolutionContext) return "";
+  return `
+
+EVOLUTION CONTEXT (Round ${evolutionContext.round}):
+Previous quality score: ${evolutionContext.qualityScore}/100
+Improvements to apply this round:
+${evolutionContext.improvements.map((i: string) => `- ${i}`).join("\n")}
+Refined goal: ${evolutionContext.evolvedGoal}
+
+Apply these improvements proactively throughout your response.`;
+}
+
+function getPlanSystemPrompt(outputMode: string, evolutionContext?: EvolutionContext): string {
+  const evoSection = getEvolutionSection(evolutionContext);
   if (outputMode === "agent") {
     return `You are a senior software architect planning the implementation of an agent project.
 Decompose the goal into 3-6 implementation tasks. Each task should produce one or more concrete code files.
 Return ONLY a valid JSON array with no markdown fences, no explanation. Use this exact format:
-[{"id":1,"title":"Short Task Title","description":"One or two sentences describing what files this task creates."},{"id":2,"title":"...","description":"..."}]`;
+[{"id":1,"title":"Short Task Title","description":"One or two sentences describing what files this task creates."},{"id":2,"title":"...","description":"..."}]${evoSection}`;
   }
   return `You are a precise task planning agent. Given a goal, decompose it into 3-6 concrete, actionable sub-tasks.
 Return ONLY a valid JSON array with no markdown fences, no explanation, no extra text. Use this exact format:
-[{"id":1,"title":"Short Task Title","description":"One or two sentences describing what this task involves."},{"id":2,"title":"...","description":"..."}]`;
+[{"id":1,"title":"Short Task Title","description":"One or two sentences describing what this task involves."},{"id":2,"title":"...","description":"..."}]${evoSection}`;
 }
 
-function getExecuteSystemPrompt(outputMode: string): string {
+function getExecuteSystemPrompt(outputMode: string, evolutionContext?: EvolutionContext): string {
+  const evoSection = getEvolutionSection(evolutionContext);
   if (outputMode === "agent") {
     return `You are an expert software engineer implementing part of an agent project.
 For EVERY file you create, you MUST use this exact format (language:filepath on the opening fence):
@@ -34,9 +56,9 @@ Rules:
 - Use realistic relative file paths (e.g. src/agent.py, config/settings.json, README.md)
 - Write complete, working code — no placeholders or TODOs
 - Multiple files per task is encouraged
-- Always include a README.md with setup and usage instructions in the first or last task`;
+- Always include a README.md with setup and usage instructions in the first or last task${evoSection}`;
   }
-  return `You are a skilled execution agent. Carry out assigned tasks thoroughly and produce high-quality, detailed outputs. Be specific, practical, and thorough. Use clear structure with headers and bullet points where helpful.`;
+  return `You are a skilled execution agent. Carry out assigned tasks thoroughly and produce high-quality, detailed outputs. Be specific, practical, and thorough. Use clear structure with headers and bullet points where helpful.${evoSection}`;
 }
 
 Deno.serve(async (req) => {
@@ -51,8 +73,9 @@ Deno.serve(async (req) => {
       throw new Error("AI_API_TOKEN is not configured");
     }
 
-    const { mode, goal, task, context, outputMode = "text" } = await req.json();
+    const { mode, goal, task, context, tasks, taskOutputs, outputMode = "text", evolutionContext } = await req.json();
 
+    // ── PLAN ─────────────────────────────────────────────────────────────────
     if (mode === "plan") {
       const response = await fetch(API_BASE, {
         method: "POST",
@@ -63,14 +86,8 @@ Deno.serve(async (req) => {
         body: JSON.stringify({
           model: "z-ai/glm-5.1",
           messages: [
-            {
-              role: "system",
-              content: getPlanSystemPrompt(outputMode),
-            },
-            {
-              role: "user",
-              content: `Goal: ${goal}`,
-            },
+            { role: "system", content: getPlanSystemPrompt(outputMode, evolutionContext) },
+            { role: "user", content: `Goal: ${goal}` },
           ],
           stream: false,
         }),
@@ -84,18 +101,19 @@ Deno.serve(async (req) => {
       const data = await response.json();
       const content = data.choices?.[0]?.message?.content || "[]";
 
-      let tasks = [];
+      let taskList = [];
       try {
         const cleaned = content.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
-        tasks = JSON.parse(cleaned);
+        taskList = JSON.parse(cleaned);
       } catch {
         throw new Error("Failed to parse task plan from AI response");
       }
 
-      return new Response(JSON.stringify({ tasks }), {
+      return new Response(JSON.stringify({ tasks: taskList }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
 
+    // ── EXECUTE ───────────────────────────────────────────────────────────────
     } else if (mode === "execute") {
       const contextSection =
         context && context.length > 0
@@ -127,14 +145,8 @@ Please execute this task completely and provide detailed, actionable output.`;
         body: JSON.stringify({
           model: "z-ai/glm-5.1",
           messages: [
-            {
-              role: "system",
-              content: getExecuteSystemPrompt(outputMode),
-            },
-            {
-              role: "user",
-              content: userPrompt,
-            },
+            { role: "system", content: getExecuteSystemPrompt(outputMode, evolutionContext) },
+            { role: "user", content: userPrompt },
           ],
           stream: true,
         }),
@@ -160,11 +172,63 @@ Please execute this task completely and provide detailed, actionable output.`;
       }
 
       return new Response(response.body, {
+        headers: { ...corsHeaders, "Content-Type": "text/event-stream", "Cache-Control": "no-cache" },
+      });
+
+    // ── REFLECT ───────────────────────────────────────────────────────────────
+    } else if (mode === "reflect") {
+      const taskSummary = (tasks || []).map((t: { id: number; title: string }) => {
+        const output = ((taskOutputs || {})[t.id] || "").substring(0, 600);
+        return `Task ${t.id}: ${t.title}\n${output}`;
+      }).join("\n\n---\n\n");
+
+      const reflectPrompt = `You are a critical AI quality evaluator. Review the following completed agent run and evaluate it honestly.
+
+Original Goal: ${goal}
+
+Completed Tasks and Outputs:
+${taskSummary}
+
+Evaluate the quality. Be specific and constructive.
+Return ONLY this exact JSON (no markdown fences, no explanation outside the JSON):
+{
+  "qualityScore": 75,
+  "strengths": ["specific strength 1", "specific strength 2"],
+  "weaknesses": ["specific weakness 1", "specific weakness 2"],
+  "improvements": ["concrete improvement direction 1", "concrete improvement direction 2"],
+  "evolvedGoal": "a refined version of the original goal that addresses the weaknesses and builds on strengths"
+}`;
+
+      const response = await fetch(API_BASE, {
+        method: "POST",
         headers: {
-          ...corsHeaders,
-          "Content-Type": "text/event-stream",
-          "Cache-Control": "no-cache",
+          Authorization: `Bearer ${AI_API_TOKEN}`,
+          "Content-Type": "application/json",
         },
+        body: JSON.stringify({
+          model: "z-ai/glm-5.1",
+          messages: [{ role: "user", content: reflectPrompt }],
+          stream: false,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Reflection LLM error");
+      }
+
+      const data = await response.json();
+      const content = data.choices?.[0]?.message?.content || "{}";
+
+      let result;
+      try {
+        const cleaned = content.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
+        result = JSON.parse(cleaned);
+      } catch {
+        throw new Error("Failed to parse reflection from AI response");
+      }
+
+      return new Response(JSON.stringify(result), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
 
     } else {

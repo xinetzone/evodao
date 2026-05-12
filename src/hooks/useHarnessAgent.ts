@@ -6,6 +6,7 @@ import { parseFilesFromOutput } from "@/lib/parseFiles";
 export type AgentStatus = "idle" | "planning" | "executing" | "done" | "error";
 export type TaskStatus = "pending" | "running" | "completed" | "error";
 export type OutputMode = "text" | "agent";
+export type EvolutionStatus = "idle" | "reflecting" | "reflected";
 
 export interface Task {
   id: number;
@@ -20,6 +21,21 @@ export interface AgentFile {
   taskId: number;
 }
 
+export interface ReflectionResult {
+  qualityScore: number;       // 0–100
+  strengths: string[];
+  weaknesses: string[];
+  improvements: string[];
+  evolvedGoal: string;        // refined goal for next round
+}
+
+export interface EvolutionContext {
+  round: number;
+  qualityScore: number;
+  improvements: string[];
+  evolvedGoal: string;
+}
+
 export interface HistoryEntry {
   id: string;
   goal: string;
@@ -29,6 +45,7 @@ export interface HistoryEntry {
   completedAt: number;
   outputMode?: OutputMode;
   extractedFiles?: AgentFile[];
+  evolutionRound?: number;
 }
 
 export interface SavedSession {
@@ -73,6 +90,8 @@ function loadSavedSession(): SavedSession | null {
   }
 }
 
+const MAX_EVOLUTION_ROUNDS = 5;
+
 export function useHarnessAgent() {
   const [status, setStatus] = useState<AgentStatus>("idle");
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -84,16 +103,29 @@ export function useHarnessAgent() {
   const [outputMode, setOutputMode] = useState<OutputMode>("text");
   const [extractedFiles, setExtractedFiles] = useState<AgentFile[]>([]);
   const [savedSession, setSavedSession] = useState<SavedSession | null>(loadSavedSession);
+  // Evolution state
+  const [evolutionStatus, setEvolutionStatus] = useState<EvolutionStatus>("idle");
+  const [reflection, setReflection] = useState<ReflectionResult | null>(null);
+  const [evolutionRound, setEvolutionRound] = useState(0);
 
   const abortControllerRef = useRef<AbortController | null>(null);
   const taskOutputsRef = useRef<Record<number, string>>({});
   const extractedFilesRef = useRef<AgentFile[]>([]);
+  // Stable refs for use inside applyEvolution callback
+  const outputModeRef = useRef<OutputMode>("text");
+  const currentGoalRef = useRef<string>("");
+  const evolutionRoundRef = useRef(0);
+  const reflectionRef = useRef<ReflectionResult | null>(null);
 
   // Sync refs with state
   useEffect(() => { taskOutputsRef.current = taskOutputs; }, [taskOutputs]);
   useEffect(() => { extractedFilesRef.current = extractedFiles; }, [extractedFiles]);
+  useEffect(() => { outputModeRef.current = outputMode; }, [outputMode]);
+  useEffect(() => { currentGoalRef.current = currentGoal; }, [currentGoal]);
+  useEffect(() => { evolutionRoundRef.current = evolutionRound; }, [evolutionRound]);
+  useEffect(() => { reflectionRef.current = reflection; }, [reflection]);
 
-  // Auto-save: fires when task statuses or task list changes
+  // Auto-save
   useEffect(() => {
     if (tasks.length === 0 || !currentGoal) return;
 
@@ -137,6 +169,9 @@ export function useHarnessAgent() {
     setCurrentGoal("");
     setOutputMode("text");
     setExtractedFiles([]);
+    setEvolutionStatus("idle");
+    setReflection(null);
+    setEvolutionRound(0);
   }, []);
 
   const dismissSavedSession = useCallback(() => {
@@ -146,14 +181,18 @@ export function useHarnessAgent() {
 
   // ── Core helpers ──────────────────────────────────────────────────────────
 
-  const planTasks = async (goal: string, mode: OutputMode): Promise<Task[]> => {
+  const planTasks = async (
+    goal: string,
+    mode: OutputMode,
+    evolutionCtx?: EvolutionContext
+  ): Promise<Task[]> => {
     const response = await fetch(EDGE_FUNCTION_URL, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
       },
-      body: JSON.stringify({ mode: "plan", goal, outputMode: mode }),
+      body: JSON.stringify({ mode: "plan", goal, outputMode: mode, evolutionContext: evolutionCtx }),
     });
 
     if (!response.ok) {
@@ -173,7 +212,8 @@ export function useHarnessAgent() {
     task: Task,
     context: string[],
     mode: OutputMode,
-    onChunk: (chunk: string) => void
+    onChunk: (chunk: string) => void,
+    evolutionCtx?: EvolutionContext
   ): Promise<void> => {
     return new Promise((resolve, reject) => {
       const controller = new AbortController();
@@ -193,7 +233,14 @@ export function useHarnessAgent() {
           "Content-Type": "application/json",
           Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
         },
-        body: JSON.stringify({ mode: "execute", goal, task, context, outputMode: mode }),
+        body: JSON.stringify({
+          mode: "execute",
+          goal,
+          task,
+          context,
+          outputMode: mode,
+          evolutionContext: evolutionCtx,
+        }),
         signal: controller.signal,
 
         async onopen(response) {
@@ -222,18 +269,11 @@ export function useHarnessAgent() {
         },
 
         onmessage(event) {
-          if (event.data === "[DONE]") {
-            settle(() => resolve());
-            return;
-          }
+          if (event.data === "[DONE]") { settle(() => resolve()); return; }
           if (!event.data) return;
 
           let data: Record<string, unknown>;
-          try {
-            data = JSON.parse(event.data);
-          } catch {
-            return;
-          }
+          try { data = JSON.parse(event.data); } catch { return; }
 
           if ((data as { error?: { type?: string; message?: string } }).error) {
             const err = (data as { error: { type?: string; message?: string } }).error;
@@ -243,15 +283,9 @@ export function useHarnessAgent() {
           }
 
           const choice = (
-            data as {
-              choices?: Array<{
-                delta?: { content?: string };
-                finish_reason?: string | null;
-              }>;
-            }
+            data as { choices?: Array<{ delta?: { content?: string }; finish_reason?: string | null }> }
           ).choices?.[0];
           if (!choice) return;
-
           if (choice.delta?.content) onChunk(choice.delta.content);
           if (choice.finish_reason) settle(() => resolve());
         },
@@ -274,7 +308,8 @@ export function useHarnessAgent() {
     startOutputs: Record<number, string>,
     mode: OutputMode,
     startFiles: AgentFile[],
-    onComplete?: (entry: HistoryEntry) => void
+    onComplete?: (entry: HistoryEntry) => void,
+    evolutionCtx?: EvolutionContext
   ) => {
     const completedSummaries: string[] = plannedTasks
       .filter((t) => startStatuses[t.id] === "completed")
@@ -283,10 +318,7 @@ export function useHarnessAgent() {
         return `[Task ${t.id}: ${t.title}]\n${out.substring(0, 400)}${out.length > 400 ? "..." : ""}`;
       });
 
-    // Restore any files from resumed session
-    if (startFiles.length > 0) {
-      setExtractedFiles(startFiles);
-    }
+    if (startFiles.length > 0) setExtractedFiles(startFiles);
 
     for (const task of plannedTasks) {
       if (startStatuses[task.id] === "completed") continue;
@@ -300,20 +332,14 @@ export function useHarnessAgent() {
       try {
         await executeTask(goal, task, completedSummaries, mode, (chunk) => {
           taskContent += chunk;
-          setTaskOutputs((prev) => ({
-            ...prev,
-            [task.id]: (prev[task.id] || "") + chunk,
-          }));
-        });
+          setTaskOutputs((prev) => ({ ...prev, [task.id]: (prev[task.id] || "") + chunk }));
+        }, evolutionCtx);
 
         setTaskStatuses((prev) => ({ ...prev, [task.id]: "completed" }));
 
-        // Parse files in agent mode
         if (mode === "agent") {
           const newFiles = parseFilesFromOutput(taskContent, task.id);
-          if (newFiles.length > 0) {
-            setExtractedFiles((prev) => [...prev, ...newFiles]);
-          }
+          if (newFiles.length > 0) setExtractedFiles((prev) => [...prev, ...newFiles]);
         }
 
         completedSummaries.push(
@@ -340,6 +366,7 @@ export function useHarnessAgent() {
         completedAt: Date.now(),
         outputMode: mode,
         extractedFiles: [...extractedFilesRef.current],
+        evolutionRound: evolutionCtx?.round ?? evolutionRoundRef.current,
       });
     }
 
@@ -351,7 +378,8 @@ export function useHarnessAgent() {
   const runAgent = useCallback(async (
     goal: string,
     mode: OutputMode = "text",
-    onComplete?: (entry: HistoryEntry) => void
+    onComplete?: (entry: HistoryEntry) => void,
+    evolutionCtx?: EvolutionContext
   ) => {
     setCurrentGoal(goal);
     setOutputMode(mode);
@@ -363,9 +391,15 @@ export function useHarnessAgent() {
     setActiveTaskId(null);
     setExtractedFiles([]);
     setSavedSession(null);
+    if (!evolutionCtx) {
+      // Fresh run resets evolution
+      setEvolutionStatus("idle");
+      setReflection(null);
+      setEvolutionRound(0);
+    }
 
     try {
-      const plannedTasks = await planTasks(goal, mode);
+      const plannedTasks = await planTasks(goal, mode, evolutionCtx);
       setTasks(plannedTasks);
 
       const initialStatuses: Record<number, TaskStatus> = {};
@@ -373,7 +407,7 @@ export function useHarnessAgent() {
       setTaskStatuses(initialStatuses);
 
       setStatus("executing");
-      await runExecutionLoop(goal, plannedTasks, initialStatuses, {}, mode, [], onComplete);
+      await runExecutionLoop(goal, plannedTasks, initialStatuses, {}, mode, [], onComplete, evolutionCtx);
     } catch (err: unknown) {
       if (err instanceof Error && err.name === "AbortError") return;
       setError(err instanceof Error ? err.message : "Agent failed");
@@ -413,6 +447,66 @@ export function useHarnessAgent() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [savedSession]);
 
+  // ── Evolution actions ─────────────────────────────────────────────────────
+
+  /** Triggers self-reflection on the completed run */
+  const evolve = useCallback(async () => {
+    if (evolutionRoundRef.current >= MAX_EVOLUTION_ROUNDS) return;
+    setEvolutionStatus("reflecting");
+    setReflection(null);
+
+    try {
+      const response = await fetch(EDGE_FUNCTION_URL, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+        },
+        body: JSON.stringify({
+          mode: "reflect",
+          goal: currentGoalRef.current,
+          tasks: tasks,
+          taskOutputs: taskOutputsRef.current,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Reflection failed: ${response.status}`);
+      }
+
+      const result: ReflectionResult = await response.json();
+      setReflection(result);
+      setEvolutionStatus("reflected");
+    } catch {
+      setEvolutionStatus("idle");
+    }
+  }, [tasks]);
+
+  /** Re-runs the agent with reflection insights baked in */
+  const applyEvolution = useCallback(async (onComplete?: (entry: HistoryEntry) => void) => {
+    const r = reflectionRef.current;
+    if (!r) return;
+
+    const newRound = evolutionRoundRef.current + 1;
+    setEvolutionRound(newRound);
+    setEvolutionStatus("idle");
+    setReflection(null);
+
+    const evolutionCtx: EvolutionContext = {
+      round: newRound,
+      qualityScore: r.qualityScore,
+      improvements: r.improvements,
+      evolvedGoal: r.evolvedGoal,
+    };
+
+    await runAgent(r.evolvedGoal, outputModeRef.current, onComplete, evolutionCtx);
+  }, [runAgent]);
+
+  const dismissEvolution = useCallback(() => {
+    setEvolutionStatus("idle");
+    setReflection(null);
+  }, []);
+
   return {
     status,
     tasks,
@@ -424,9 +518,16 @@ export function useHarnessAgent() {
     outputMode,
     extractedFiles,
     savedSession,
+    evolutionStatus,
+    reflection,
+    evolutionRound,
+    maxEvolutionRounds: MAX_EVOLUTION_ROUNDS,
     runAgent,
     resumeAgent,
     dismissSavedSession,
     reset,
+    evolve,
+    applyEvolution,
+    dismissEvolution,
   };
 }

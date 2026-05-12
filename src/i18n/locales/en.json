@@ -62,6 +62,22 @@
     "resumeBtn": "RESUME",
     "dismissBtn": "DISMISS"
   },
+  "evolution": {
+    "hint": "Agent can self-reflect and evolve its approach",
+    "evolveBtn": "EVOLVE",
+    "reflecting": "AGENT SELF-REFLECTING...",
+    "reflectingDesc": "Analyzing output quality and identifying improvements",
+    "reportTitle": "EVOLUTION REPORT",
+    "qualityScore": "QUALITY SCORE",
+    "strengths": "STRENGTHS",
+    "weaknesses": "WEAKNESSES",
+    "improvements": "IMPROVEMENT DIRECTIONS",
+    "evolvedGoal": "EVOLVED GOAL",
+    "applyBtn": "APPLY EVOLUTION",
+    "dismissBtn": "DISMISS",
+    "roundBadge": "Round {{from}} → Round {{to}}",
+    "maxRounds": "Maximum evolution rounds reached ({{max}})"
+  },
   "agentMode": {
     "taskMode": "Task Mode",
     "agentBuild": "Agent Build",

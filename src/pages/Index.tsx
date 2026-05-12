@@ -9,6 +9,7 @@ import { TerminalOutput } from "@/components/agent/TerminalOutput";
 import { FileTree } from "@/components/agent/FileTree";
 import { HistoryPanel } from "@/components/agent/HistoryPanel";
 import { ExportActions } from "@/components/agent/ExportActions";
+import { EvolutionPanel } from "@/components/agent/EvolutionPanel";
 import { AlertCircle, Trophy, RotateCcw, X } from "lucide-react";
 
 const Index = () => {
@@ -26,10 +27,17 @@ const Index = () => {
     outputMode,
     extractedFiles,
     savedSession,
+    evolutionStatus,
+    reflection,
+    evolutionRound,
+    maxEvolutionRounds,
     runAgent,
     resumeAgent,
     dismissSavedSession,
     reset,
+    evolve,
+    applyEvolution,
+    dismissEvolution,
   } = useHarnessAgent();
 
   const steps: Array<{ label: string; desc: string }> = t("index.steps", {
@@ -168,6 +176,19 @@ const Index = () => {
                 extractedFiles={outputMode === "agent" ? extractedFiles : undefined}
               />
             </div>
+          )}
+
+          {/* Evolution panel — shown when run is complete or evolution is in progress */}
+          {(status === "done" || evolutionStatus !== "idle") && (
+            <EvolutionPanel
+              evolutionStatus={evolutionStatus}
+              reflection={reflection}
+              evolutionRound={evolutionRound}
+              maxRounds={maxEvolutionRounds}
+              onEvolve={evolve}
+              onApply={() => applyEvolution(history.addEntry)}
+              onDismiss={dismissEvolution}
+            />
           )}
 
           {/* Idle hero */}
