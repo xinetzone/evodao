@@ -1,13 +1,18 @@
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useHarnessAgent } from "@/hooks/useHarnessAgent";
+import { useAgentHistory } from "@/hooks/useAgentHistory";
 import { AgentHeader } from "@/components/agent/AgentHeader";
 import { GoalInput } from "@/components/agent/GoalInput";
 import { TaskList } from "@/components/agent/TaskList";
 import { TerminalOutput } from "@/components/agent/TerminalOutput";
+import { HistoryPanel } from "@/components/agent/HistoryPanel";
 import { AlertCircle, CircleCheck, Trophy, RotateCcw, X } from "lucide-react";
 
 const Index = () => {
   const { t } = useTranslation();
+  const history = useAgentHistory();
+  const [historyOpen, setHistoryOpen] = useState(false);
   const {
     status,
     tasks,
@@ -29,7 +34,12 @@ const Index = () => {
 
   return (
     <div className="w-full h-full flex flex-col bg-background overflow-hidden">
-      <AgentHeader status={status} currentGoal={currentGoal} />
+      <AgentHeader
+        status={status}
+        currentGoal={currentGoal}
+        historyCount={history.entries.length}
+        onHistoryOpen={() => setHistoryOpen(true)}
+      />
 
       <main className="flex-1 overflow-y-auto">
         <div className="max-w-6xl mx-auto px-6 py-8 space-y-8">
@@ -44,7 +54,7 @@ const Index = () => {
             }}
           />
 
-          <GoalInput status={status} onRun={runAgent} onReset={reset} />
+          <GoalInput status={status} onRun={(goal) => runAgent(goal, history.addEntry)} onReset={reset} />
 
           {/* Resume banner */}
           {savedSession && status === "idle" && (
@@ -68,7 +78,7 @@ const Index = () => {
               </div>
               <div className="flex items-center gap-2 shrink-0">
                 <button
-                  onClick={resumeAgent}
+                  onClick={() => resumeAgent(history.addEntry)}
                   className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold tracking-widest text-primary-foreground bg-primary border border-primary rounded hover:bg-primary/90 transition-all duration-200"
                 >
                   <RotateCcw className="w-3 h-3" />
@@ -197,6 +207,14 @@ const Index = () => {
           </div>
         </div>
       </footer>
+
+      <HistoryPanel
+        open={historyOpen}
+        onClose={() => setHistoryOpen(false)}
+        entries={history.entries}
+        onRemove={history.removeEntry}
+        onClear={history.clearHistory}
+      />
     </div>
   );
 };

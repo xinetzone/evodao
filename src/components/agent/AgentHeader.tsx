@@ -1,4 +1,4 @@
-import { Cpu, Zap, CircleCheck, AlertCircle, Loader } from "lucide-react";
+import { Cpu, Zap, CircleCheck, AlertCircle, Loader, Clock } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { AgentStatus } from "@/hooks/useHarnessAgent";
 import { LanguageSwitcher } from "./LanguageSwitcher";
@@ -7,9 +7,11 @@ import { cn } from "@/lib/utils";
 interface AgentHeaderProps {
   status: AgentStatus;
   currentGoal: string;
+  historyCount: number;
+  onHistoryOpen: () => void;
 }
 
-export function AgentHeader({ status, currentGoal }: AgentHeaderProps) {
+export function AgentHeader({ status, currentGoal, historyCount, onHistoryOpen }: AgentHeaderProps) {
   const { t } = useTranslation();
 
   const statusIconMap: Record<AgentStatus, React.ReactNode> = {
@@ -72,6 +74,21 @@ export function AgentHeader({ status, currentGoal }: AgentHeaderProps) {
             {statusIconMap[status]}
             {t(`header.status.${status}`)}
           </div>
+
+          {/* History button */}
+          <button
+            onClick={onHistoryOpen}
+            className="relative flex items-center gap-1.5 px-2.5 py-1 rounded border border-border bg-card text-xs text-muted-foreground hover:border-primary/40 hover:text-foreground transition-all duration-200"
+            title={t("history.title")}
+          >
+            <Clock className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline tracking-widest">{t("history.title")}</span>
+            {historyCount > 0 && (
+              <span className="absolute -top-1.5 -right-1.5 min-w-[16px] h-4 px-1 rounded-full bg-primary text-primary-foreground text-[9px] font-bold flex items-center justify-center">
+                {historyCount > 99 ? "99+" : historyCount}
+              </span>
+            )}
+          </button>
 
           <LanguageSwitcher />
         </div>

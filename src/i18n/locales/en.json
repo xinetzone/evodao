@@ -40,6 +40,15 @@
     "failed": "FAILED",
     "generating": "Generating output..."
   },
+  "history": {
+    "title": "HISTORY",
+    "empty": "No completed sessions yet",
+    "tasks": "{{count}} tasks",
+    "clearAll": "CLEAR ALL",
+    "back": "Back",
+    "completedAt": "Completed {{time}}",
+    "deleteEntry": "Delete"
+  },
   "resume": {
     "banner": "PREVIOUS SESSION DETECTED",
     "tasksProgress": "{{done}} of {{total}} tasks completed",

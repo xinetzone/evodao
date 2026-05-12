@@ -11,11 +11,20 @@ export interface Task {
   description: string;
 }
 
+export interface HistoryEntry {
+  id: string;
+  goal: string;
+  tasks: Task[];
+  taskOutputs: Record<number, string>;
+  taskStatuses: Record<number, TaskStatus>;
+  completedAt: number;
+}
+
 export interface SavedSession {
   goal: string;
   tasks: Task[];
   taskStatuses: Record<number, TaskStatus>;
-  taskOutputs: Record<number, string>; // only completed task outputs
+  taskOutputs: Record<number, string>;
   savedAt: number;
 }
 
@@ -245,7 +254,8 @@ export function useHarnessAgent() {
     goal: string,
     plannedTasks: Task[],
     startStatuses: Record<number, TaskStatus>,
-    startOutputs: Record<number, string>
+    startOutputs: Record<number, string>,
+    onComplete?: (entry: HistoryEntry) => void
   ) => {
     // Build context from already-completed tasks
     const completedSummaries: string[] = plannedTasks
@@ -285,12 +295,26 @@ export function useHarnessAgent() {
     }
 
     setActiveTaskId(null);
+
+    if (onComplete) {
+      const finalStatuses: Record<number, TaskStatus> = {};
+      plannedTasks.forEach((t) => { finalStatuses[t.id] = "completed"; });
+      onComplete({
+        id: Date.now().toString(),
+        goal,
+        tasks: plannedTasks,
+        taskOutputs: { ...taskOutputsRef.current },
+        taskStatuses: finalStatuses,
+        completedAt: Date.now(),
+      });
+    }
+
     setStatus("done");
   };
 
   // ── Public actions ────────────────────────────────────────────────────────
 
-  const runAgent = useCallback(async (goal: string) => {
+  const runAgent = useCallback(async (goal: string, onComplete?: (entry: HistoryEntry) => void) => {
     setCurrentGoal(goal);
     setStatus("planning");
     setError(null);
@@ -309,7 +333,7 @@ export function useHarnessAgent() {
       setTaskStatuses(initialStatuses);
 
       setStatus("executing");
-      await runExecutionLoop(goal, plannedTasks, initialStatuses, {});
+      await runExecutionLoop(goal, plannedTasks, initialStatuses, {}, onComplete);
     } catch (err: unknown) {
       if (err instanceof Error && err.name === "AbortError") return;
       setError(err instanceof Error ? err.message : "Agent failed");
@@ -318,7 +342,7 @@ export function useHarnessAgent() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const resumeAgent = useCallback(async () => {
+  const resumeAgent = useCallback(async (onComplete?: (entry: HistoryEntry) => void) => {
     if (!savedSession) return;
 
     const { goal, tasks: rTasks, taskStatuses: rStatuses, taskOutputs: rOutputs } = savedSession;
@@ -332,7 +356,7 @@ export function useHarnessAgent() {
     setSavedSession(null);
 
     try {
-      await runExecutionLoop(goal, rTasks, rStatuses, rOutputs);
+      await runExecutionLoop(goal, rTasks, rStatuses, rOutputs, onComplete);
     } catch (err: unknown) {
       if (err instanceof Error && err.name === "AbortError") return;
       setError(err instanceof Error ? err.message : "Agent failed");

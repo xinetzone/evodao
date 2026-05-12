@@ -40,6 +40,15 @@
     "failed": "失败",
     "generating": "正在生成输出..."
   },
+  "history": {
+    "title": "历史记录",
+    "empty": "暂无已完成的任务记录",
+    "tasks": "{{count}} 个任务",
+    "clearAll": "清空全部",
+    "back": "返回",
+    "completedAt": "完成于 {{time}}",
+    "deleteEntry": "删除"
+  },
   "resume": {
     "banner": "检测到未完成的任务",
     "tasksProgress": "已完成 {{done}} / {{total}} 个任务",
