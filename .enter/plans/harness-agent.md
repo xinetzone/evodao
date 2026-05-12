@@ -1,26 +1,68 @@
-# Harness Agent — History Feature Plan
+# Harness Agent — ZIP Export for Multi-File Agent Projects
 
 ## Context
-User wants a history panel that records all completed sessions and allows reviewing past task outputs. UI: right slide-in panel with list view → detail view (drill-down, no modal).
+User wants a dedicated "Agent Build" mode where the LLM outputs structured source files.
+Files are parsed from code blocks, shown in a file tree, and exported as a `.zip` archive.
 
 ---
 
-## Data Structure
+## Architecture Overview
 
-```typescript
-// src/hooks/useAgentHistory.ts
-interface HistoryEntry {
-  id: string;                              // Date.now().toString()
-  goal: string;
-  tasks: Task[];
-  taskOutputs: Record<number, string>;     // all completed outputs
-  taskStatuses: Record<number, TaskStatus>;
-  completedAt: number;                     // unix ms
-}
+```
+User toggles "Agent Build" mode
+  → GoalInput sends outputMode: "agent"
+  → Edge Function uses file-oriented prompts
+  → LLM outputs code blocks: ```lang:path/to/file
+  → Frontend parses AgentFile[] after each task
+  → FileTree component displays files
+  → "Download ZIP" button packs all files via jszip
 ```
 
-- Storage key: `harness-agent-history`
-- Max entries: **20** (oldest trimmed on overflow)
+---
+
+## File Convention (LLM output format)
+
+```
+```python:agents/main.py
+...code content...
+```
+
+```json:config/settings.json
+...json content...
+```
+```
+
+Parser regex: `` /```(\w+):([^\n]+)\n([\s\S]*?)```/g ``
+
+---
+
+## New Dependency
+
+```
+jszip
+```
+
+---
+
+## New Types (add to `useHarnessAgent.ts`)
+
+```typescript
+export type OutputMode = "text" | "agent";
+
+export interface AgentFile {
+  path: string;
+  content: string;
+  language: string;
+  taskId: number;
+}
+
+// Add to HistoryEntry:
+export interface HistoryEntry {
+  ...existing fields...
+  outputMode?: OutputMode;
+  extractedFiles?: AgentFile[];
+}
+```
 
 ---
 
@@ -29,105 +71,126 @@ interface HistoryEntry {
 ### New
 | File | Purpose |
 |---|---|
-| `src/hooks/useAgentHistory.ts` | CRUD for history localStorage |
-| `src/components/agent/HistoryPanel.tsx` | Slide-in panel (list + detail view) |
+| `src/lib/parseFiles.ts` | Parse `\`\`\`lang:path` code blocks from text |
+| `src/components/agent/FileTree.tsx` | Display extracted files with expand/collapse |
 
 ### Modified
 | File | Change |
 |---|---|
-| `src/hooks/useHarnessAgent.ts` | Accept `onComplete` callback → caller saves to history |
-| `src/pages/Index.tsx` | Wire `useAgentHistory`, pass `onComplete`, control panel open/close |
-| `src/components/agent/AgentHeader.tsx` | Add History button with entry-count badge |
-| `src/i18n/locales/en.json` | Add `history.*` keys |
-| `src/i18n/locales/zh.json` | Add `history.*` keys |
+| `supabase/functions/harness-agent/index.ts` | Add `outputMode` param + agent-mode system prompts |
+| `src/hooks/useHarnessAgent.ts` | Add `outputMode`, `extractedFiles` state; parse after each task |
+| `src/components/agent/GoalInput.tsx` | Add mode toggle (Task / Agent Build) |
+| `src/components/agent/ExportActions.tsx` | Add ZIP download button (shown when files > 0) |
+| `src/lib/exportUtils.ts` | Add `downloadZip(files, name)` using jszip |
+| `src/pages/Index.tsx` | Show `<FileTree>` when `extractedFiles.length > 0` |
+| `src/i18n/locales/en.json` + `zh.json` | Add `mode.*` and `fileTree.*` i18n keys |
 
 ---
 
 ## Implementation Details
 
-### `useAgentHistory` hook
+### 1. `src/lib/parseFiles.ts`
 ```typescript
-{
-  entries: HistoryEntry[];
-  addEntry: (e: HistoryEntry) => void;   // prepends, trims to 20
-  removeEntry: (id: string) => void;
-  clearHistory: () => void;
+export function parseFilesFromOutput(output: string, taskId: number): AgentFile[] {
+  const regex = /```(\w+):([^\n]+)\n([\s\S]*?)```/g;
+  const files: AgentFile[] = [];
+  let match;
+  while ((match = regex.exec(output)) !== null) {
+    files.push({ language: match[1], path: match[2].trim(), content: match[3], taskId });
+  }
+  return files;
 }
 ```
 
-### `useHarnessAgent` change
-- Export `addHistoryEntry` as callback or expose a dedicated function.
-- **Simplest approach**: add an optional `onComplete?: (entry: HistoryEntry) => void` parameter to `runAgent` and `resumeAgent`. Called right before `setStatus("done")`.
+### 2. Edge Function — agent mode prompts
 
-### `HistoryPanel`
-Props: `open`, `onClose`, `entries`, `onClear`, `onRemove`
-
-Two local states:
-- `view: "list" | "detail"`
-- `selected: HistoryEntry | null`
-
-**List view**:
-- Each row: truncated goal, `N tasks`, relative date ("2 hours ago")
-- Hover row → highlight with `border-primary/30`
-- Trash icon per row (delete single entry)
-- "CLEAR ALL" button at bottom (only shown when entries > 0)
-
-**Detail view**:
-- Back button → returns to list
-- Goal heading
-- Task cards (same style as `TaskList`) — read-only status badges
-- Expandable terminal output per task (same style as `TerminalOutput`)
-
-### AgentHeader change
-- Add `onHistoryOpen: () => void` and `historyCount: number` props
-- History button: `<History />` icon + count badge (hidden when 0)
-- Placed between status badge and LanguageSwitcher
-
-### Index.tsx wiring
-```tsx
-const history = useAgentHistory();
-const [historyOpen, setHistoryOpen] = useState(false);
-
-// pass to runAgent / resumeAgent via onComplete callback
-const handleRun = (goal: string) =>
-  runAgent(goal, (entry) => history.addEntry(entry));
+**Plan (agent mode):**
+```
+You are a software architect. Decompose this agent project goal into 3-6 implementation tasks (files/modules).
+Each task should correspond to a specific component of the agent (e.g., "Core Agent Logic", "Config & Dependencies", "README").
+Return JSON only: [{"id":1,"title":"...","description":"..."}]
 ```
 
-### i18n keys to add
+**Execute (agent mode):**
+```
+You are an expert software engineer building an agent project.
+For each file you create, use EXACTLY this format (no exceptions):
+```language:path/to/filename.ext
+...file content...
+```
+Multiple files per task are allowed. Write complete, production-ready code.
+```
+
+### 3. `useHarnessAgent` changes
+- Add `outputMode: OutputMode` state (default `"text"`)
+- Add `extractedFiles: AgentFile[]` state
+- Pass `outputMode` to Edge Function in plan/execute requests
+- After each task completes: parse output → append to `extractedFiles`
+- Expose `setOutputMode` for GoalInput toggle
+- Clear `extractedFiles` on `reset()`
+- Include `outputMode` + `extractedFiles` in `HistoryEntry` (so history can also ZIP-export)
+
+### 4. `GoalInput` mode toggle
+- Two-state pill toggle: `[TASK] [AGENT BUILD]`
+- Only shown when `status === "idle"` (can't switch mid-run)
+- Calls `onModeChange(mode)` prop
+
+### 5. `FileTree` component
+- Shows files grouped by `taskId` (collapsible task group headers)
+- Each file row: language icon (via extension mapping) + path + expand button
+- Expanded: `<pre>` with file content (monospace, scrollable, max-h-48)
+- Header: "X files extracted" + `<ExportActions>` ZIP button
+
+### 6. `exportUtils.ts` addition
+```typescript
+export async function downloadZip(files: AgentFile[], name: string) {
+  const JSZip = (await import("jszip")).default;
+  const zip = new JSZip();
+  files.forEach((f) => zip.file(f.path, f.content));
+  const blob = await zip.generateAsync({ type: "blob" });
+  downloadMarkdown(blob, `${name}.zip`); // reuse download helper
+}
+```
+
+### 7. `ExportActions` ZIP button
+- Show "DOWNLOAD .ZIP" button only when `files` prop is provided and `files.length > 0`
+- Existing Copy/Download .MD buttons unchanged
+
+### 8. i18n keys to add
 ```json
-"history": {
-  "title": "History",
-  "empty": "No completed sessions yet",
-  "tasks": "{{count}} tasks",
-  "clearAll": "Clear All",
-  "back": "Back",
-  "completedAt": "Completed {{time}}",
-  "deleteEntry": "Delete"
+"mode": {
+  "task": "TASK",
+  "agent": "AGENT BUILD",
+  "toggle": "Output Mode"
+},
+"fileTree": {
+  "header": "{{count}} files extracted",
+  "expand": "Expand",
+  "collapse": "Collapse"
+},
+"export": {
+  "downloadZip": "DOWNLOAD .ZIP"
 }
 ```
 
 ---
 
-## Relative Time Helper
-Simple inline helper (no dependency):
-```typescript
-function relativeTime(ms: number): string {
-  const diff = Date.now() - ms;
-  if (diff < 60_000) return "just now";
-  if (diff < 3_600_000) return `${Math.floor(diff / 60_000)}m ago`;
-  if (diff < 86_400_000) return `${Math.floor(diff / 3_600_000)}h ago`;
-  return `${Math.floor(diff / 86_400_000)}d ago`;
-}
+## Index.tsx layout change
+```tsx
+{extractedFiles.length > 0 && (
+  <FileTree files={extractedFiles} goal={currentGoal} />
+)}
 ```
-(Localized variant for Chinese: "X分钟前" etc.)
+Placed after `<TaskList>` and before `<TerminalOutput>`.
 
 ---
 
 ## Verification
-1. Run a goal → on completion, history badge shows "1"
-2. Open history panel → entry appears with goal, date, task count
-3. Click entry → detail view shows all tasks and outputs
-4. Back button → returns to list
-5. Delete single entry → removed from list
-6. Clear all → list empty, badge hidden
-7. Max 20 entries enforced (oldest dropped on 21st)
+1. Toggle to "Agent Build" mode
+2. Enter goal like "Build a Python RSS monitoring agent"
+3. Tasks are planned with agent-oriented descriptions
+4. Each task execution outputs ` ```lang:path ` blocks
+5. FileTree populates as tasks complete
+6. "Download .ZIP" button downloads archive with correct file structure
+7. ZIP contains all extracted source files at correct paths
+8. History detail view also shows ZIP download for agent-mode sessions
