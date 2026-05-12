@@ -64,6 +64,12 @@ export interface QAMessage {
   streaming?: boolean;
 }
 
+export interface TokenUsage {
+  promptTokens: number;
+  completionTokens: number;
+  totalTokens: number;
+}
+
 const STORAGE_KEY = "harness-agent-session";
 const EDGE_FUNCTION_URL = `${SUPABASE_URL}/functions/v1/harness-agent`;
 
@@ -98,6 +104,8 @@ function loadSavedSession(): SavedSession | null {
 
 const MAX_EVOLUTION_ROUNDS = 5;
 
+type RawUsage = { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number };
+
 export function useHarnessAgent() {
   const [status, setStatus] = useState<AgentStatus>("idle");
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -115,6 +123,8 @@ export function useHarnessAgent() {
   const [evolutionRound, setEvolutionRound] = useState(0);
   // Q&A state
   const [qaMessages, setQaMessages] = useState<QAMessage[]>([]);
+  // Token usage
+  const [sessionUsage, setSessionUsage] = useState<TokenUsage>({ promptTokens: 0, completionTokens: 0, totalTokens: 0 });
 
   const abortControllerRef = useRef<AbortController | null>(null);
   const taskOutputsRef = useRef<Record<number, string>>({});
@@ -183,6 +193,7 @@ export function useHarnessAgent() {
     setReflection(null);
     setEvolutionRound(0);
     setQaMessages([]);
+    setSessionUsage({ promptTokens: 0, completionTokens: 0, totalTokens: 0 });
   }, []);
 
   /** Clears only the QA conversation, keeps status idle */
@@ -191,6 +202,7 @@ export function useHarnessAgent() {
     setQaMessages([]);
     setError(null);
     setStatus("idle");
+    setSessionUsage({ promptTokens: 0, completionTokens: 0, totalTokens: 0 });
   }, []);
 
   const dismissSavedSession = useCallback(() => {
@@ -299,6 +311,16 @@ export function useHarnessAgent() {
             const errorMsg = getUserErrorMessage(err.type || "api_error", err.message || "");
             settle(() => reject(new Error(errorMsg)));
             return;
+          }
+
+          // Accumulate token usage when present (usage-only chunk or final chunk)
+          const rawUsage = (data as { usage?: RawUsage }).usage;
+          if (rawUsage) {
+            setSessionUsage((prev) => ({
+              promptTokens: prev.promptTokens + (rawUsage.prompt_tokens || 0),
+              completionTokens: prev.completionTokens + (rawUsage.completion_tokens || 0),
+              totalTokens: prev.totalTokens + (rawUsage.total_tokens || 0),
+            }));
           }
 
           const choice = (
@@ -461,6 +483,16 @@ export function useHarnessAgent() {
               if (errObj) {
                 settle(() => reject(new Error(errObj.message || "Chat error")));
                 return;
+              }
+
+              // Accumulate token usage
+              const rawUsage = (data as { usage?: RawUsage }).usage;
+              if (rawUsage) {
+                setSessionUsage((prev) => ({
+                  promptTokens: prev.promptTokens + (rawUsage.prompt_tokens || 0),
+                  completionTokens: prev.completionTokens + (rawUsage.completion_tokens || 0),
+                  totalTokens: prev.totalTokens + (rawUsage.total_tokens || 0),
+                }));
               }
 
               const choice = (
@@ -658,5 +690,6 @@ export function useHarnessAgent() {
     dismissEvolution,
     qaMessages,
     resetQA,
+    sessionUsage,
   };
 }

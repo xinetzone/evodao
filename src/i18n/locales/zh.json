@@ -3,6 +3,9 @@
     "title": "HARNESS AGENT",
     "subtitle": "自主任务执行器 v1.0",
     "goalPrefix": "目标://",
+    "promptTokens": "输入 Token",
+    "completionTokens": "输出 Token",
+    "totalTokens": "总 Token",
     "status": {
       "idle": "待机",
       "planning": "规划中",

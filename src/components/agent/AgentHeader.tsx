@@ -1,6 +1,6 @@
 import { Cpu, Zap, CircleCheck, AlertCircle, Loader, Clock } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { AgentStatus } from "@/hooks/useHarnessAgent";
+import { AgentStatus, TokenUsage } from "@/hooks/useHarnessAgent";
 import { LanguageSwitcher } from "./LanguageSwitcher";
 import { cn } from "@/lib/utils";
 
@@ -9,9 +9,10 @@ interface AgentHeaderProps {
   currentGoal: string;
   historyCount: number;
   onHistoryOpen: () => void;
+  sessionUsage: TokenUsage;
 }
 
-export function AgentHeader({ status, currentGoal, historyCount, onHistoryOpen }: AgentHeaderProps) {
+export function AgentHeader({ status, currentGoal, historyCount, onHistoryOpen, sessionUsage }: AgentHeaderProps) {
   const { t } = useTranslation();
 
   const statusIconMap: Record<AgentStatus, React.ReactNode> = {
@@ -55,13 +56,24 @@ export function AgentHeader({ status, currentGoal, historyCount, onHistoryOpen }
           </div>
         </div>
 
-        {/* Status + Goal + Switcher */}
+        {/* Status + Goal + Token Stats + Switcher */}
         <div className="flex items-center gap-3">
           {currentGoal && status !== "idle" && (
             <p className="hidden md:block text-xs text-muted-foreground max-w-56 truncate">
               <span className="text-primary/60">{t("header.goalPrefix")}</span>
               {currentGoal.substring(0, 45)}{currentGoal.length > 45 ? "…" : ""}
             </p>
+          )}
+
+          {/* Token usage badge */}
+          {sessionUsage.totalTokens > 0 && (
+            <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded border border-border bg-card text-[10px] font-mono text-muted-foreground">
+              <span title={t("header.promptTokens")}>↑{sessionUsage.promptTokens.toLocaleString()}</span>
+              <span className="text-border">·</span>
+              <span title={t("header.completionTokens")}>↓{sessionUsage.completionTokens.toLocaleString()}</span>
+              <span className="text-border">·</span>
+              <span className="text-primary/70" title={t("header.totalTokens")}>Σ{sessionUsage.totalTokens.toLocaleString()}</span>
+            </div>
           )}
 
           <div

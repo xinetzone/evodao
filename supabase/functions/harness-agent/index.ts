@@ -97,6 +97,7 @@ Deno.serve(async (req) => {
             ...chatMessages,
           ],
           stream: true,
+          stream_options: { include_usage: true },
         }),
       });
 
@@ -183,6 +184,7 @@ Please execute this task completely and provide detailed, actionable output.`;
             { role: "user", content: userPrompt },
           ],
           stream: true,
+          stream_options: { include_usage: true },
         }),
       });
 

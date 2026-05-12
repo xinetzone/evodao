@@ -41,6 +41,7 @@ const Index = () => {
     dismissEvolution,
     qaMessages,
     resetQA,
+    sessionUsage,
   } = useHarnessAgent();
 
   const steps: Array<{ label: string; desc: string }> = t("index.steps", {
@@ -54,6 +55,7 @@ const Index = () => {
         currentGoal={currentGoal}
         historyCount={history.entries.length}
         onHistoryOpen={() => setHistoryOpen(true)}
+        sessionUsage={sessionUsage}
       />
 
       <main className="flex-1 overflow-y-auto">
