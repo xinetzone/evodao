@@ -107,7 +107,7 @@
   },
   "agentMode": {
     "taskMode": "任务模式",
-    "agentBuild": "智能体构建",
+    "agentBuild": "构建模式",
     "agentBuildHint": "LLM 输出结构化代码文件，可导出为 ZIP",
     "qaChat": "探索问答",
     "qaChatHint": "直接提问，无需任务拆解 — 支持多轮对话",
