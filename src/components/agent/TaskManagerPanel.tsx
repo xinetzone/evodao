@@ -18,26 +18,12 @@ interface TaskManagerPanelProps {
   runningCount: number;
 }
 
-const MODE_LABELS: Record<OutputMode, string> = {
-  text: "任务",
-  agent: "构建",
-  qa: "问答",
-};
-
 const STATUS_COLORS = {
   idle:      { badge: "text-muted-foreground border-border", dot: "bg-muted-foreground/40" },
   planning:  { badge: "text-yellow-400 border-yellow-500/30 bg-yellow-500/5", dot: "bg-yellow-400 animate-pulse" },
   executing: { badge: "text-primary border-primary/30 bg-primary/5", dot: "bg-primary animate-pulse" },
   done:      { badge: "text-primary/70 border-primary/20 bg-primary/5", dot: "bg-primary" },
   error:     { badge: "text-destructive border-destructive/30 bg-destructive/5", dot: "bg-destructive" },
-};
-
-const STATUS_LABELS: Record<string, string> = {
-  idle:      "已中止",
-  planning:  "规划中",
-  executing: "执行中",
-  done:      "已完成",
-  error:     "错误",
 };
 
 // Compact session card
@@ -83,14 +69,14 @@ function SessionCard({
               "text-[9px] font-bold tracking-widest px-1.5 py-0.5 rounded border",
               colors.badge
             )}>
-              {STATUS_LABELS[session.status] || session.status}
+              {t(`header.status.${session.status}`, { defaultValue: session.status })}
             </span>
             <span className="text-[9px] px-1.5 py-0.5 rounded border border-border text-muted-foreground">
-              {MODE_LABELS[session.outputMode]}
+              {({ text: t("agentMode.taskMode"), agent: t("agentMode.agentBuild"), qa: t("agentMode.qaChat") } as Record<OutputMode, string>)[session.outputMode]}
             </span>
             {totalCount > 0 && (
               <span className="text-[9px] text-muted-foreground/60">
-                {completedCount}/{totalCount} 任务
+                {completedCount}/{totalCount} {t("taskManager.tasks")}
               </span>
             )}
             <span className="text-[9px] text-muted-foreground/40 ml-auto">
@@ -160,7 +146,7 @@ function SessionCard({
             <button
               onClick={onAbort}
               className="p-1 rounded text-muted-foreground/60 hover:text-destructive transition-colors"
-              title="中止"
+              title={t("taskManager.abort")}
             >
               <Square className="w-3 h-3" />
             </button>
@@ -169,7 +155,7 @@ function SessionCard({
             <button
               onClick={onRemove}
               className="p-1 rounded text-muted-foreground/60 hover:text-destructive transition-colors"
-              title="移除"
+              title={t("taskManager.remove")}
             >
               <X className="w-3 h-3" />
             </button>
@@ -260,7 +246,7 @@ function QuickAddForm({ onAdd }: { onAdd: (goal: string, mode: OutputMode, model
                   : "text-muted-foreground hover:text-foreground"
               )}
             >
-              {MODE_LABELS[m]}
+              {({ text: t("agentMode.taskMode"), agent: t("agentMode.agentBuild"), qa: t("agentMode.qaChat") } as Record<OutputMode, string>)[m]}
             </button>
           ))}
         </div>

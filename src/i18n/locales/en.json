@@ -107,7 +107,7 @@
   },
   "agentMode": {
     "taskMode": "Task Mode",
-    "agentBuild": "Agent Build",
+    "agentBuild": "Build Mode",
     "agentBuildHint": "LLM outputs structured code files for ZIP export",
     "qaChat": "Q&A",
     "qaChatHint": "Ask directly — no task decomposition, supports multi-turn",
@@ -152,7 +152,8 @@
     "clearCompleted": "Clear done",
     "running": "running",
     "abort": "Abort",
-    "remove": "Remove"
+    "remove": "Remove",
+    "tasks": "tasks"
   },
   "index": {
     "planning": "ANALYZING GOAL — DECOMPOSING INTO SUB-TASKS...",
@@ -160,11 +161,11 @@
     "missionAccomplished": "MISSION ACCOMPLISHED",
     "missionDone": "All {{count}} tasks completed successfully. Reset to run a new mission.",
     "standby": "AGENT STANDBY",
-    "standbyDesc": "Enter any goal or objective above. The agent will automatically decompose it into actionable sub-tasks and execute each one step-by-step.",
+    "standbyDesc": "Enter any goal or objective above. The agent will automatically decompose it into actionable sub-tasks and execute all of them in parallel.",
     "steps": [
       { "label": "DEFINE GOAL", "desc": "Describe any objective or task in natural language" },
       { "label": "AUTO PLAN",   "desc": "Agent decomposes your goal into concrete sub-tasks" },
-      { "label": "EXECUTE",     "desc": "Each sub-task is executed sequentially with live output" }
+      { "label": "PARALLEL EXEC", "desc": "All sub-tasks execute in parallel with live output" }
     ],
     "footer": "EVODAO © 2026"
   }
