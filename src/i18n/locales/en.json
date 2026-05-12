@@ -131,6 +131,10 @@
         "name": "Claude Opus 4.7",
         "desc": "Deep reasoning, long context & complex analysis"
       },
+      "anthropic/claude-opus-4.6": {
+        "name": "Claude Opus 4.6",
+        "desc": "Powerful reasoning & instruction following"
+      },
       "deepseek/deepseek-v4-pro": { "name": "DeepSeek V4 Pro", "desc": "Coding, math & deep reasoning" },
       "z-ai/glm-5.1": { "name": "GLM 5.1", "desc": "Long-horizon agent tasks" },
       "z-ai/glm-5": { "name": "GLM 5", "desc": "Complex system design" },

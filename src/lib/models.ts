@@ -3,6 +3,7 @@ import { OutputMode } from "@/hooks/useEvodaoAgent";
 export const MODELS = [
   "openai/gpt-5.4-pro",
   "anthropic/claude-opus-4.7",
+  "anthropic/claude-opus-4.6",
   "deepseek/deepseek-v4-pro",
   "z-ai/glm-5.1",
   "z-ai/glm-5",
