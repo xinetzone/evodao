@@ -1,26 +1,46 @@
 import { useState, useRef } from "react";
-import { Play, RotateCcw, Square } from "lucide-react";
+import { Play, RotateCcw, Square, Wand2, Loader, Sparkles } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { AgentStatus, OutputMode } from "@/hooks/useHarnessAgent";
+import { SUPABASE_URL, SUPABASE_ANON_KEY } from "@/lib/config";
 import { cn } from "@/lib/utils";
 
 interface GoalInputProps {
   status: AgentStatus;
   onRun: (goal: string, outputMode: OutputMode) => void;
   onReset: () => void;
+  suggestions?: string[];
+  suggestionsLoading?: boolean;
+  suggestionsAI?: boolean;
 }
 
-export function GoalInput({ status, onRun, onReset }: GoalInputProps) {
+export function GoalInput({
+  status,
+  onRun,
+  onReset,
+  suggestions = [],
+  suggestionsLoading = false,
+  suggestionsAI = false,
+}: GoalInputProps) {
   const { t } = useTranslation();
   const [goal, setGoal] = useState("");
   const [outputMode, setOutputMode] = useState<OutputMode>("text");
+  const [isOptimizing, setIsOptimizing] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const placeholders: string[] = t("goalInput.placeholders", { returnObjects: true }) as string[];
   const qaPlaceholders: string[] = t("agentMode.qaChatPlaceholders", { returnObjects: true }) as string[];
+  const staticSuggestions: string[] = t(
+    outputMode === "agent" ? "promptSuggestions.agent"
+    : outputMode === "qa" ? "promptSuggestions.qa"
+    : "promptSuggestions.text",
+    { returnObjects: true }
+  ) as string[];
   const [placeholderIndex] = useState(() => Math.floor(Math.random() * 4));
 
   const activePlaceholders = outputMode === "qa" ? qaPlaceholders : placeholders;
+  // AI suggestions override static ones once available
+  const activeSuggestions = suggestions.length > 0 ? suggestions : staticSuggestions;
 
   const isRunning = status === "planning" || status === "executing";
   const isDone = status === "done" || status === "error";
@@ -44,6 +64,40 @@ export function GoalInput({ status, onRun, onReset }: GoalInputProps) {
     }
   };
 
+  const handleSuggestionClick = (text: string) => {
+    setGoal(text);
+    setTimeout(() => {
+      textareaRef.current?.focus();
+      const len = textareaRef.current?.value.length || 0;
+      textareaRef.current?.setSelectionRange(len, len);
+    }, 0);
+  };
+
+  const handleOptimize = async () => {
+    if (!goal.trim() || isOptimizing || isRunning) return;
+    setIsOptimizing(true);
+    try {
+      const resp = await fetch(`${SUPABASE_URL}/functions/v1/harness-agent`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+        },
+        body: JSON.stringify({ mode: "optimize", goal: goal.trim(), outputMode }),
+      });
+      if (!resp.ok) throw new Error("Optimize failed");
+      const data = await resp.json();
+      if (data.optimizedPrompt) {
+        setGoal(data.optimizedPrompt);
+        setTimeout(() => textareaRef.current?.focus(), 50);
+      }
+    } catch {
+      // silently fail — keep original goal
+    } finally {
+      setIsOptimizing(false);
+    }
+  };
+
   return (
     <div className="animate-fade-in">
       {/* Mode toggle + prompt header */}
@@ -56,42 +110,21 @@ export function GoalInput({ status, onRun, onReset }: GoalInputProps) {
 
         {/* Mode toggle pills */}
         <div className="flex items-center gap-0.5 p-0.5 rounded border border-border bg-card">
-          <button
-            onClick={() => setOutputMode("text")}
-            disabled={isRunning}
-            className={cn(
-              "px-2.5 py-1 text-[10px] font-semibold tracking-widest rounded transition-all duration-150",
-              outputMode === "text"
-                ? "bg-primary text-primary-foreground"
-                : "text-muted-foreground hover:text-foreground"
-            )}
-          >
-            {t("agentMode.taskMode")}
-          </button>
-          <button
-            onClick={() => setOutputMode("agent")}
-            disabled={isRunning}
-            className={cn(
-              "px-2.5 py-1 text-[10px] font-semibold tracking-widest rounded transition-all duration-150",
-              outputMode === "agent"
-                ? "bg-primary text-primary-foreground"
-                : "text-muted-foreground hover:text-foreground"
-            )}
-          >
-            {t("agentMode.agentBuild")}
-          </button>
-          <button
-            onClick={() => setOutputMode("qa")}
-            disabled={isRunning}
-            className={cn(
-              "px-2.5 py-1 text-[10px] font-semibold tracking-widest rounded transition-all duration-150",
-              outputMode === "qa"
-                ? "bg-primary text-primary-foreground"
-                : "text-muted-foreground hover:text-foreground"
-            )}
-          >
-            {t("agentMode.qaChat")}
-          </button>
+          {(["text", "agent", "qa"] as OutputMode[]).map((m) => (
+            <button
+              key={m}
+              onClick={() => setOutputMode(m)}
+              disabled={isRunning}
+              className={cn(
+                "px-2.5 py-1 text-[10px] font-semibold tracking-widest rounded transition-all duration-150",
+                outputMode === m
+                  ? "bg-primary text-primary-foreground"
+                  : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              {m === "text" ? t("agentMode.taskMode") : m === "agent" ? t("agentMode.agentBuild") : t("agentMode.qaChat")}
+            </button>
+          ))}
         </div>
       </div>
 
@@ -106,6 +139,40 @@ export function GoalInput({ status, onRun, onReset }: GoalInputProps) {
           {t("agentMode.qaChatHint")}
         </p>
       )}
+
+      {/* Prompt suggestion chips */}
+      <div className="flex items-center gap-1.5 flex-wrap mb-3 min-h-[26px]">
+        {suggestionsLoading ? (
+          <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground/60">
+            <Loader className="w-3 h-3 animate-spin" />
+            {t("promptSuggestions.loading")}
+          </div>
+        ) : (
+          <>
+            <span className="text-[9px] text-muted-foreground/40 tracking-widest font-bold shrink-0">
+              {suggestionsAI ? (
+                <span className="flex items-center gap-1 text-primary/50">
+                  <Sparkles className="w-2.5 h-2.5" />
+                  {t("promptSuggestions.aiLabel")}
+                </span>
+              ) : (
+                t("promptSuggestions.label")
+              )}
+            </span>
+            {activeSuggestions.map((s, i) => (
+              <button
+                key={i}
+                onClick={() => handleSuggestionClick(s)}
+                disabled={isRunning}
+                className="px-2 py-0.5 text-[10px] text-muted-foreground/70 border border-border/60 rounded hover:border-primary/40 hover:text-foreground hover:bg-primary/5 transition-all duration-150 truncate max-w-[240px] text-left"
+                title={s}
+              >
+                {s.length > 42 ? s.slice(0, 42) + "…" : s}
+              </button>
+            ))}
+          </>
+        )}
+      </div>
 
       {/* Input area */}
       <div
@@ -154,6 +221,28 @@ export function GoalInput({ status, onRun, onReset }: GoalInputProps) {
             </p>
 
             <div className="flex items-center gap-2">
+              {/* Optimize button */}
+              {isIdle && goal.trim().length > 5 && (
+                <button
+                  onClick={handleOptimize}
+                  disabled={isOptimizing}
+                  title={t("goalInput.optimizeTitle")}
+                  className={cn(
+                    "flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-semibold tracking-widest rounded border transition-all duration-200",
+                    isOptimizing
+                      ? "border-primary/30 text-primary/60 cursor-not-allowed"
+                      : "border-primary/30 text-primary/70 hover:border-primary/60 hover:text-primary hover:bg-primary/5"
+                  )}
+                >
+                  {isOptimizing ? (
+                    <Loader className="w-3 h-3 animate-spin" />
+                  ) : (
+                    <Wand2 className="w-3 h-3" />
+                  )}
+                  {isOptimizing ? t("goalInput.optimizing") : t("goalInput.optimize")}
+                </button>
+              )}
+
               {isDone && (
                 <button
                   onClick={handleReset}

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { useHarnessAgent } from "@/hooks/useHarnessAgent";
 import { useAgentHistory } from "@/hooks/useAgentHistory";
@@ -12,11 +12,17 @@ import { ExportActions } from "@/components/agent/ExportActions";
 import { EvolutionPanel } from "@/components/agent/EvolutionPanel";
 import { QAOutput } from "@/components/agent/QAOutput";
 import { AlertCircle, Trophy, RotateCcw, X } from "lucide-react";
+import { SUPABASE_URL, SUPABASE_ANON_KEY } from "@/lib/config";
 
 const Index = () => {
   const { t } = useTranslation();
   const history = useAgentHistory();
   const [historyOpen, setHistoryOpen] = useState(false);
+  // Prompt suggestions state
+  const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [suggestionsLoading, setSuggestionsLoading] = useState(false);
+  const [suggestionsAI, setSuggestionsAI] = useState(false);
+  const prevQACountRef = useRef(0);
   const {
     status,
     tasks,
@@ -48,6 +54,74 @@ const Index = () => {
     returnObjects: true,
   }) as Array<{ label: string; desc: string }>;
 
+  // ── Fetch AI-generated suggestions ──────────────────────────────────────
+  const fetchSuggestions = useCallback(async (
+    goal: string,
+    mode: string,
+    contextInfo?: { taskSummary?: string; lastQA?: string }
+  ) => {
+    setSuggestionsLoading(true);
+    setSuggestions([]);
+    setSuggestionsAI(false);
+    try {
+      const resp = await fetch(`${SUPABASE_URL}/functions/v1/harness-agent`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${SUPABASE_ANON_KEY}` },
+        body: JSON.stringify({ mode: "suggest", goal, outputMode: mode, ...contextInfo }),
+      });
+      if (!resp.ok) return;
+      const data = await resp.json();
+      if (Array.isArray(data.suggestions) && data.suggestions.length > 0) {
+        setSuggestions(data.suggestions);
+        setSuggestionsAI(true);
+      }
+    } catch { /* keep static suggestions */ }
+    finally { setSuggestionsLoading(false); }
+  }, []);
+
+  // Trigger AI suggestions when task/agent run completes
+  useEffect(() => {
+    if (status === "done" && outputMode !== "qa" && currentGoal) {
+      const taskSummary = tasks
+        .map((tk) => `${tk.title}: ${(taskOutputs[tk.id] || "").substring(0, 200)}`)
+        .join("\n");
+      fetchSuggestions(currentGoal, outputMode, { taskSummary });
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [status]);
+
+  // Trigger AI suggestions after each QA exchange completes
+  useEffect(() => {
+    const completedMessages = qaMessages.filter((m) => !m.streaming);
+    const count = completedMessages.length;
+    if (
+      count > prevQACountRef.current &&
+      count >= 2 &&
+      completedMessages[completedMessages.length - 1].role === "assistant"
+    ) {
+      const lastUser = completedMessages[completedMessages.length - 2]?.content || "";
+      const lastAsst = completedMessages[completedMessages.length - 1]?.content || "";
+      fetchSuggestions(lastUser, "qa", { lastQA: `Q: ${lastUser.substring(0, 200)}\nA: ${lastAsst.substring(0, 400)}` });
+    }
+    prevQACountRef.current = count;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [qaMessages]);
+
+  // Reset suggestions on full reset
+  const handleReset = () => {
+    setSuggestions([]);
+    setSuggestionsAI(false);
+    prevQACountRef.current = 0;
+    reset();
+  };
+
+  const handleResetQA = () => {
+    setSuggestions([]);
+    setSuggestionsAI(false);
+    prevQACountRef.current = 0;
+    resetQA();
+  };
+
   return (
     <div className="w-full h-full flex flex-col bg-background overflow-hidden">
       <AgentHeader
@@ -74,7 +148,10 @@ const Index = () => {
           <GoalInput
             status={status}
             onRun={(goal, mode) => runAgent(goal, mode, history.addEntry)}
-            onReset={reset}
+            onReset={handleReset}
+            suggestions={suggestions}
+            suggestionsLoading={suggestionsLoading}
+            suggestionsAI={suggestionsAI}
           />
 
           {/* Resume banner */}
@@ -145,7 +222,7 @@ const Index = () => {
 
           {/* Q&A Output — shown in exploratory mode */}
           {outputMode === "qa" && qaMessages.length > 0 && (
-            <QAOutput messages={qaMessages} onClear={resetQA} />
+            <QAOutput messages={qaMessages} onClear={handleResetQA} />
           )}
 
           {/* Task list — task/agent modes only */}

@@ -23,11 +23,34 @@
     "abort": "中止",
     "execute": "执行",
     "send": "发送",
+    "optimize": "优化",
+    "optimizing": "优化中...",
+    "optimizeTitle": "AI 优化提示词",
     "placeholders": [
       "构建个人财务管理 Web 应用",
       "制定 SaaS 产品的营销策略",
       "设计并实现博客平台的 REST API",
       "分析并优化 React 应用的性能"
+    ]
+  },
+  "promptSuggestions": {
+    "label": "推荐提示词",
+    "loading": "正在生成建议...",
+    "aiLabel": "AI 推荐",
+    "text": [
+      "构建一个每日从电商网站抓取商品价格的爬虫工具",
+      "创建一个自动化 git 分支和 PR 工作流的 CLI 工具",
+      "撰写一份实时聊天应用的详细技术规范文档"
+    ],
+    "agent": [
+      "使用 Python FastAPI + JWT 认证 + PostgreSQL 构建后端服务",
+      "创建一个带 Chart.js 和 WebSocket 实时更新的 React 数据看板",
+      "开发一个能浏览网页并总结文章的 LangChain 智能体"
+    ],
+    "qa": [
+      "RAG 和 LLM 微调有哪些核心区别？",
+      "Transformer 的自注意力机制底层是如何工作的？",
+      "微服务与单体架构各有哪些权衡取舍？"
     ]
   },
   "taskList": {

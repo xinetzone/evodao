@@ -23,11 +23,34 @@
     "abort": "ABORT",
     "execute": "EXECUTE",
     "send": "SEND",
+    "optimize": "OPTIMIZE",
+    "optimizing": "OPTIMIZING...",
+    "optimizeTitle": "Optimize prompt with AI",
     "placeholders": [
       "Build a personal finance tracker web application",
       "Create a marketing strategy for a SaaS product",
       "Design and implement a REST API for a blog platform",
       "Analyze and optimize the performance of a React application"
+    ]
+  },
+  "promptSuggestions": {
+    "label": "SUGGESTIONS",
+    "loading": "Generating suggestions...",
+    "aiLabel": "AI SUGGESTED",
+    "text": [
+      "Build a web scraper that collects product prices from e-commerce sites daily",
+      "Create a CLI tool to automate git branching and PR workflows",
+      "Write a detailed technical specification for a real-time chat application"
+    ],
+    "agent": [
+      "Build a Python FastAPI backend with JWT authentication and PostgreSQL",
+      "Create a React dashboard with Chart.js and real-time WebSocket updates",
+      "Develop a LangChain agent that can browse the web and summarize articles"
+    ],
+    "qa": [
+      "What are the key differences between RAG and fine-tuning for LLMs?",
+      "How does transformer self-attention mechanism work under the hood?",
+      "Explain the trade-offs between microservices and monolithic architectures"
     ]
   },
   "taskList": {

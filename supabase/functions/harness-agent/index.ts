@@ -75,25 +75,106 @@ Deno.serve(async (req) => {
 
     const { mode, goal, task, context, tasks, taskOutputs, messages, outputMode = "text", evolutionContext } = await req.json();
 
+    // ── SUGGEST ───────────────────────────────────────────────────────────────
+    if (mode === "suggest") {
+      const { taskSummary, lastQA } = (await req.json().catch(() => ({}))) || {};
+
+      const modeLabel = outputMode === "agent" ? "software agent build" : outputMode === "qa" ? "Q&A exploration" : "autonomous task execution";
+
+      let contextInfo = `Goal: ${goal}\nMode: ${modeLabel}`;
+      if (taskSummary) contextInfo += `\n\nCompleted work summary:\n${taskSummary}`;
+      if (lastQA) contextInfo += `\n\nLast Q&A exchange:\n${lastQA}`;
+
+      const prompt = `You are a creative AI prompt engineer. Based on the following completed conversation context, generate 3 diverse, high-quality follow-up prompts the user might want to explore next.
+
+${contextInfo}
+
+Rules:
+- Each prompt should be 1-2 concise sentences
+- Make them meaningfully different from each other
+- Keep them actionable and specific
+- Tailor them for "${modeLabel}" mode
+
+Return ONLY a JSON array of exactly 3 strings. No explanations, no markdown fences.
+["prompt 1", "prompt 2", "prompt 3"]`;
+
+      const response = await fetch(API_BASE, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${AI_API_TOKEN}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: "z-ai/glm-5.1",
+          messages: [{ role: "user", content: prompt }],
+          stream: false,
+        }),
+      });
+
+      if (!response.ok) throw new Error("Suggest LLM error");
+
+      const data = await response.json();
+      const content = data.choices?.[0]?.message?.content || "[]";
+      let suggestions = [];
+      try {
+        const cleaned = content.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
+        suggestions = JSON.parse(cleaned);
+        if (!Array.isArray(suggestions)) suggestions = [];
+      } catch { suggestions = []; }
+
+      return new Response(JSON.stringify({ suggestions: suggestions.slice(0, 3) }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+
+    // ── OPTIMIZE ──────────────────────────────────────────────────────────────
+    } else if (mode === "optimize") {
+      const modeDesc = outputMode === "agent"
+        ? "a software development project specification (be detailed, structured, and implementation-ready)"
+        : outputMode === "qa"
+        ? "a question (make it precise, specific, and likely to get a comprehensive answer)"
+        : "an autonomous AI agent task goal (be clear, actionable, and specific)";
+
+      const prompt = `You are an expert prompt engineer. Rewrite the following prompt to be more effective for ${modeDesc}.
+
+Original prompt: "${goal}"
+
+Rules:
+- Preserve the core intent exactly
+- Make it more specific and actionable
+- Add concrete constraints or success criteria where beneficial
+- Keep it concise (no longer than 2-3 sentences)
+
+Return ONLY the optimized prompt text. No explanation, no quotes, no preamble.`;
+
+      const response = await fetch(API_BASE, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${AI_API_TOKEN}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: "z-ai/glm-5.1",
+          messages: [{ role: "user", content: prompt }],
+          stream: false,
+        }),
+      });
+
+      if (!response.ok) throw new Error("Optimize LLM error");
+
+      const data = await response.json();
+      const optimizedPrompt = (data.choices?.[0]?.message?.content || goal).trim();
+
+      return new Response(JSON.stringify({ optimizedPrompt }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+
     // ── CHAT (Q&A) ────────────────────────────────────────────────────────────
-    if (mode === "chat") {
+    } else if (mode === "chat") {
       const chatMessages = messages && messages.length > 0
         ? messages
         : [{ role: "user", content: goal }];
 
       const response = await fetch(API_BASE, {
         method: "POST",
-        headers: {
-          Authorization: `Bearer ${AI_API_TOKEN}`,
-          "Content-Type": "application/json",
-        },
+        headers: { Authorization: `Bearer ${AI_API_TOKEN}`, "Content-Type": "application/json" },
         body: JSON.stringify({
           model: "z-ai/glm-5.1",
           messages: [
-            {
-              role: "system",
-              content: "You are a knowledgeable, helpful assistant. Answer clearly and accurately. Use markdown formatting (headers, bullet points, code blocks) when it aids readability.",
-            },
+            { role: "system", content: "You are a knowledgeable, helpful assistant. Answer clearly and accurately. Use markdown formatting (headers, bullet points, code blocks) when it aids readability." },
             ...chatMessages,
           ],
           stream: true,
@@ -114,10 +195,7 @@ Deno.serve(async (req) => {
     } else if (mode === "plan") {
       const response = await fetch(API_BASE, {
         method: "POST",
-        headers: {
-          Authorization: `Bearer ${AI_API_TOKEN}`,
-          "Content-Type": "application/json",
-        },
+        headers: { Authorization: `Bearer ${AI_API_TOKEN}`, "Content-Type": "application/json" },
         body: JSON.stringify({
           model: "z-ai/glm-5.1",
           messages: [
@@ -150,33 +228,17 @@ Deno.serve(async (req) => {
 
     // ── EXECUTE ───────────────────────────────────────────────────────────────
     } else if (mode === "execute") {
-      const contextSection =
-        context && context.length > 0
-          ? `\n\nContext from previously completed tasks:\n${context.join("\n\n")}`
-          : "";
+      const contextSection = context && context.length > 0
+        ? `\n\nContext from previously completed tasks:\n${context.join("\n\n")}`
+        : "";
 
       const userPrompt = outputMode === "agent"
-        ? `Overall Goal: ${goal}
-
-Current Task:
-Title: ${task.title}
-Description: ${task.description}${contextSection}
-
-Implement this task completely. Output every file using the \`\`\`language:path format. Write full, working code.`
-        : `Overall Goal: ${goal}
-
-Current Task to Execute:
-Title: ${task.title}
-Description: ${task.description}${contextSection}
-
-Please execute this task completely and provide detailed, actionable output.`;
+        ? `Overall Goal: ${goal}\n\nCurrent Task:\nTitle: ${task.title}\nDescription: ${task.description}${contextSection}\n\nImplement this task completely. Output every file using the \`\`\`language:path format. Write full, working code.`
+        : `Overall Goal: ${goal}\n\nCurrent Task to Execute:\nTitle: ${task.title}\nDescription: ${task.description}${contextSection}\n\nPlease execute this task completely and provide detailed, actionable output.`;
 
       const response = await fetch(API_BASE, {
         method: "POST",
-        headers: {
-          Authorization: `Bearer ${AI_API_TOKEN}`,
-          "Content-Type": "application/json",
-        },
+        headers: { Authorization: `Bearer ${AI_API_TOKEN}`, "Content-Type": "application/json" },
         body: JSON.stringify({
           model: "z-ai/glm-5.1",
           messages: [
@@ -198,9 +260,7 @@ Please execute this task completely and provide detailed, actionable output.`;
             errorMessage = errorData.error?.message || errorMessage;
           } catch { /* use default */ }
         }
-        const errorSSE = `event: error\ndata: ${JSON.stringify({
-          error: { message: errorMessage, type: "api_error" },
-        })}\n\n`;
+        const errorSSE = `event: error\ndata: ${JSON.stringify({ error: { message: errorMessage, type: "api_error" } })}\n\n`;
         return new Response(errorSSE, {
           status: response.status,
           headers: { ...corsHeaders, "Content-Type": "text/event-stream" },
@@ -213,7 +273,7 @@ Please execute this task completely and provide detailed, actionable output.`;
 
     // ── REFLECT ───────────────────────────────────────────────────────────────
     } else if (mode === "reflect") {
-      const taskSummary = (tasks || []).map((t: { id: number; title: string }) => {
+      const taskSummaryText = (tasks || []).map((t: { id: number; title: string }) => {
         const output = ((taskOutputs || {})[t.id] || "").substring(0, 600);
         return `Task ${t.id}: ${t.title}\n${output}`;
       }).join("\n\n---\n\n");
@@ -223,7 +283,7 @@ Please execute this task completely and provide detailed, actionable output.`;
 Original Goal: ${goal}
 
 Completed Tasks and Outputs:
-${taskSummary}
+${taskSummaryText}
 
 Evaluate the quality. Be specific and constructive.
 Return ONLY this exact JSON (no markdown fences, no explanation outside the JSON):
@@ -237,10 +297,7 @@ Return ONLY this exact JSON (no markdown fences, no explanation outside the JSON
 
       const response = await fetch(API_BASE, {
         method: "POST",
-        headers: {
-          Authorization: `Bearer ${AI_API_TOKEN}`,
-          "Content-Type": "application/json",
-        },
+        headers: { Authorization: `Bearer ${AI_API_TOKEN}`, "Content-Type": "application/json" },
         body: JSON.stringify({
           model: "z-ai/glm-5.1",
           messages: [{ role: "user", content: reflectPrompt }],
@@ -248,9 +305,7 @@ Return ONLY this exact JSON (no markdown fences, no explanation outside the JSON
         }),
       });
 
-      if (!response.ok) {
-        throw new Error("Reflection LLM error");
-      }
+      if (!response.ok) throw new Error("Reflection LLM error");
 
       const data = await response.json();
       const content = data.choices?.[0]?.message?.content || "{}";
@@ -271,9 +326,7 @@ Return ONLY this exact JSON (no markdown fences, no explanation outside the JSON
       throw new Error(`Unknown mode: ${mode}`);
     }
   } catch (error) {
-    const errorSSE = `event: error\ndata: ${JSON.stringify({
-      error: { message: error.message, type: "api_error" },
-    })}\n\n`;
+    const errorSSE = `event: error\ndata: ${JSON.stringify({ error: { message: error.message, type: "api_error" } })}\n\n`;
     return new Response(errorSSE, {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "text/event-stream" },
