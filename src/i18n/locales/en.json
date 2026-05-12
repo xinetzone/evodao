@@ -13,7 +13,7 @@
   },
   "goalInput": {
     "prompt": "ENTER MISSION OBJECTIVE",
-    "hint": "// Ctrl+Enter to execute",
+    "hint": "// Enter to execute · Shift+Enter for newline",
     "chars": "{{count}} chars",
     "awaiting": "AWAITING INPUT",
     "reset": "RESET",

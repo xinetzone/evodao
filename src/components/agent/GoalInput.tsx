@@ -34,7 +34,8 @@ export function GoalInput({ status, onRun, onReset }: GoalInputProps) {
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter" && (e.ctrlKey || e.metaKey) && !isRunning) {
+    if (e.key === "Enter" && !e.shiftKey && !isRunning) {
+      e.preventDefault();
       handleRun();
     }
   };
