@@ -40,6 +40,12 @@
     "failed": "失败",
     "generating": "正在生成输出..."
   },
+  "resume": {
+    "banner": "检测到未完成的任务",
+    "tasksProgress": "已完成 {{done}} / {{total}} 个任务",
+    "resumeBtn": "继续执行",
+    "dismissBtn": "忽略"
+  },
   "index": {
     "planning": "分析目标中 — 正在拆解子任务...",
     "errorTitle": "代理错误",

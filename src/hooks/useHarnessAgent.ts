@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { fetchEventSource } from "@microsoft/fetch-event-source";
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from "@/lib/config";
 
@@ -11,6 +11,15 @@ export interface Task {
   description: string;
 }
 
+export interface SavedSession {
+  goal: string;
+  tasks: Task[];
+  taskStatuses: Record<number, TaskStatus>;
+  taskOutputs: Record<number, string>; // only completed task outputs
+  savedAt: number;
+}
+
+const STORAGE_KEY = "harness-agent-session";
 const EDGE_FUNCTION_URL = `${SUPABASE_URL}/functions/v1/harness-agent`;
 
 const FALLBACK_MESSAGES: Record<string, string> = {
@@ -28,6 +37,21 @@ function getUserErrorMessage(code: string, backendMessage: string): string {
   return FALLBACK_MESSAGES[code] || "Service temporarily unavailable.";
 }
 
+function loadSavedSession(): SavedSession | null {
+  try {
+    const data = localStorage.getItem(STORAGE_KEY);
+    if (!data) return null;
+    const session = JSON.parse(data) as SavedSession;
+    // Only return if there are incomplete tasks
+    const hasIncomplete = session.tasks.some(
+      (t) => session.taskStatuses[t.id] !== "completed"
+    );
+    return hasIncomplete ? session : null;
+  } catch {
+    return null;
+  }
+}
+
 export function useHarnessAgent() {
   const [status, setStatus] = useState<AgentStatus>("idle");
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -36,11 +60,51 @@ export function useHarnessAgent() {
   const [activeTaskId, setActiveTaskId] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [currentGoal, setCurrentGoal] = useState<string>("");
+  const [savedSession, setSavedSession] = useState<SavedSession | null>(loadSavedSession);
 
   const abortControllerRef = useRef<AbortController | null>(null);
+  // Keep a ref of taskOutputs to read in the save effect without triggering it on every chunk
+  const taskOutputsRef = useRef<Record<number, string>>({});
+
+  // Sync ref with state
+  useEffect(() => {
+    taskOutputsRef.current = taskOutputs;
+  }, [taskOutputs]);
+
+  // Auto-save: fires when task statuses or task list changes (not on every streaming chunk)
+  useEffect(() => {
+    if (tasks.length === 0 || !currentGoal) return;
+
+    if (status === "done" || status === "idle") {
+      localStorage.removeItem(STORAGE_KEY);
+      return;
+    }
+
+    // Normalize "running" → "pending" so resume always starts clean
+    const normalizedStatuses: Record<number, TaskStatus> = {};
+    const savedOutputs: Record<number, string> = {};
+    tasks.forEach((t) => {
+      const s = taskStatuses[t.id] || "pending";
+      normalizedStatuses[t.id] = s === "running" ? "pending" : s;
+      if (s === "completed") {
+        savedOutputs[t.id] = taskOutputsRef.current[t.id] || "";
+      }
+    });
+
+    const session: SavedSession = {
+      goal: currentGoal,
+      tasks,
+      taskStatuses: normalizedStatuses,
+      taskOutputs: savedOutputs,
+      savedAt: Date.now(),
+    };
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(session));
+  }, [tasks, taskStatuses, status, currentGoal]);
 
   const reset = useCallback(() => {
     abortControllerRef.current?.abort();
+    localStorage.removeItem(STORAGE_KEY);
+    setSavedSession(null);
     setStatus("idle");
     setTasks([]);
     setTaskStatuses({});
@@ -49,6 +113,13 @@ export function useHarnessAgent() {
     setError(null);
     setCurrentGoal("");
   }, []);
+
+  const dismissSavedSession = useCallback(() => {
+    setSavedSession(null);
+    localStorage.removeItem(STORAGE_KEY);
+  }, []);
+
+  // ── Core helpers ──────────────────────────────────────────────────────────
 
   const planTasks = async (goal: string): Promise<Task[]> => {
     const response = await fetch(EDGE_FUNCTION_URL, {
@@ -83,7 +154,6 @@ export function useHarnessAgent() {
       abortControllerRef.current = controller;
       let settled = false;
 
-      // Ensure only one resolution/rejection, and abort the SSE connection
       const settle = (fn: () => void) => {
         if (settled) return;
         settled = true;
@@ -139,7 +209,6 @@ export function useHarnessAgent() {
             return;
           }
 
-          // Stream-level error from edge function
           if ((data as { error?: { type?: string; message?: string } }).error) {
             const err = (data as { error: { type?: string; message?: string } }).error;
             const errorMsg = getUserErrorMessage(err.type || "api_error", err.message || "");
@@ -147,34 +216,79 @@ export function useHarnessAgent() {
             return;
           }
 
-          const choice = (data as { choices?: Array<{ delta?: { content?: string }; finish_reason?: string | null }> }).choices?.[0];
+          const choice = (
+            data as {
+              choices?: Array<{
+                delta?: { content?: string };
+                finish_reason?: string | null;
+              }>;
+            }
+          ).choices?.[0];
           if (!choice) return;
 
-          if (choice.delta?.content) {
-            onChunk(choice.delta.content);
-          }
-
-          if (choice.finish_reason) {
-            settle(() => resolve());
-          }
+          if (choice.delta?.content) onChunk(choice.delta.content);
+          if (choice.finish_reason) settle(() => resolve());
         },
 
         onerror(err) {
-          // Already settled (e.g. we aborted after [DONE]): silently stop retrying
-          if (settled) {
-            throw err;
-          }
-          // User-triggered abort: don't reject with error
-          if (err instanceof Error && err.name === "AbortError") {
-            throw err;
-          }
-          // Real network/server error
+          if (settled) { throw err; }
+          if (err instanceof Error && err.name === "AbortError") { throw err; }
           settle(() => reject(err));
-          throw err; // stop retrying
+          throw err;
         },
       });
     });
   };
+
+  // Shared execution loop — used by both runAgent and resumeAgent
+  const runExecutionLoop = async (
+    goal: string,
+    plannedTasks: Task[],
+    startStatuses: Record<number, TaskStatus>,
+    startOutputs: Record<number, string>
+  ) => {
+    // Build context from already-completed tasks
+    const completedSummaries: string[] = plannedTasks
+      .filter((t) => startStatuses[t.id] === "completed")
+      .map((t) => {
+        const out = startOutputs[t.id] || "";
+        return `[Task ${t.id}: ${t.title}]\n${out.substring(0, 400)}${out.length > 400 ? "..." : ""}`;
+      });
+
+    for (const task of plannedTasks) {
+      if (startStatuses[task.id] === "completed") continue;
+
+      setActiveTaskId(task.id);
+      setTaskStatuses((prev) => ({ ...prev, [task.id]: "running" }));
+      setTaskOutputs((prev) => ({ ...prev, [task.id]: "" }));
+
+      let taskContent = "";
+
+      try {
+        await executeTask(goal, task, completedSummaries, (chunk) => {
+          taskContent += chunk;
+          setTaskOutputs((prev) => ({
+            ...prev,
+            [task.id]: (prev[task.id] || "") + chunk,
+          }));
+        });
+
+        setTaskStatuses((prev) => ({ ...prev, [task.id]: "completed" }));
+        completedSummaries.push(
+          `[Task ${task.id}: ${task.title}]\n${taskContent.substring(0, 400)}${taskContent.length > 400 ? "..." : ""}`
+        );
+      } catch (taskError: unknown) {
+        if (taskError instanceof Error && taskError.name === "AbortError") throw taskError;
+        setTaskStatuses((prev) => ({ ...prev, [task.id]: "error" }));
+        throw taskError;
+      }
+    }
+
+    setActiveTaskId(null);
+    setStatus("done");
+  };
+
+  // ── Public actions ────────────────────────────────────────────────────────
 
   const runAgent = useCallback(async (goal: string) => {
     setCurrentGoal(goal);
@@ -184,62 +298,48 @@ export function useHarnessAgent() {
     setTaskStatuses({});
     setTaskOutputs({});
     setActiveTaskId(null);
+    setSavedSession(null);
 
     try {
-      // Phase 1: Plan
       const plannedTasks = await planTasks(goal);
       setTasks(plannedTasks);
 
       const initialStatuses: Record<number, TaskStatus> = {};
-      plannedTasks.forEach((t) => {
-        initialStatuses[t.id] = "pending";
-      });
+      plannedTasks.forEach((t) => { initialStatuses[t.id] = "pending"; });
       setTaskStatuses(initialStatuses);
 
       setStatus("executing");
-
-      // Phase 2: Execute each task sequentially
-      const completedSummaries: string[] = [];
-
-      for (const task of plannedTasks) {
-        setActiveTaskId(task.id);
-        setTaskStatuses((prev) => ({ ...prev, [task.id]: "running" }));
-        setTaskOutputs((prev) => ({ ...prev, [task.id]: "" }));
-
-        let taskContent = "";
-
-        try {
-          await executeTask(goal, task, completedSummaries, (chunk) => {
-            taskContent += chunk;
-            setTaskOutputs((prev) => ({
-              ...prev,
-              [task.id]: (prev[task.id] || "") + chunk,
-            }));
-          });
-
-          setTaskStatuses((prev) => ({ ...prev, [task.id]: "completed" }));
-          completedSummaries.push(
-            `[Task ${task.id}: ${task.title}]\n${taskContent.substring(0, 400)}${taskContent.length > 400 ? "..." : ""}`
-          );
-        } catch (taskError: unknown) {
-          const errMsg = taskError instanceof Error ? taskError.message : "Task failed";
-          if (errMsg.includes("AbortError") || (taskError instanceof Error && taskError.name === "AbortError")) {
-            return;
-          }
-          setTaskStatuses((prev) => ({ ...prev, [task.id]: "error" }));
-          throw taskError;
-        }
-      }
-
-      setActiveTaskId(null);
-      setStatus("done");
+      await runExecutionLoop(goal, plannedTasks, initialStatuses, {});
     } catch (err: unknown) {
-      const errMsg = err instanceof Error ? err.message : "Agent failed";
       if (err instanceof Error && err.name === "AbortError") return;
-      setError(errMsg);
+      setError(err instanceof Error ? err.message : "Agent failed");
       setStatus("error");
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const resumeAgent = useCallback(async () => {
+    if (!savedSession) return;
+
+    const { goal, tasks: rTasks, taskStatuses: rStatuses, taskOutputs: rOutputs } = savedSession;
+
+    setCurrentGoal(goal);
+    setTasks(rTasks);
+    setTaskStatuses(rStatuses);
+    setTaskOutputs(rOutputs);
+    setStatus("executing");
+    setError(null);
+    setSavedSession(null);
+
+    try {
+      await runExecutionLoop(goal, rTasks, rStatuses, rOutputs);
+    } catch (err: unknown) {
+      if (err instanceof Error && err.name === "AbortError") return;
+      setError(err instanceof Error ? err.message : "Agent failed");
+      setStatus("error");
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [savedSession]);
 
   return {
     status,
@@ -249,7 +349,10 @@ export function useHarnessAgent() {
     activeTaskId,
     error,
     currentGoal,
+    savedSession,
     runAgent,
+    resumeAgent,
+    dismissSavedSession,
     reset,
   };
 }

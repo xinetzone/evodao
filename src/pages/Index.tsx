@@ -4,7 +4,7 @@ import { AgentHeader } from "@/components/agent/AgentHeader";
 import { GoalInput } from "@/components/agent/GoalInput";
 import { TaskList } from "@/components/agent/TaskList";
 import { TerminalOutput } from "@/components/agent/TerminalOutput";
-import { AlertCircle, CircleCheck, Trophy } from "lucide-react";
+import { AlertCircle, CircleCheck, Trophy, RotateCcw, X } from "lucide-react";
 
 const Index = () => {
   const { t } = useTranslation();
@@ -16,7 +16,10 @@ const Index = () => {
     activeTaskId,
     error,
     currentGoal,
+    savedSession,
     runAgent,
+    resumeAgent,
+    dismissSavedSession,
     reset,
   } = useHarnessAgent();
 
@@ -42,6 +45,45 @@ const Index = () => {
           />
 
           <GoalInput status={status} onRun={runAgent} onReset={reset} />
+
+          {/* Resume banner */}
+          {savedSession && status === "idle" && (
+            <div className="animate-fade-in flex items-center gap-3 px-4 py-3 rounded border border-primary/50 bg-primary/10 terminal-glow">
+              <RotateCcw className="w-4 h-4 text-primary shrink-0" />
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-bold text-primary tracking-wider mb-0.5">
+                  {t("resume.banner")}
+                </p>
+                <p className="text-[11px] text-foreground/60 truncate">
+                  {savedSession.goal}
+                </p>
+                <p className="text-[10px] text-muted-foreground mt-0.5">
+                  {t("resume.tasksProgress", {
+                    done: savedSession.tasks.filter(
+                      (t) => savedSession.taskStatuses[t.id] === "completed"
+                    ).length,
+                    total: savedSession.tasks.length,
+                  })}
+                </p>
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <button
+                  onClick={resumeAgent}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold tracking-widest text-primary-foreground bg-primary border border-primary rounded hover:bg-primary/90 transition-all duration-200"
+                >
+                  <RotateCcw className="w-3 h-3" />
+                  {t("resume.resumeBtn")}
+                </button>
+                <button
+                  onClick={dismissSavedSession}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-muted-foreground border border-border rounded hover:border-primary/40 hover:text-foreground transition-all duration-200"
+                >
+                  <X className="w-3 h-3" />
+                  {t("resume.dismissBtn")}
+                </button>
+              </div>
+            </div>
+          )}
 
           {/* Planning indicator */}
           {status === "planning" && (

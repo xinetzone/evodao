@@ -40,6 +40,12 @@
     "failed": "FAILED",
     "generating": "Generating output..."
   },
+  "resume": {
+    "banner": "PREVIOUS SESSION DETECTED",
+    "tasksProgress": "{{done}} of {{total}} tasks completed",
+    "resumeBtn": "RESUME",
+    "dismissBtn": "DISMISS"
+  },
   "index": {
     "planning": "ANALYZING GOAL — DECOMPOSING INTO SUB-TASKS...",
     "errorTitle": "AGENT ERROR",
