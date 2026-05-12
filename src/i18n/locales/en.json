@@ -153,7 +153,9 @@
     "running": "running",
     "abort": "Abort",
     "remove": "Remove",
-    "tasks": "tasks"
+    "tasks": "tasks",
+    "sessions": "sessions",
+    "expand": "Expand details"
   },
   "index": {
     "planning": "ANALYZING GOAL — DECOMPOSING INTO SUB-TASKS...",

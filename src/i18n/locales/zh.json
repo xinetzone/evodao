@@ -153,7 +153,9 @@
     "running": "运行中",
     "abort": "中止",
     "remove": "移除",
-    "tasks": "任务"
+    "tasks": "任务",
+    "sessions": "个会话",
+    "expand": "展开详情"
   },
   "index": {
     "planning": "分析目标中 — 正在拆解子任务...",

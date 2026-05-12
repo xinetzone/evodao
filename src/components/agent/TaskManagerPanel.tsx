@@ -1,10 +1,11 @@
 import { useState, useRef, useEffect } from "react";
-import { X, Square, Trash2, LayoutGrid, Plus, Check, AlertCircle, Loader, Clock, ChevronDown, ChevronRight } from "lucide-react";
+import { X, Square, Trash2, LayoutGrid, Plus, Check, AlertCircle, Loader, Clock, ChevronDown, ChevronRight, Wand2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { AgentSession } from "@/hooks/useTaskManager";
 import { OutputMode } from "@/hooks/useEvodaoAgent";
 import { ModelSelector } from "@/components/agent/ModelSelector";
 import { ModelId, getAutoModel } from "@/lib/models";
+import { SUPABASE_URL, SUPABASE_ANON_KEY } from "@/lib/config";
 import { cn } from "@/lib/utils";
 
 interface TaskManagerPanelProps {
@@ -36,6 +37,7 @@ function SessionCard({
   onAbort: () => void;
   onRemove: () => void;
 }) {
+  const { t } = useTranslation();
   const [expanded, setExpanded] = useState(false);
 
   const completedCount = Object.values(session.taskStatuses).filter((s) => s === "completed").length;
@@ -134,7 +136,7 @@ function SessionCard({
             <button
               onClick={() => setExpanded((e) => !e)}
               className="p-1 rounded text-muted-foreground/60 hover:text-foreground transition-colors"
-              title="展开详情"
+              title={t("taskManager.expand")}
             >
               {expanded
                 ? <ChevronDown className="w-3 h-3" />
@@ -204,7 +206,15 @@ function QuickAddForm({ onAdd }: { onAdd: (goal: string, mode: OutputMode, model
   const [goal, setGoal] = useState("");
   const [outputMode, setOutputMode] = useState<OutputMode>("text");
   const [manualModel, setManualModel] = useState<ModelId | null>(null);
+  const [isOptimizing, setIsOptimizing] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  const staticSuggestions: string[] = t(
+    outputMode === "agent" ? "promptSuggestions.agent"
+    : outputMode === "qa" ? "promptSuggestions.qa"
+    : "promptSuggestions.text",
+    { returnObjects: true }
+  ) as string[];
 
   const handleSubmit = () => {
     if (!goal.trim()) return;
@@ -220,20 +230,44 @@ function QuickAddForm({ onAdd }: { onAdd: (goal: string, mode: OutputMode, model
     }
   };
 
+  const handleSuggestionClick = (text: string) => {
+    setGoal(text);
+    setTimeout(() => {
+      textareaRef.current?.focus();
+      const len = textareaRef.current?.value.length || 0;
+      textareaRef.current?.setSelectionRange(len, len);
+    }, 0);
+  };
+
+  const handleOptimize = async () => {
+    if (!goal.trim() || isOptimizing) return;
+    setIsOptimizing(true);
+    try {
+      const resp = await fetch(`${SUPABASE_URL}/functions/v1/harness-agent`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+        },
+        body: JSON.stringify({ mode: "optimize", goal: goal.trim(), outputMode }),
+      });
+      if (!resp.ok) throw new Error("Optimize failed");
+      const data = await resp.json();
+      if (data.optimizedPrompt) {
+        setGoal(data.optimizedPrompt);
+        setTimeout(() => textareaRef.current?.focus(), 50);
+      }
+    } catch {
+      // silently fail — keep original goal
+    } finally {
+      setIsOptimizing(false);
+    }
+  };
+
   return (
     <div className="border border-border rounded bg-card/50 p-3 space-y-2">
-      <textarea
-        ref={textareaRef}
-        value={goal}
-        onChange={(e) => setGoal(e.target.value)}
-        onKeyDown={handleKeyDown}
-        placeholder={t("taskManager.addPlaceholder")}
-        rows={2}
-        className="w-full bg-transparent text-xs text-foreground placeholder:text-muted-foreground/40 resize-none outline-none leading-relaxed font-mono"
-      />
-
+      {/* Mode pills */}
       <div className="flex items-center gap-2">
-        {/* Mode pills */}
         <div className="flex items-center gap-0.5 p-0.5 rounded border border-border bg-background">
           {(["text", "agent", "qa"] as OutputMode[]).map((m) => (
             <button
@@ -250,12 +284,62 @@ function QuickAddForm({ onAdd }: { onAdd: (goal: string, mode: OutputMode, model
             </button>
           ))}
         </div>
-
         <ModelSelector
           outputMode={outputMode}
           manualModel={manualModel}
           onChange={setManualModel}
         />
+      </div>
+
+      {/* Suggestion chips */}
+      <div className="flex items-center gap-1 flex-wrap min-h-[20px]">
+        <span className="text-[9px] text-muted-foreground/40 tracking-widest font-bold shrink-0">
+          {t("promptSuggestions.label")}
+        </span>
+        {staticSuggestions.map((s, i) => (
+          <button
+            key={i}
+            onClick={() => handleSuggestionClick(s)}
+            className="px-1.5 py-0.5 text-[9px] text-muted-foreground/60 border border-border/50 rounded hover:border-primary/40 hover:text-foreground hover:bg-primary/5 transition-all truncate max-w-[180px] text-left"
+            title={s}
+          >
+            {s.length > 28 ? s.slice(0, 28) + "…" : s}
+          </button>
+        ))}
+      </div>
+
+      {/* Textarea */}
+      <textarea
+        ref={textareaRef}
+        value={goal}
+        onChange={(e) => setGoal(e.target.value)}
+        onKeyDown={handleKeyDown}
+        placeholder={t("taskManager.addPlaceholder")}
+        rows={2}
+        className="w-full bg-transparent text-xs text-foreground placeholder:text-muted-foreground/40 resize-none outline-none leading-relaxed font-mono"
+      />
+
+      {/* Bottom toolbar */}
+      <div className="flex items-center gap-2">
+        {/* Optimize button */}
+        {goal.trim().length > 5 && (
+          <button
+            onClick={handleOptimize}
+            disabled={isOptimizing}
+            title={t("goalInput.optimizeTitle")}
+            className={cn(
+              "flex items-center gap-1 px-2 py-0.5 text-[9px] font-bold tracking-widest rounded border transition-all",
+              isOptimizing
+                ? "border-primary/20 text-primary/40 cursor-not-allowed"
+                : "border-primary/30 text-primary/60 hover:border-primary/60 hover:text-primary hover:bg-primary/5"
+            )}
+          >
+            {isOptimizing
+              ? <Loader className="w-2.5 h-2.5 animate-spin" />
+              : <Wand2 className="w-2.5 h-2.5" />}
+            {isOptimizing ? t("goalInput.optimizing") : t("goalInput.optimize")}
+          </button>
+        )}
 
         <button
           onClick={handleSubmit}
@@ -377,7 +461,7 @@ export function TaskManagerPanel({
 
         {/* Footer */}
         <div className="px-5 py-3 border-t border-border bg-card/30 text-[10px] text-muted-foreground tracking-wider flex items-center justify-between">
-          <span>{sessions.length} 个会话</span>
+          <span>{sessions.length} {t("taskManager.sessions")}</span>
           <span>EVODAO TASK MANAGER</span>
         </div>
       </div>
