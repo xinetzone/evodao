@@ -1,129 +1,133 @@
-# Harness Agent — Implementation Plan
+# Harness Agent — History Feature Plan
 
 ## Context
-Build a Harness Agent web app: user inputs a goal, the AI automatically decomposes it into sub-tasks and executes each one step-by-step with streaming output. Uses GLM 5.1 (openai_chat_completions protocol) via Enter Cloud Edge Functions. Dark terminal-style UI.
+User wants a history panel that records all completed sessions and allows reviewing past task outputs. UI: right slide-in panel with list view → detail view (drill-down, no modal).
 
 ---
 
-## Architecture Overview
+## Data Structure
 
-```
-User Goal → [Plan Phase] → Task List → [Execute Phase × N] → Streamed Results
-```
-
-**Two-mode Edge Function**:
-- `mode: "plan"` → calls LLM (stream:false), returns JSON task array
-- `mode: "execute"` → calls LLM (stream:true), streams SSE execution output
-
----
-
-## Step 1 — Enable Enter Cloud (Supabase)
-Required for Edge Functions. Call `supabase_enable` tool first.
-
----
-
-## Step 2 — Install Frontend Dependency
-```
-@microsoft/fetch-event-source
+```typescript
+// src/hooks/useAgentHistory.ts
+interface HistoryEntry {
+  id: string;                              // Date.now().toString()
+  goal: string;
+  tasks: Task[];
+  taskOutputs: Record<number, string>;     // all completed outputs
+  taskStatuses: Record<number, TaskStatus>;
+  completedAt: number;                     // unix ms
+}
 ```
 
----
-
-## Step 3 — Design Tokens (Dark Terminal Theme)
-Update `src/index.css`:
-- Background: `222 47% 5%` (very dark blue-black)
-- Foreground: `142 100% 85%` (terminal green text)
-- Primary: `142 76% 45%` (bright terminal green)
-- Card: `222 47% 8%`
-- Border: `222 30% 16%`
-- Add terminal glow animations, `--shadow-glow`, `--gradient-terminal`
-- Force dark mode on `<html>` element via `src/main.tsx`
-- Add `pulse-dot`, `typing-cursor`, `fade-in` keyframes
-
-Update `tailwind.config.ts`: add `terminal` color palette and animation utilities.
+- Storage key: `harness-agent-history`
+- Max entries: **20** (oldest trimmed on overflow)
 
 ---
 
-## Step 4 — Edge Function
-File: `supabase/functions/harness-agent/index.ts`
+## Files
 
+### New
+| File | Purpose |
+|---|---|
+| `src/hooks/useAgentHistory.ts` | CRUD for history localStorage |
+| `src/components/agent/HistoryPanel.tsx` | Slide-in panel (list + detail view) |
+
+### Modified
+| File | Change |
+|---|---|
+| `src/hooks/useHarnessAgent.ts` | Accept `onComplete` callback → caller saves to history |
+| `src/pages/Index.tsx` | Wire `useAgentHistory`, pass `onComplete`, control panel open/close |
+| `src/components/agent/AgentHeader.tsx` | Add History button with entry-count badge |
+| `src/i18n/locales/en.json` | Add `history.*` keys |
+| `src/i18n/locales/zh.json` | Add `history.*` keys |
+
+---
+
+## Implementation Details
+
+### `useAgentHistory` hook
+```typescript
+{
+  entries: HistoryEntry[];
+  addEntry: (e: HistoryEntry) => void;   // prepends, trims to 20
+  removeEntry: (id: string) => void;
+  clearHistory: () => void;
+}
 ```
-POST { mode: "plan", goal: string }
-→ Response: JSON  { tasks: [{ id, title, description }] }
 
-POST { mode: "execute", goal: string, task: { id, title, description }, context: string[] }
-→ Response: SSE stream (openai_chat_completions format)
+### `useHarnessAgent` change
+- Export `addHistoryEntry` as callback or expose a dedicated function.
+- **Simplest approach**: add an optional `onComplete?: (entry: HistoryEntry) => void` parameter to `runAgent` and `resumeAgent`. Called right before `setStatus("done")`.
+
+### `HistoryPanel`
+Props: `open`, `onClose`, `entries`, `onClear`, `onRemove`
+
+Two local states:
+- `view: "list" | "detail"`
+- `selected: HistoryEntry | null`
+
+**List view**:
+- Each row: truncated goal, `N tasks`, relative date ("2 hours ago")
+- Hover row → highlight with `border-primary/30`
+- Trash icon per row (delete single entry)
+- "CLEAR ALL" button at bottom (only shown when entries > 0)
+
+**Detail view**:
+- Back button → returns to list
+- Goal heading
+- Task cards (same style as `TaskList`) — read-only status badges
+- Expandable terminal output per task (same style as `TerminalOutput`)
+
+### AgentHeader change
+- Add `onHistoryOpen: () => void` and `historyCount: number` props
+- History button: `<History />` icon + count badge (hidden when 0)
+- Placed between status badge and LanguageSwitcher
+
+### Index.tsx wiring
+```tsx
+const history = useAgentHistory();
+const [historyOpen, setHistoryOpen] = useState(false);
+
+// pass to runAgent / resumeAgent via onComplete callback
+const handleRun = (goal: string) =>
+  runAgent(goal, (entry) => history.addEntry(entry));
 ```
 
-System prompts:
-- **Plan mode**: Ask GLM 5.1 to return a JSON array of 3–6 tasks to achieve the goal
-- **Execute mode**: Ask GLM 5.1 to execute a specific task given goal + previous results context
-
-Model: `z-ai/glm-5.1`
-
----
-
-## Step 5 — Frontend Files
-
-### `src/hooks/useHarnessAgent.ts`
-Manages full agent lifecycle:
-- `agentStatus`: `"idle" | "planning" | "executing" | "done" | "error"`
-- `tasks`: `Task[]` (from plan phase)
-- `taskStatuses`: `Record<id, "pending" | "running" | "completed" | "error">`
-- `taskResults`: `Record<id, string>` (streaming content per task)
-- `activeTaskId`: currently executing task
-- `runAgent(goal)`: triggers plan → execute loop
-- `reset()`: clears state
-
-**Plan call**: fetch (non-streaming) to Edge Function `mode=plan`
-**Execute call**: SSE via `@microsoft/fetch-event-source` to `mode=execute`, 4-level error handling
-
-### `src/components/agent/GoalInput.tsx`
-- Full-width textarea with terminal cursor styling
-- "Run Agent" button (green, with circuit icon)
-- Disabled while agent is running
-
-### `src/components/agent/AgentHeader.tsx`
-- App name "HARNESS AGENT" with terminal styling
-- Status indicator (idle/planning/executing/done)
-- Animated pulse dot during activity
-
-### `src/components/agent/TaskList.tsx`
-- Horizontal or vertical list of task cards
-- Each task shows: index, title, description, status badge
-- Color: pending (muted) → running (green pulsing) → completed (bright green) → error (red)
-
-### `src/components/agent/StepExecution.tsx`
-- Scrollable terminal-style output area
-- Each task's streaming content in its own section
-- Shows task title header, then streaming text with cursor
-
-### `src/pages/Index.tsx`
-- Full-height dark layout
-- Sections: Header → Goal Input → (on run) Task Plan → Execution Output
-- Import `SUPABASE_URL` and `SUPABASE_ANON_KEY` from Supabase client file
+### i18n keys to add
+```json
+"history": {
+  "title": "History",
+  "empty": "No completed sessions yet",
+  "tasks": "{{count}} tasks",
+  "clearAll": "Clear All",
+  "back": "Back",
+  "completedAt": "Completed {{time}}",
+  "deleteEntry": "Delete"
+}
+```
 
 ---
 
-## Critical Files
-| File | Action |
-|------|--------|
-| `src/index.css` | Update design tokens + add animations |
-| `tailwind.config.ts` | Add terminal colors |
-| `src/main.tsx` | Add `dark` class to root |
-| `src/pages/Index.tsx` | Rewrite as main agent page |
-| `src/hooks/useHarnessAgent.ts` | New — agent logic |
-| `src/components/agent/GoalInput.tsx` | New |
-| `src/components/agent/AgentHeader.tsx` | New |
-| `src/components/agent/TaskList.tsx` | New |
-| `src/components/agent/StepExecution.tsx` | New |
-| `supabase/functions/harness-agent/index.ts` | New — Edge Function |
+## Relative Time Helper
+Simple inline helper (no dependency):
+```typescript
+function relativeTime(ms: number): string {
+  const diff = Date.now() - ms;
+  if (diff < 60_000) return "just now";
+  if (diff < 3_600_000) return `${Math.floor(diff / 60_000)}m ago`;
+  if (diff < 86_400_000) return `${Math.floor(diff / 3_600_000)}h ago`;
+  return `${Math.floor(diff / 86_400_000)}d ago`;
+}
+```
+(Localized variant for Chinese: "X分钟前" etc.)
 
 ---
 
 ## Verification
-1. Enter a goal like "Build a personal finance tracker"
-2. Agent displays 3–6 decomposed tasks
-3. Each task executes sequentially with streaming text
-4. Terminal UI shows real-time output with green text on dark background
-5. After all tasks complete, status shows "Done"
+1. Run a goal → on completion, history badge shows "1"
+2. Open history panel → entry appears with goal, date, task count
+3. Click entry → detail view shows all tasks and outputs
+4. Back button → returns to list
+5. Delete single entry → removed from list
+6. Clear all → list empty, badge hidden
+7. Max 20 entries enforced (oldest dropped on 21st)
