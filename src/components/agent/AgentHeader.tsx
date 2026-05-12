@@ -1,4 +1,4 @@
-import { Cpu, Zap, CircleCheck, AlertCircle, Loader, Clock } from "lucide-react";
+import { Cpu, Zap, CircleCheck, AlertCircle, Loader, Clock, LayoutGrid } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { AgentStatus, TokenUsage } from "@/hooks/useHarnessAgent";
 import { LanguageSwitcher } from "./LanguageSwitcher";
@@ -10,9 +10,11 @@ interface AgentHeaderProps {
   historyCount: number;
   onHistoryOpen: () => void;
   sessionUsage: TokenUsage;
+  taskManagerRunning: number;
+  onTaskManagerOpen: () => void;
 }
 
-export function AgentHeader({ status, currentGoal, historyCount, onHistoryOpen, sessionUsage }: AgentHeaderProps) {
+export function AgentHeader({ status, currentGoal, historyCount, onHistoryOpen, sessionUsage, taskManagerRunning, onTaskManagerOpen }: AgentHeaderProps) {
   const { t } = useTranslation();
 
   const statusIconMap: Record<AgentStatus, React.ReactNode> = {
@@ -86,6 +88,21 @@ export function AgentHeader({ status, currentGoal, historyCount, onHistoryOpen, 
             {statusIconMap[status]}
             {t(`header.status.${status}`)}
           </div>
+
+          {/* Task Manager button */}
+          <button
+            onClick={onTaskManagerOpen}
+            className="relative flex items-center gap-1.5 px-2.5 py-1 rounded border border-border bg-card text-xs text-muted-foreground hover:border-primary/40 hover:text-foreground transition-all duration-200"
+            title={t("taskManager.title")}
+          >
+            <LayoutGrid className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline tracking-widest">{t("taskManager.title")}</span>
+            {taskManagerRunning > 0 && (
+              <span className="absolute -top-1.5 -right-1.5 min-w-[16px] h-4 px-1 rounded-full bg-primary text-primary-foreground text-[9px] font-bold flex items-center justify-center animate-pulse">
+                {taskManagerRunning}
+              </span>
+            )}
+          </button>
 
           {/* History button */}
           <button

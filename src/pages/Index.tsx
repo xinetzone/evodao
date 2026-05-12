@@ -2,12 +2,14 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { useHarnessAgent } from "@/hooks/useHarnessAgent";
 import { useAgentHistory } from "@/hooks/useAgentHistory";
+import { useTaskManager } from "@/hooks/useTaskManager";
 import { AgentHeader } from "@/components/agent/AgentHeader";
 import { GoalInput } from "@/components/agent/GoalInput";
 import { TaskList } from "@/components/agent/TaskList";
 import { TerminalOutput } from "@/components/agent/TerminalOutput";
 import { FileTree } from "@/components/agent/FileTree";
 import { HistoryPanel } from "@/components/agent/HistoryPanel";
+import { TaskManagerPanel } from "@/components/agent/TaskManagerPanel";
 import { ExportActions } from "@/components/agent/ExportActions";
 import { EvolutionPanel } from "@/components/agent/EvolutionPanel";
 import { QAOutput } from "@/components/agent/QAOutput";
@@ -17,7 +19,9 @@ import { SUPABASE_URL, SUPABASE_ANON_KEY } from "@/lib/config";
 const Index = () => {
   const { t } = useTranslation();
   const history = useAgentHistory();
+  const taskManager = useTaskManager();
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [taskManagerOpen, setTaskManagerOpen] = useState(false);
   const [activeModel, setActiveModel] = useState("GLM 5.1");
   // Prompt suggestions state
   const [suggestions, setSuggestions] = useState<string[]>([]);
@@ -131,6 +135,8 @@ const Index = () => {
         historyCount={history.entries.length}
         onHistoryOpen={() => setHistoryOpen(true)}
         sessionUsage={sessionUsage}
+        taskManagerRunning={taskManager.runningCount}
+        onTaskManagerOpen={() => setTaskManagerOpen(true)}
       />
 
       <main className="flex-1 overflow-y-auto">
@@ -347,6 +353,17 @@ const Index = () => {
         entries={history.entries}
         onRemove={history.removeEntry}
         onClear={history.clearHistory}
+      />
+
+      <TaskManagerPanel
+        open={taskManagerOpen}
+        onClose={() => setTaskManagerOpen(false)}
+        sessions={taskManager.sessions}
+        addSession={taskManager.addSession}
+        abortSession={taskManager.abortSession}
+        removeSession={taskManager.removeSession}
+        clearCompleted={taskManager.clearCompleted}
+        runningCount={taskManager.runningCount}
       />
     </div>
   );

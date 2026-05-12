@@ -144,6 +144,16 @@
     "copy": "复制",
     "copied": "已复制"
   },
+  "taskManager": {
+    "title": "任务管理器",
+    "addTask": "添加",
+    "addPlaceholder": "输入目标，Enter 添加...",
+    "empty": "暂无任务，输入目标开始并行执行",
+    "clearCompleted": "清除已完成",
+    "running": "运行中",
+    "abort": "中止",
+    "remove": "移除"
+  },
   "index": {
     "planning": "分析目标中 — 正在拆解子任务...",
     "errorTitle": "代理错误",

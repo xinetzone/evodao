@@ -144,6 +144,16 @@
     "copy": "Copy",
     "copied": "Copied"
   },
+  "taskManager": {
+    "title": "TASK MANAGER",
+    "addTask": "ADD",
+    "addPlaceholder": "Enter a goal, press Enter to add...",
+    "empty": "No sessions yet — add a goal to run tasks in parallel",
+    "clearCompleted": "Clear done",
+    "running": "running",
+    "abort": "Abort",
+    "remove": "Remove"
+  },
   "index": {
     "planning": "ANALYZING GOAL — DECOMPOSING INTO SUB-TASKS...",
     "errorTitle": "AGENT ERROR",
