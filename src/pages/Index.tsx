@@ -29,7 +29,7 @@ const Index = () => {
     tasks,
     taskStatuses,
     taskOutputs,
-    activeTaskId,
+    activeTaskIds,
     error,
     currentGoal,
     outputMode,
@@ -231,7 +231,7 @@ const Index = () => {
 
           {/* Task list — task/agent modes only */}
           {tasks.length > 0 && outputMode !== "qa" && (
-            <TaskList tasks={tasks} taskStatuses={taskStatuses} activeTaskId={activeTaskId} />
+            <TaskList tasks={tasks} taskStatuses={taskStatuses} activeTaskIds={activeTaskIds} />
           )}
 
           {/* Terminal output — task/agent modes only */}
@@ -240,7 +240,7 @@ const Index = () => {
               tasks={tasks}
               taskStatuses={taskStatuses}
               taskOutputs={taskOutputs}
-              activeTaskId={activeTaskId}
+              activeTaskIds={activeTaskIds}
             />
           )}
 

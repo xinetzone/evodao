@@ -8,14 +8,14 @@ interface TerminalOutputProps {
   tasks: Task[];
   taskStatuses: Record<number, TaskStatus>;
   taskOutputs: Record<number, string>;
-  activeTaskId: number | null;
+  activeTaskIds: Set<number>;
 }
 
 export function TerminalOutput({
   tasks,
   taskStatuses,
   taskOutputs,
-  activeTaskId,
+  activeTaskIds,
 }: TerminalOutputProps) {
   const { t } = useTranslation();
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -62,7 +62,7 @@ export function TerminalOutput({
           {visibleTasks.map((task) => {
             const status = taskStatuses[task.id];
             const output = taskOutputs[task.id] || "";
-            const isActive = activeTaskId === task.id;
+            const isActive = activeTaskIds.has(task.id);
             const isRunning = status === "running";
 
             return (

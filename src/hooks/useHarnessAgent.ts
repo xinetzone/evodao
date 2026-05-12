@@ -111,7 +111,7 @@ export function useHarnessAgent() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [taskStatuses, setTaskStatuses] = useState<Record<number, TaskStatus>>({});
   const [taskOutputs, setTaskOutputs] = useState<Record<number, string>>({});
-  const [activeTaskId, setActiveTaskId] = useState<number | null>(null);
+  const [activeTaskIds, setActiveTaskIds] = useState<Set<number>>(new Set());
   const [error, setError] = useState<string | null>(null);
   const [currentGoal, setCurrentGoal] = useState<string>("");
   const [outputMode, setOutputMode] = useState<OutputMode>("text");
@@ -127,6 +127,8 @@ export function useHarnessAgent() {
   const [sessionUsage, setSessionUsage] = useState<TokenUsage>({ promptTokens: 0, completionTokens: 0, totalTokens: 0 });
 
   const abortControllerRef = useRef<AbortController | null>(null);
+  // Per-task abort controllers for parallel execution
+  const taskControllersRef = useRef<Map<number, AbortController>>(new Map());
   const taskOutputsRef = useRef<Record<number, string>>({});
   const extractedFilesRef = useRef<AgentFile[]>([]);
   const qaMessagesRef = useRef<QAMessage[]>([]);
@@ -178,13 +180,15 @@ export function useHarnessAgent() {
 
   const reset = useCallback(() => {
     abortControllerRef.current?.abort();
+    taskControllersRef.current.forEach((ctrl) => ctrl.abort());
+    taskControllersRef.current.clear();
     localStorage.removeItem(STORAGE_KEY);
     setSavedSession(null);
     setStatus("idle");
     setTasks([]);
     setTaskStatuses({});
     setTaskOutputs({});
-    setActiveTaskId(null);
+    setActiveTaskIds(new Set());
     setError(null);
     setCurrentGoal("");
     setOutputMode("text");
@@ -246,17 +250,23 @@ export function useHarnessAgent() {
     mode: OutputMode,
     onChunk: (chunk: string) => void,
     evolutionCtx?: EvolutionContext,
-    model?: string
+    model?: string,
+    externalSignal?: AbortSignal
   ): Promise<void> => {
     return new Promise((resolve, reject) => {
-      const controller = new AbortController();
-      abortControllerRef.current = controller;
+      // Local controller manages SSE lifecycle (abort-on-done to prevent retries)
+      const localController = new AbortController();
       let settled = false;
+
+      // Forward external abort (e.g. user pressed Stop) to local controller
+      if (externalSignal) {
+        externalSignal.addEventListener("abort", () => localController.abort(), { once: true });
+      }
 
       const settle = (fn: () => void) => {
         if (settled) return;
         settled = true;
-        controller.abort();
+        localController.abort();
         fn();
       };
 
@@ -275,7 +285,7 @@ export function useHarnessAgent() {
           evolutionContext: evolutionCtx,
           model,
         }),
-        signal: controller.signal,
+        signal: localController.signal,
 
         async onopen(response) {
           const contentType = response.headers.get("content-type");
@@ -344,7 +354,7 @@ export function useHarnessAgent() {
     });
   };
 
-  // Shared execution loop
+  // Shared execution loop — runs all pending tasks IN PARALLEL
   const runExecutionLoop = async (
     goal: string,
     plannedTasks: Task[],
@@ -356,7 +366,8 @@ export function useHarnessAgent() {
     evolutionCtx?: EvolutionContext,
     model?: string
   ) => {
-    const completedSummaries: string[] = plannedTasks
+    // Context from already-completed tasks (e.g. resumed session)
+    const completedContext = plannedTasks
       .filter((t) => startStatuses[t.id] === "completed")
       .map((t) => {
         const out = startOutputs[t.id] || "";
@@ -365,39 +376,74 @@ export function useHarnessAgent() {
 
     if (startFiles.length > 0) setExtractedFiles(startFiles);
 
-    for (const task of plannedTasks) {
-      if (startStatuses[task.id] === "completed") continue;
+    const pendingTasks = plannedTasks.filter((t) => startStatuses[t.id] !== "completed");
 
-      setActiveTaskId(task.id);
-      setTaskStatuses((prev) => ({ ...prev, [task.id]: "running" }));
-      setTaskOutputs((prev) => ({ ...prev, [task.id]: "" }));
+    // Parent run controller — aborting this stops all tasks
+    const runController = new AbortController();
+    abortControllerRef.current = runController;
+    taskControllersRef.current.clear();
 
-      let taskContent = "";
+    // Mark all pending tasks as running simultaneously
+    const initialRunning: Record<number, TaskStatus> = {};
+    const initialOutputs: Record<number, string> = {};
+    pendingTasks.forEach((t) => {
+      initialRunning[t.id] = "running";
+      initialOutputs[t.id] = "";
+    });
+    setTaskStatuses((prev) => ({ ...prev, ...initialRunning }));
+    setTaskOutputs((prev) => ({ ...prev, ...initialOutputs }));
+    setActiveTaskIds(new Set(pendingTasks.map((t) => t.id)));
 
-      try {
-        await executeTask(goal, task, completedSummaries, mode, (chunk) => {
-          taskContent += chunk;
-          setTaskOutputs((prev) => ({ ...prev, [task.id]: (prev[task.id] || "") + chunk }));
-        }, evolutionCtx, model);
+    // Run all pending tasks in parallel
+    const results = await Promise.allSettled(
+      pendingTasks.map(async (task) => {
+        const taskController = new AbortController();
+        taskControllersRef.current.set(task.id, taskController);
 
-        setTaskStatuses((prev) => ({ ...prev, [task.id]: "completed" }));
+        // Forward parent abort → task abort
+        runController.signal.addEventListener("abort", () => taskController.abort(), { once: true });
 
-        if (mode === "agent") {
-          const newFiles = parseFilesFromOutput(taskContent, task.id);
-          if (newFiles.length > 0) setExtractedFiles((prev) => [...prev, ...newFiles]);
+        let taskContent = "";
+        try {
+          await executeTask(goal, task, completedContext, mode, (chunk) => {
+            taskContent += chunk;
+            setTaskOutputs((prev) => ({ ...prev, [task.id]: (prev[task.id] || "") + chunk }));
+          }, evolutionCtx, model, taskController.signal);
+
+          setTaskStatuses((prev) => ({ ...prev, [task.id]: "completed" }));
+
+          if (mode === "agent") {
+            const newFiles = parseFilesFromOutput(taskContent, task.id);
+            if (newFiles.length > 0) setExtractedFiles((prev) => [...prev, ...newFiles]);
+          }
+
+          return taskContent;
+        } catch (err) {
+          if (!(err instanceof Error && err.name === "AbortError")) {
+            setTaskStatuses((prev) => ({ ...prev, [task.id]: "error" }));
+          }
+          throw err;
+        } finally {
+          taskControllersRef.current.delete(task.id);
+          setActiveTaskIds((prev) => {
+            const next = new Set(prev);
+            next.delete(task.id);
+            return next;
+          });
         }
+      })
+    );
 
-        completedSummaries.push(
-          `[Task ${task.id}: ${task.title}]\n${taskContent.substring(0, 400)}${taskContent.length > 400 ? "..." : ""}`
-        );
-      } catch (taskError: unknown) {
-        if (taskError instanceof Error && taskError.name === "AbortError") throw taskError;
-        setTaskStatuses((prev) => ({ ...prev, [task.id]: "error" }));
-        throw taskError;
-      }
-    }
+    setActiveTaskIds(new Set());
 
-    setActiveTaskId(null);
+    // Surface the first abort or error
+    const firstAbort = results.find(
+      (r) => r.status === "rejected" && r.reason instanceof Error && r.reason.name === "AbortError"
+    );
+    if (firstAbort) throw Object.assign(new Error("Aborted"), { name: "AbortError" });
+
+    const firstError = results.find((r) => r.status === "rejected");
+    if (firstError) throw (firstError as PromiseRejectedResult).reason;
 
     if (onComplete) {
       const finalStatuses: Record<number, TaskStatus> = {};
@@ -552,7 +598,7 @@ export function useHarnessAgent() {
     setTasks([]);
     setTaskStatuses({});
     setTaskOutputs({});
-    setActiveTaskId(null);
+    setActiveTaskIds(new Set());
     setExtractedFiles([]);
     setSavedSession(null);
     if (!evolutionCtx) {
@@ -676,7 +722,7 @@ export function useHarnessAgent() {
     tasks,
     taskStatuses,
     taskOutputs,
-    activeTaskId,
+    activeTaskIds,
     error,
     currentGoal,
     outputMode,

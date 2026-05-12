@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 interface TaskListProps {
   tasks: Task[];
   taskStatuses: Record<number, TaskStatus>;
-  activeTaskId: number | null;
+  activeTaskIds: Set<number>;
 }
 
 const statusStyleMap: Record<
@@ -49,7 +49,7 @@ const statusStyleMap: Record<
   },
 };
 
-export function TaskList({ tasks, taskStatuses, activeTaskId }: TaskListProps) {
+export function TaskList({ tasks, taskStatuses, activeTaskIds }: TaskListProps) {
   const { t } = useTranslation();
 
   if (tasks.length === 0) return null;
@@ -86,7 +86,7 @@ export function TaskList({ tasks, taskStatuses, activeTaskId }: TaskListProps) {
         {tasks.map((task, index) => {
           const taskStatus = taskStatuses[task.id] || "pending";
           const style = statusStyleMap[taskStatus];
-          const isActive = activeTaskId === task.id;
+          const isActive = activeTaskIds.has(task.id);
 
           return (
             <div
