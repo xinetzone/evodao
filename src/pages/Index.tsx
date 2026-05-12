@@ -18,6 +18,7 @@ const Index = () => {
   const { t } = useTranslation();
   const history = useAgentHistory();
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [activeModel, setActiveModel] = useState("GLM 5.1");
   // Prompt suggestions state
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [suggestionsLoading, setSuggestionsLoading] = useState(false);
@@ -147,7 +148,10 @@ const Index = () => {
 
           <GoalInput
             status={status}
-            onRun={(goal, mode) => runAgent(goal, mode, history.addEntry)}
+            onRun={(goal, mode, model) => {
+              setActiveModel(model.split("/")[1] || model);
+              runAgent(goal, mode, history.addEntry, undefined, model);
+            }}
             onReset={handleReset}
             suggestions={suggestions}
             suggestionsLoading={suggestionsLoading}
@@ -326,7 +330,7 @@ const Index = () => {
           <div className="flex items-center gap-3 text-[10px] text-muted-foreground tracking-wider">
             <span className="flex items-center gap-1">
               <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
-              GLM 5.1
+              {activeModel}
             </span>
             <span>|</span>
             <span>openai_chat_completions</span>

@@ -118,6 +118,18 @@
       "解释一下 CAP 定理"
     ]
   },
+  "modelSelector": {
+    "label": "模型",
+    "auto": "自动",
+    "autoDesc": "根据模式自动选择最优模型",
+    "models": {
+      "deepseek/deepseek-v4-pro": { "name": "DeepSeek V4 Pro", "desc": "编码、数学与深度推理" },
+      "z-ai/glm-5.1": { "name": "GLM 5.1", "desc": "长程智能体任务" },
+      "z-ai/glm-5": { "name": "GLM 5", "desc": "复杂系统设计" },
+      "moonshotai/kimi-k2.6": { "name": "Kimi K2.6", "desc": "多模态与工具调用" },
+      "minimax/minimax-m2.7": { "name": "MiniMax M2.7", "desc": "编码与工作流" }
+    }
+  },
   "qaOutput": {
     "title": "探索问答",
     "clearChat": "清空对话",

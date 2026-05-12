@@ -5,6 +5,9 @@ const corsHeaders = {
 
 const API_BASE = "https://api.enter.pro/code/api/v1/ai/chat/completions";
 
+// Lightweight fallback model for utility calls (suggest / optimize / reflect)
+const UTILITY_MODEL = "z-ai/glm-5.1";
+
 interface EvolutionContext {
   round: number;
   qualityScore: number;
@@ -73,11 +76,27 @@ Deno.serve(async (req) => {
       throw new Error("AI_API_TOKEN is not configured");
     }
 
-    const { mode, goal, task, context, tasks, taskOutputs, messages, outputMode = "text", evolutionContext } = await req.json();
+    const body = await req.json();
+    const {
+      mode,
+      goal,
+      task,
+      context,
+      tasks,
+      taskOutputs,
+      messages,
+      outputMode = "text",
+      evolutionContext,
+      // model param — caller supplies the selected model; defaults to GLM 5.1
+      model: requestedModel,
+    } = body;
+
+    // Resolved model for primary (plan / execute / chat) calls
+    const primaryModel: string = requestedModel || "z-ai/glm-5.1";
 
     // ── SUGGEST ───────────────────────────────────────────────────────────────
     if (mode === "suggest") {
-      const { taskSummary, lastQA } = (await req.json().catch(() => ({}))) || {};
+      const { taskSummary, lastQA } = body;
 
       const modeLabel = outputMode === "agent" ? "software agent build" : outputMode === "qa" ? "Q&A exploration" : "autonomous task execution";
 
@@ -102,7 +121,7 @@ Return ONLY a JSON array of exactly 3 strings. No explanations, no markdown fenc
         method: "POST",
         headers: { Authorization: `Bearer ${AI_API_TOKEN}`, "Content-Type": "application/json" },
         body: JSON.stringify({
-          model: "z-ai/glm-5.1",
+          model: UTILITY_MODEL,
           messages: [{ role: "user", content: prompt }],
           stream: false,
         }),
@@ -147,7 +166,7 @@ Return ONLY the optimized prompt text. No explanation, no quotes, no preamble.`;
         method: "POST",
         headers: { Authorization: `Bearer ${AI_API_TOKEN}`, "Content-Type": "application/json" },
         body: JSON.stringify({
-          model: "z-ai/glm-5.1",
+          model: UTILITY_MODEL,
           messages: [{ role: "user", content: prompt }],
           stream: false,
         }),
@@ -172,7 +191,7 @@ Return ONLY the optimized prompt text. No explanation, no quotes, no preamble.`;
         method: "POST",
         headers: { Authorization: `Bearer ${AI_API_TOKEN}`, "Content-Type": "application/json" },
         body: JSON.stringify({
-          model: "z-ai/glm-5.1",
+          model: primaryModel,
           messages: [
             { role: "system", content: "You are a knowledgeable, helpful assistant. Answer clearly and accurately. Use markdown formatting (headers, bullet points, code blocks) when it aids readability." },
             ...chatMessages,
@@ -197,7 +216,7 @@ Return ONLY the optimized prompt text. No explanation, no quotes, no preamble.`;
         method: "POST",
         headers: { Authorization: `Bearer ${AI_API_TOKEN}`, "Content-Type": "application/json" },
         body: JSON.stringify({
-          model: "z-ai/glm-5.1",
+          model: primaryModel,
           messages: [
             { role: "system", content: getPlanSystemPrompt(outputMode, evolutionContext) },
             { role: "user", content: `Goal: ${goal}` },
@@ -240,7 +259,7 @@ Return ONLY the optimized prompt text. No explanation, no quotes, no preamble.`;
         method: "POST",
         headers: { Authorization: `Bearer ${AI_API_TOKEN}`, "Content-Type": "application/json" },
         body: JSON.stringify({
-          model: "z-ai/glm-5.1",
+          model: primaryModel,
           messages: [
             { role: "system", content: getExecuteSystemPrompt(outputMode, evolutionContext) },
             { role: "user", content: userPrompt },
@@ -299,7 +318,7 @@ Return ONLY this exact JSON (no markdown fences, no explanation outside the JSON
         method: "POST",
         headers: { Authorization: `Bearer ${AI_API_TOKEN}`, "Content-Type": "application/json" },
         body: JSON.stringify({
-          model: "z-ai/glm-5.1",
+          model: UTILITY_MODEL,
           messages: [{ role: "user", content: reflectPrompt }],
           stream: false,
         }),

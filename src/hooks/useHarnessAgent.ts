@@ -215,7 +215,8 @@ export function useHarnessAgent() {
   const planTasks = async (
     goal: string,
     mode: OutputMode,
-    evolutionCtx?: EvolutionContext
+    evolutionCtx?: EvolutionContext,
+    model?: string
   ): Promise<Task[]> => {
     const response = await fetch(EDGE_FUNCTION_URL, {
       method: "POST",
@@ -223,7 +224,7 @@ export function useHarnessAgent() {
         "Content-Type": "application/json",
         Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
       },
-      body: JSON.stringify({ mode: "plan", goal, outputMode: mode, evolutionContext: evolutionCtx }),
+      body: JSON.stringify({ mode: "plan", goal, outputMode: mode, evolutionContext: evolutionCtx, model }),
     });
 
     if (!response.ok) {
@@ -244,7 +245,8 @@ export function useHarnessAgent() {
     context: string[],
     mode: OutputMode,
     onChunk: (chunk: string) => void,
-    evolutionCtx?: EvolutionContext
+    evolutionCtx?: EvolutionContext,
+    model?: string
   ): Promise<void> => {
     return new Promise((resolve, reject) => {
       const controller = new AbortController();
@@ -271,6 +273,7 @@ export function useHarnessAgent() {
           context,
           outputMode: mode,
           evolutionContext: evolutionCtx,
+          model,
         }),
         signal: controller.signal,
 
@@ -350,7 +353,8 @@ export function useHarnessAgent() {
     mode: OutputMode,
     startFiles: AgentFile[],
     onComplete?: (entry: HistoryEntry) => void,
-    evolutionCtx?: EvolutionContext
+    evolutionCtx?: EvolutionContext,
+    model?: string
   ) => {
     const completedSummaries: string[] = plannedTasks
       .filter((t) => startStatuses[t.id] === "completed")
@@ -374,7 +378,7 @@ export function useHarnessAgent() {
         await executeTask(goal, task, completedSummaries, mode, (chunk) => {
           taskContent += chunk;
           setTaskOutputs((prev) => ({ ...prev, [task.id]: (prev[task.id] || "") + chunk }));
-        }, evolutionCtx);
+        }, evolutionCtx, model);
 
         setTaskStatuses((prev) => ({ ...prev, [task.id]: "completed" }));
 
@@ -420,7 +424,8 @@ export function useHarnessAgent() {
     goal: string,
     mode: OutputMode = "text",
     onComplete?: (entry: HistoryEntry) => void,
-    evolutionCtx?: EvolutionContext
+    evolutionCtx?: EvolutionContext,
+    model?: string
   ) => {
     // ── Q&A Mode: single streaming call, no planning ──────────────────────
     if (mode === "qa") {
@@ -462,7 +467,7 @@ export function useHarnessAgent() {
               "Content-Type": "application/json",
               Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
             },
-            body: JSON.stringify({ mode: "chat", messages: messagesForAPI }),
+            body: JSON.stringify({ mode: "chat", messages: messagesForAPI, model }),
             signal: controller.signal,
 
             async onopen(response) {
@@ -558,7 +563,7 @@ export function useHarnessAgent() {
     }
 
     try {
-      const plannedTasks = await planTasks(goal, mode, evolutionCtx);
+      const plannedTasks = await planTasks(goal, mode, evolutionCtx, model);
       setTasks(plannedTasks);
 
       const initialStatuses: Record<number, TaskStatus> = {};
@@ -566,7 +571,7 @@ export function useHarnessAgent() {
       setTaskStatuses(initialStatuses);
 
       setStatus("executing");
-      await runExecutionLoop(goal, plannedTasks, initialStatuses, {}, mode, [], onComplete, evolutionCtx);
+      await runExecutionLoop(goal, plannedTasks, initialStatuses, {}, mode, [], onComplete, evolutionCtx, model);
     } catch (err: unknown) {
       if (err instanceof Error && err.name === "AbortError") return;
       setError(err instanceof Error ? err.message : "Agent failed");

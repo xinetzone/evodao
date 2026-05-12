@@ -118,6 +118,18 @@
       "Explain the CAP theorem"
     ]
   },
+  "modelSelector": {
+    "label": "MODEL",
+    "auto": "AUTO",
+    "autoDesc": "Auto-selects the best model for each mode",
+    "models": {
+      "deepseek/deepseek-v4-pro": { "name": "DeepSeek V4 Pro", "desc": "Coding, math & deep reasoning" },
+      "z-ai/glm-5.1": { "name": "GLM 5.1", "desc": "Long-horizon agent tasks" },
+      "z-ai/glm-5": { "name": "GLM 5", "desc": "Complex system design" },
+      "moonshotai/kimi-k2.6": { "name": "Kimi K2.6", "desc": "Multimodal & tool use" },
+      "minimax/minimax-m2.7": { "name": "MiniMax M2.7", "desc": "Coding & workflows" }
+    }
+  },
   "qaOutput": {
     "title": "EXPLORATORY Q&A",
     "clearChat": "CLEAR",

@@ -2,12 +2,14 @@ import { useState, useRef } from "react";
 import { Play, RotateCcw, Square, Wand2, Loader, Sparkles } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { AgentStatus, OutputMode } from "@/hooks/useHarnessAgent";
+import { ModelSelector } from "@/components/agent/ModelSelector";
+import { ModelId, getAutoModel } from "@/lib/models";
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from "@/lib/config";
 import { cn } from "@/lib/utils";
 
 interface GoalInputProps {
   status: AgentStatus;
-  onRun: (goal: string, outputMode: OutputMode) => void;
+  onRun: (goal: string, outputMode: OutputMode, model: string) => void;
   onReset: () => void;
   suggestions?: string[];
   suggestionsLoading?: boolean;
@@ -25,6 +27,7 @@ export function GoalInput({
   const { t } = useTranslation();
   const [goal, setGoal] = useState("");
   const [outputMode, setOutputMode] = useState<OutputMode>("text");
+  const [manualModel, setManualModel] = useState<ModelId | null>(null);
   const [isOptimizing, setIsOptimizing] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -48,7 +51,8 @@ export function GoalInput({
 
   const handleRun = () => {
     if (!goal.trim() || isRunning) return;
-    onRun(goal.trim(), outputMode);
+    const model = manualModel ?? getAutoModel(outputMode);
+    onRun(goal.trim(), outputMode, model);
   };
 
   const handleReset = () => {
@@ -109,22 +113,32 @@ export function GoalInput({
         </div>
 
         {/* Mode toggle pills */}
-        <div className="flex items-center gap-0.5 p-0.5 rounded border border-border bg-card">
-          {(["text", "agent", "qa"] as OutputMode[]).map((m) => (
-            <button
-              key={m}
-              onClick={() => setOutputMode(m)}
-              disabled={isRunning}
-              className={cn(
-                "px-2.5 py-1 text-[10px] font-semibold tracking-widest rounded transition-all duration-150",
-                outputMode === m
-                  ? "bg-primary text-primary-foreground"
-                  : "text-muted-foreground hover:text-foreground"
-              )}
-            >
-              {m === "text" ? t("agentMode.taskMode") : m === "agent" ? t("agentMode.agentBuild") : t("agentMode.qaChat")}
-            </button>
-          ))}
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-0.5 p-0.5 rounded border border-border bg-card">
+            {(["text", "agent", "qa"] as OutputMode[]).map((m) => (
+              <button
+                key={m}
+                onClick={() => setOutputMode(m)}
+                disabled={isRunning}
+                className={cn(
+                  "px-2.5 py-1 text-[10px] font-semibold tracking-widest rounded transition-all duration-150",
+                  outputMode === m
+                    ? "bg-primary text-primary-foreground"
+                    : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                {m === "text" ? t("agentMode.taskMode") : m === "agent" ? t("agentMode.agentBuild") : t("agentMode.qaChat")}
+              </button>
+            ))}
+          </div>
+
+          {/* Model selector */}
+          <ModelSelector
+            outputMode={outputMode}
+            manualModel={manualModel}
+            onChange={setManualModel}
+            disabled={isRunning}
+          />
         </div>
       </div>
 
