@@ -73,10 +73,44 @@ Deno.serve(async (req) => {
       throw new Error("AI_API_TOKEN is not configured");
     }
 
-    const { mode, goal, task, context, tasks, taskOutputs, outputMode = "text", evolutionContext } = await req.json();
+    const { mode, goal, task, context, tasks, taskOutputs, messages, outputMode = "text", evolutionContext } = await req.json();
+
+    // ── CHAT (Q&A) ────────────────────────────────────────────────────────────
+    if (mode === "chat") {
+      const chatMessages = messages && messages.length > 0
+        ? messages
+        : [{ role: "user", content: goal }];
+
+      const response = await fetch(API_BASE, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${AI_API_TOKEN}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: "z-ai/glm-5.1",
+          messages: [
+            {
+              role: "system",
+              content: "You are a knowledgeable, helpful assistant. Answer clearly and accurately. Use markdown formatting (headers, bullet points, code blocks) when it aids readability.",
+            },
+            ...chatMessages,
+          ],
+          stream: true,
+        }),
+      });
+
+      if (!response.ok) {
+        const text = await response.text();
+        throw new Error(`Chat LLM error: ${text}`);
+      }
+
+      return new Response(response.body, {
+        headers: { ...corsHeaders, "Content-Type": "text/event-stream", "Cache-Control": "no-cache" },
+      });
 
     // ── PLAN ─────────────────────────────────────────────────────────────────
-    if (mode === "plan") {
+    } else if (mode === "plan") {
       const response = await fetch(API_BASE, {
         method: "POST",
         headers: {

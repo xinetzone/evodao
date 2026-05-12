@@ -17,7 +17,10 @@ export function GoalInput({ status, onRun, onReset }: GoalInputProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const placeholders: string[] = t("goalInput.placeholders", { returnObjects: true }) as string[];
+  const qaPlaceholders: string[] = t("agentMode.qaChatPlaceholders", { returnObjects: true }) as string[];
   const [placeholderIndex] = useState(() => Math.floor(Math.random() * 4));
+
+  const activePlaceholders = outputMode === "qa" ? qaPlaceholders : placeholders;
 
   const isRunning = status === "planning" || status === "executing";
   const isDone = status === "done" || status === "error";
@@ -77,13 +80,30 @@ export function GoalInput({ status, onRun, onReset }: GoalInputProps) {
           >
             {t("agentMode.agentBuild")}
           </button>
+          <button
+            onClick={() => setOutputMode("qa")}
+            disabled={isRunning}
+            className={cn(
+              "px-2.5 py-1 text-[10px] font-semibold tracking-widest rounded transition-all duration-150",
+              outputMode === "qa"
+                ? "bg-primary text-primary-foreground"
+                : "text-muted-foreground hover:text-foreground"
+            )}
+          >
+            {t("agentMode.qaChat")}
+          </button>
         </div>
       </div>
 
-      {/* Agent build mode hint */}
+      {/* Mode hint */}
       {outputMode === "agent" && (
         <p className="text-[10px] text-primary/60 tracking-wider mb-2 pl-4 border-l border-primary/30">
           {t("agentMode.agentBuildHint")}
+        </p>
+      )}
+      {outputMode === "qa" && (
+        <p className="text-[10px] text-primary/60 tracking-wider mb-2 pl-4 border-l border-primary/30">
+          {t("agentMode.qaChatHint")}
         </p>
       )}
 
@@ -115,7 +135,7 @@ export function GoalInput({ status, onRun, onReset }: GoalInputProps) {
               onChange={(e) => setGoal(e.target.value)}
               onKeyDown={handleKeyDown}
               disabled={isRunning}
-              placeholder={placeholders[placeholderIndex % placeholders.length]}
+              placeholder={activePlaceholders[placeholderIndex % activePlaceholders.length]}
               rows={3}
               className={cn(
                 "w-full bg-transparent text-sm resize-none outline-none placeholder:text-muted-foreground/40",
@@ -164,7 +184,7 @@ export function GoalInput({ status, onRun, onReset }: GoalInputProps) {
                   )}
                 >
                   <Play className="w-3 h-3" />
-                  {t("goalInput.execute")}
+                  {outputMode === "qa" ? t("goalInput.send") : t("goalInput.execute")}
                 </button>
               )}
             </div>

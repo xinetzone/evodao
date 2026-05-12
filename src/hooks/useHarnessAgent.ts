@@ -5,7 +5,7 @@ import { parseFilesFromOutput } from "@/lib/parseFiles";
 
 export type AgentStatus = "idle" | "planning" | "executing" | "done" | "error";
 export type TaskStatus = "pending" | "running" | "completed" | "error";
-export type OutputMode = "text" | "agent";
+export type OutputMode = "text" | "agent" | "qa";
 export type EvolutionStatus = "idle" | "reflecting" | "reflected";
 
 export interface Task {
@@ -58,6 +58,12 @@ export interface SavedSession {
   extractedFiles?: AgentFile[];
 }
 
+export interface QAMessage {
+  role: "user" | "assistant";
+  content: string;
+  streaming?: boolean;
+}
+
 const STORAGE_KEY = "harness-agent-session";
 const EDGE_FUNCTION_URL = `${SUPABASE_URL}/functions/v1/harness-agent`;
 
@@ -107,10 +113,13 @@ export function useHarnessAgent() {
   const [evolutionStatus, setEvolutionStatus] = useState<EvolutionStatus>("idle");
   const [reflection, setReflection] = useState<ReflectionResult | null>(null);
   const [evolutionRound, setEvolutionRound] = useState(0);
+  // Q&A state
+  const [qaMessages, setQaMessages] = useState<QAMessage[]>([]);
 
   const abortControllerRef = useRef<AbortController | null>(null);
   const taskOutputsRef = useRef<Record<number, string>>({});
   const extractedFilesRef = useRef<AgentFile[]>([]);
+  const qaMessagesRef = useRef<QAMessage[]>([]);
   // Stable refs for use inside applyEvolution callback
   const outputModeRef = useRef<OutputMode>("text");
   const currentGoalRef = useRef<string>("");
@@ -124,6 +133,7 @@ export function useHarnessAgent() {
   useEffect(() => { currentGoalRef.current = currentGoal; }, [currentGoal]);
   useEffect(() => { evolutionRoundRef.current = evolutionRound; }, [evolutionRound]);
   useEffect(() => { reflectionRef.current = reflection; }, [reflection]);
+  useEffect(() => { qaMessagesRef.current = qaMessages; }, [qaMessages]);
 
   // Auto-save
   useEffect(() => {
@@ -172,6 +182,15 @@ export function useHarnessAgent() {
     setEvolutionStatus("idle");
     setReflection(null);
     setEvolutionRound(0);
+    setQaMessages([]);
+  }, []);
+
+  /** Clears only the QA conversation, keeps status idle */
+  const resetQA = useCallback(() => {
+    abortControllerRef.current?.abort();
+    setQaMessages([]);
+    setError(null);
+    setStatus("idle");
   }, []);
 
   const dismissSavedSession = useCallback(() => {
@@ -381,6 +400,114 @@ export function useHarnessAgent() {
     onComplete?: (entry: HistoryEntry) => void,
     evolutionCtx?: EvolutionContext
   ) => {
+    // ── Q&A Mode: single streaming call, no planning ──────────────────────
+    if (mode === "qa") {
+      setOutputMode("qa");
+      setCurrentGoal(goal);
+      setError(null);
+
+      const userMsg: QAMessage = { role: "user", content: goal };
+      // messages to send to API (completed exchanges only)
+      const historyMsgs = qaMessagesRef.current
+        .filter((m) => !m.streaming)
+        .map((m) => ({ role: m.role, content: m.content }));
+      const messagesForAPI = [...historyMsgs, { role: "user", content: goal }];
+
+      setQaMessages((prev) => [
+        ...prev.filter((m) => !m.streaming),
+        userMsg,
+        { role: "assistant", content: "", streaming: true },
+      ]);
+      setStatus("executing");
+
+      const controller = new AbortController();
+      abortControllerRef.current = controller;
+      let settled = false;
+      let assistantContent = "";
+
+      const settle = (fn: () => void) => {
+        if (settled) return;
+        settled = true;
+        controller.abort();
+        fn();
+      };
+
+      try {
+        await new Promise<void>((resolve, reject) => {
+          fetchEventSource(EDGE_FUNCTION_URL, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+            },
+            body: JSON.stringify({ mode: "chat", messages: messagesForAPI }),
+            signal: controller.signal,
+
+            async onopen(response) {
+              if (!response.ok) {
+                const err = new Error(`Request failed: ${response.status}`);
+                settle(() => reject(err));
+                throw err;
+              }
+            },
+
+            onmessage(event) {
+              if (event.data === "[DONE]") { settle(() => resolve()); return; }
+              if (!event.data) return;
+              let data: Record<string, unknown>;
+              try { data = JSON.parse(event.data); } catch { return; }
+
+              const errObj = (data as { error?: { type?: string; message?: string } }).error;
+              if (errObj) {
+                settle(() => reject(new Error(errObj.message || "Chat error")));
+                return;
+              }
+
+              const choice = (
+                data as { choices?: Array<{ delta?: { content?: string }; finish_reason?: string | null }> }
+              ).choices?.[0];
+              if (!choice) return;
+              if (choice.delta?.content) {
+                assistantContent += choice.delta.content;
+                setQaMessages((prev) => {
+                  const updated = [...prev];
+                  updated[updated.length - 1] = {
+                    role: "assistant",
+                    content: assistantContent,
+                    streaming: true,
+                  };
+                  return updated;
+                });
+              }
+              if (choice.finish_reason) settle(() => resolve());
+            },
+
+            onerror(err) {
+              if (settled) throw err;
+              if (err instanceof Error && err.name === "AbortError") throw err;
+              settle(() => reject(err));
+              throw err;
+            },
+          });
+        });
+
+        // Finalize assistant message, auto-reset to idle for follow-up
+        setQaMessages((prev) => {
+          const updated = [...prev];
+          updated[updated.length - 1] = { role: "assistant", content: assistantContent };
+          return updated;
+        });
+        setStatus("idle");
+      } catch (err: unknown) {
+        if (err instanceof Error && err.name === "AbortError") return;
+        setQaMessages((prev) => prev.slice(0, -1)); // remove pending assistant
+        setError(err instanceof Error ? err.message : "Chat failed");
+        setStatus("error");
+      }
+      return;
+    }
+
+    // ── Task / Agent Build Mode ───────────────────────────────────────────
     setCurrentGoal(goal);
     setOutputMode(mode);
     setStatus("planning");
@@ -529,5 +656,7 @@ export function useHarnessAgent() {
     evolve,
     applyEvolution,
     dismissEvolution,
+    qaMessages,
+    resetQA,
   };
 }

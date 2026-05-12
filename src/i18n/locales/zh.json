@@ -19,6 +19,7 @@
     "reset": "重置",
     "abort": "中止",
     "execute": "执行",
+    "send": "发送",
     "placeholders": [
       "构建个人财务管理 Web 应用",
       "制定 SaaS 产品的营销策略",
@@ -81,7 +82,24 @@
   "agentMode": {
     "taskMode": "任务模式",
     "agentBuild": "智能体构建",
-    "agentBuildHint": "LLM 输出结构化代码文件，可导出为 ZIP"
+    "agentBuildHint": "LLM 输出结构化代码文件，可导出为 ZIP",
+    "qaChat": "探索问答",
+    "qaChatHint": "直接提问，无需任务拆解 — 支持多轮对话",
+    "qaChatPlaceholders": [
+      "什么是向量数据库？",
+      "如何用 Python 实现单例模式？",
+      "React useEffect 的清理函数什么时候执行？",
+      "解释一下 CAP 定理"
+    ]
+  },
+  "qaOutput": {
+    "title": "探索问答",
+    "clearChat": "清空对话",
+    "you": "YOU",
+    "assistant": "AGENT",
+    "thinking": "思考中...",
+    "copy": "复制",
+    "copied": "已复制"
   },
   "fileTree": {
     "title": "生成文件",

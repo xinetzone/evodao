@@ -10,6 +10,7 @@ import { FileTree } from "@/components/agent/FileTree";
 import { HistoryPanel } from "@/components/agent/HistoryPanel";
 import { ExportActions } from "@/components/agent/ExportActions";
 import { EvolutionPanel } from "@/components/agent/EvolutionPanel";
+import { QAOutput } from "@/components/agent/QAOutput";
 import { AlertCircle, Trophy, RotateCcw, X } from "lucide-react";
 
 const Index = () => {
@@ -38,6 +39,8 @@ const Index = () => {
     evolve,
     applyEvolution,
     dismissEvolution,
+    qaMessages,
+    resetQA,
   } = useHarnessAgent();
 
   const steps: Array<{ label: string; desc: string }> = t("index.steps", {
@@ -111,8 +114,8 @@ const Index = () => {
             </div>
           )}
 
-          {/* Planning indicator */}
-          {status === "planning" && (
+          {/* Planning indicator — task/agent modes only */}
+          {status === "planning" && outputMode !== "qa" && (
             <div className="animate-fade-in flex items-center gap-3 px-4 py-3 rounded border border-yellow-500/30 bg-yellow-500/5">
               <div className="flex gap-1">
                 <span className="w-1.5 h-1.5 rounded-full bg-yellow-400 animate-bounce" style={{ animationDelay: "0ms" }} />
@@ -138,26 +141,33 @@ const Index = () => {
             </div>
           )}
 
-          {/* Task list */}
-          {tasks.length > 0 && (
+          {/* Q&A Output — shown in exploratory mode */}
+          {outputMode === "qa" && qaMessages.length > 0 && (
+            <QAOutput messages={qaMessages} onClear={resetQA} />
+          )}
+
+          {/* Task list — task/agent modes only */}
+          {tasks.length > 0 && outputMode !== "qa" && (
             <TaskList tasks={tasks} taskStatuses={taskStatuses} activeTaskId={activeTaskId} />
           )}
 
-          {/* Terminal output */}
-          <TerminalOutput
-            tasks={tasks}
-            taskStatuses={taskStatuses}
-            taskOutputs={taskOutputs}
-            activeTaskId={activeTaskId}
-          />
+          {/* Terminal output — task/agent modes only */}
+          {outputMode !== "qa" && (
+            <TerminalOutput
+              tasks={tasks}
+              taskStatuses={taskStatuses}
+              taskOutputs={taskOutputs}
+              activeTaskId={activeTaskId}
+            />
+          )}
 
-          {/* File tree — shown in agent build mode when files are extracted */}
-          {extractedFiles.length > 0 && (
+          {/* File tree — agent build mode only */}
+          {extractedFiles.length > 0 && outputMode === "agent" && (
             <FileTree files={extractedFiles} tasks={tasks} />
           )}
 
-          {/* Completion message */}
-          {status === "done" && (
+          {/* Completion message — task/agent modes only */}
+          {status === "done" && outputMode !== "qa" && (
             <div className="animate-fade-in flex flex-wrap items-center gap-3 px-4 py-3 rounded border border-primary/40 bg-primary/5 terminal-glow">
               <Trophy className="w-4 h-4 text-primary shrink-0" />
               <div className="flex-1 min-w-0">
@@ -178,8 +188,8 @@ const Index = () => {
             </div>
           )}
 
-          {/* Evolution panel — shown when run is complete or evolution is in progress */}
-          {(status === "done" || evolutionStatus !== "idle") && (
+          {/* Evolution panel — task/agent modes only */}
+          {(status === "done" || evolutionStatus !== "idle") && outputMode !== "qa" && (
             <EvolutionPanel
               evolutionStatus={evolutionStatus}
               reflection={reflection}
@@ -191,8 +201,8 @@ const Index = () => {
             />
           )}
 
-          {/* Idle hero */}
-          {status === "idle" && (
+          {/* Idle hero — hide when QA mode has messages */}
+          {status === "idle" && !(outputMode === "qa" && qaMessages.length > 0) && (
             <div className="animate-fade-in text-center py-16">
               <div className="relative inline-block mb-6">
                 <div className="w-16 h-16 rounded-full border border-primary/30 flex items-center justify-center mx-auto terminal-glow">

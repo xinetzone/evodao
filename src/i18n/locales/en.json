@@ -19,6 +19,7 @@
     "reset": "RESET",
     "abort": "ABORT",
     "execute": "EXECUTE",
+    "send": "SEND",
     "placeholders": [
       "Build a personal finance tracker web application",
       "Create a marketing strategy for a SaaS product",
@@ -81,7 +82,24 @@
   "agentMode": {
     "taskMode": "Task Mode",
     "agentBuild": "Agent Build",
-    "agentBuildHint": "LLM outputs structured code files for ZIP export"
+    "agentBuildHint": "LLM outputs structured code files for ZIP export",
+    "qaChat": "Q&A",
+    "qaChatHint": "Ask directly — no task decomposition, supports multi-turn",
+    "qaChatPlaceholders": [
+      "What is a vector database?",
+      "How do I implement a singleton in Python?",
+      "When does React useEffect cleanup run?",
+      "Explain the CAP theorem"
+    ]
+  },
+  "qaOutput": {
+    "title": "EXPLORATORY Q&A",
+    "clearChat": "CLEAR",
+    "you": "YOU",
+    "assistant": "AGENT",
+    "thinking": "THINKING...",
+    "copy": "Copy",
+    "copied": "Copied"
   },
   "fileTree": {
     "title": "FILES",
