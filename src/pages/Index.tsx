@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { useEvodaoAgent } from "@/hooks/useEvodaoAgent";
 import { useAgentHistory } from "@/hooks/useAgentHistory";
 import { useTaskManager } from "@/hooks/useTaskManager";
+import { useAIImage } from "@/hooks/useAIImage";
 import { AgentHeader } from "@/components/agent/AgentHeader";
 import { GoalInput } from "@/components/agent/GoalInput";
 import { TaskList } from "@/components/agent/TaskList";
@@ -13,6 +14,7 @@ import { TaskManagerPanel } from "@/components/agent/TaskManagerPanel";
 import { ExportActions } from "@/components/agent/ExportActions";
 import { EvolutionPanel } from "@/components/agent/EvolutionPanel";
 import { QAOutput } from "@/components/agent/QAOutput";
+import { ImageOutput } from "@/components/agent/ImageOutput";
 import { AlertCircle, Trophy, RotateCcw, X } from "lucide-react";
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from "@/lib/config";
 
@@ -20,9 +22,11 @@ const Index = () => {
   const { t } = useTranslation();
   const history = useAgentHistory();
   const taskManager = useTaskManager();
+  const aiImage = useAIImage();
   const [historyOpen, setHistoryOpen] = useState(false);
   const [taskManagerOpen, setTaskManagerOpen] = useState(false);
   const [activeModel, setActiveModel] = useState("GLM 5.1");
+  const [lastRunMode, setLastRunMode] = useState<string>("");
   // Prompt suggestions state
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [suggestionsLoading, setSuggestionsLoading] = useState(false);
@@ -117,6 +121,8 @@ const Index = () => {
     setSuggestions([]);
     setSuggestionsAI(false);
     prevQACountRef.current = 0;
+    aiImage.clearImages();
+    setLastRunMode("");
     reset();
   };
 
@@ -155,8 +161,14 @@ const Index = () => {
           <GoalInput
             status={status}
             onRun={(goal, mode, model) => {
-              setActiveModel(model.split("/")[1] || model);
-              runAgent(goal, mode, history.addEntry, undefined, model);
+              setLastRunMode(mode);
+              if (mode === "image") {
+                setActiveModel("GPT Image 2");
+                aiImage.submitAndPoll({ model: "openai/gpt-image-2", prompt: goal, type: "txt_2_img" });
+              } else {
+                setActiveModel(model.split("/")[1] || model);
+                runAgent(goal, mode, history.addEntry, undefined, model);
+              }
             }}
             onReset={handleReset}
             suggestions={suggestions}
@@ -235,13 +247,27 @@ const Index = () => {
             <QAOutput messages={qaMessages} onClear={handleResetQA} />
           )}
 
+          {/* Image Output — shown in image gen mode */}
+          {lastRunMode === "image" && (
+            <ImageOutput
+              images={aiImage.images}
+              isLoading={aiImage.isLoading}
+              isSubmitting={aiImage.isSubmitting}
+              isPolling={aiImage.isPolling}
+              error={aiImage.error}
+              taskId={aiImage.taskId}
+              onDownload={aiImage.downloadImage}
+              onDownloadAll={aiImage.downloadAllImages}
+            />
+          )}
+
           {/* Task list — task/agent modes only */}
-          {tasks.length > 0 && outputMode !== "qa" && (
+          {tasks.length > 0 && outputMode !== "qa" && lastRunMode !== "image" && (
             <TaskList tasks={tasks} taskStatuses={taskStatuses} activeTaskIds={activeTaskIds} />
           )}
 
           {/* Terminal output — task/agent modes only */}
-          {outputMode !== "qa" && (
+          {outputMode !== "qa" && lastRunMode !== "image" && (
             <TerminalOutput
               tasks={tasks}
               taskStatuses={taskStatuses}

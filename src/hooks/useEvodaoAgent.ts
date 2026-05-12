@@ -5,7 +5,7 @@ import { parseFilesFromOutput } from "@/lib/parseFiles";
 
 export type AgentStatus = "idle" | "planning" | "executing" | "done" | "error";
 export type TaskStatus = "pending" | "running" | "completed" | "error";
-export type OutputMode = "text" | "agent" | "qa";
+export type OutputMode = "text" | "agent" | "qa" | "image";
 export type EvolutionStatus = "idle" | "reflecting" | "reflected";
 
 export interface Task {

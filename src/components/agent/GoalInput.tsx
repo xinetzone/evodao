@@ -1,5 +1,5 @@
 import { useState, useRef } from "react";
-import { Play, RotateCcw, Square, Wand2, Loader, Sparkles } from "lucide-react";
+import { Play, RotateCcw, Square, Wand2, Loader, Sparkles, ImageIcon } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { AgentStatus, OutputMode } from "@/hooks/useEvodaoAgent";
 import { ModelSelector } from "@/components/agent/ModelSelector";
@@ -36,12 +36,15 @@ export function GoalInput({
   const staticSuggestions: string[] = t(
     outputMode === "agent" ? "promptSuggestions.agent"
     : outputMode === "qa" ? "promptSuggestions.qa"
+    : outputMode === "image" ? "promptSuggestions.image"
     : "promptSuggestions.text",
     { returnObjects: true }
   ) as string[];
   const [placeholderIndex] = useState(() => Math.floor(Math.random() * 4));
 
-  const activePlaceholders = outputMode === "qa" ? qaPlaceholders : placeholders;
+  const activePlaceholders = outputMode === "qa" ? qaPlaceholders
+    : outputMode === "image" ? (t("agentMode.imageGenPlaceholders", { returnObjects: true }) as string[])
+    : placeholders;
   // AI suggestions override static ones once available
   const activeSuggestions = suggestions.length > 0 ? suggestions : staticSuggestions;
 
@@ -51,6 +54,10 @@ export function GoalInput({
 
   const handleRun = () => {
     if (!goal.trim() || isRunning) return;
+    if (outputMode === "image") {
+      onRun(goal.trim(), "image", "openai/gpt-image-2");
+      return;
+    }
     const model = manualModel ?? getAutoModel(outputMode);
     onRun(goal.trim(), outputMode, model);
   };
@@ -115,7 +122,7 @@ export function GoalInput({
         {/* Mode toggle pills */}
         <div className="flex items-center gap-2">
           <div className="flex items-center gap-0.5 p-0.5 rounded border border-border bg-card">
-            {(["text", "agent", "qa"] as OutputMode[]).map((m) => (
+            {(["text", "agent", "qa", "image"] as OutputMode[]).map((m) => (
               <button
                 key={m}
                 onClick={() => setOutputMode(m)}
@@ -127,18 +134,28 @@ export function GoalInput({
                     : "text-muted-foreground hover:text-foreground"
                 )}
               >
-                {m === "text" ? t("agentMode.taskMode") : m === "agent" ? t("agentMode.agentBuild") : t("agentMode.qaChat")}
+                {m === "text" ? t("agentMode.taskMode")
+                  : m === "agent" ? t("agentMode.agentBuild")
+                  : m === "qa" ? t("agentMode.qaChat")
+                  : t("agentMode.imageGen")}
               </button>
             ))}
           </div>
 
-          {/* Model selector */}
-          <ModelSelector
-            outputMode={outputMode}
-            manualModel={manualModel}
-            onChange={setManualModel}
-            disabled={isRunning}
-          />
+          {/* Model selector — hidden in image mode (fixed model) */}
+          {outputMode === "image" ? (
+            <div className="flex items-center gap-1 px-2 py-1 rounded border border-border bg-card text-[9px] text-primary/60 font-bold tracking-widest">
+              <ImageIcon className="w-2.5 h-2.5" />
+              GPT IMAGE 2
+            </div>
+          ) : (
+            <ModelSelector
+              outputMode={outputMode}
+              manualModel={manualModel}
+              onChange={setManualModel}
+              disabled={isRunning}
+            />
+          )}
         </div>
       </div>
 
@@ -151,6 +168,11 @@ export function GoalInput({
       {outputMode === "qa" && (
         <p className="text-[10px] text-primary/60 tracking-wider mb-2 pl-4 border-l border-primary/30">
           {t("agentMode.qaChatHint")}
+        </p>
+      )}
+      {outputMode === "image" && (
+        <p className="text-[10px] text-primary/60 tracking-wider mb-2 pl-4 border-l border-primary/30">
+          {t("agentMode.imageGenHint")}
         </p>
       )}
 
