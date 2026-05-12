@@ -1,189 +1,146 @@
-# Harness Agent — Self-Evolution (Reflexion) Plan
+# Harness Agent — Exploratory Q&A Mode
 
 ## Context
-"自我进化" implements the Reflexion pattern: after a run completes, the Agent reflects on its own output, scores quality, identifies weaknesses, and proposes specific improvements. The user can then trigger an "evolved" re-run where those insights are baked into the prompts — creating a genuine iterative improvement loop.
+Users sometimes want to ask a simple question (e.g. "什么是向量数据库?", "怎么写 Python 装饰器?") without triggering the full task-decomposition pipeline. A lightweight Q&A mode lets users explore ideas conversationally before committing to a full agent run.
+
+## Goal
+Add a **third mode toggle** "探索问答 / Q&A" alongside the existing "任务模式" and "智能体构建" toggles. In this mode:
+- No planning step — single streaming call directly to the LLM
+- Multi-turn conversation: each answer streams in, then the user can immediately ask a follow-up
+- Terminal-aesthetic chat display replacing the task list/terminal output
+- No evolution panel
+- Conversation persists until manual reset
 
 ---
 
-## User Flow
+## Implementation Plan
 
-```
-1. Run completes → "MISSION ACCOMPLISHED" + EVOLVE button appears
-2. User clicks EVOLVE → Reflection phase runs (streaming critique)
-3. Reflection shows: quality score, strengths, weaknesses, improvement directions
-4. User clicks "APPLY EVOLUTION →" → Agent re-runs with reflection insights in prompts
-5. New run completes with "Round 2" badge
-6. Can repeat N times (max 5 rounds to prevent infinite loops)
-```
-
----
-
-## New Types
-
+### 1. Edge Function — `supabase/functions/harness-agent/index.ts`
+Add `chat` mode (non-task streaming):
 ```typescript
-// src/hooks/useHarnessAgent.ts additions
-
-export interface ReflectionResult {
-  qualityScore: number;          // 0–100
-  strengths: string[];
-  weaknesses: string[];
-  improvements: string[];
-  evolvedGoal: string;           // refined goal for next round
+} else if (mode === "chat") {
+  // messages: Array<{role, content}> — full conversation
+  const response = await fetch(API_BASE, {
+    body: JSON.stringify({
+      model: "z-ai/glm-5.1",
+      messages: [
+        { role: "system", content: "You are a knowledgeable, helpful assistant. Answer clearly and concisely. Use markdown formatting when it aids readability." },
+        ...(messages || [{ role: "user", content: goal }]),
+      ],
+      stream: true,
+    }),
+  });
+  return pass-through SSE response
 }
-
-export type EvolutionStatus = "idle" | "reflecting" | "reflected";
 ```
 
 ---
 
-## New Edge Function Mode: `reflect`
+### 2. `src/hooks/useHarnessAgent.ts`
 
-Input:
+**New types:**
+```typescript
+export interface QAMessage {
+  role: "user" | "assistant";
+  content: string;
+}
+// Add "qa" to OutputMode
+export type OutputMode = "text" | "agent" | "qa";
+```
+
+**New state:**
+- `qaMessages: QAMessage[]` — conversation history
+- `qaMessagesRef` — ref for closure access
+
+**New `runAgent` QA branch** (when `mode === "qa"`):
+1. Append user msg to `qaMessages`
+2. Append placeholder `{ role: "assistant", content: "" }` (streaming target)
+3. Set `status = "executing"`, skip planTasks
+4. Call edge function with `mode: "chat"` + full `messages` array
+5. Stream chunks into last `qaMessages` entry
+6. On complete: **auto-reset `status` back to `"idle"`** (no "done" state) — seamless multi-turn
+7. On error: remove pending assistant placeholder, set error
+
+**New `resetQA()` function:**
+- Clears `qaMessages`, resets status, clears goal — full conversation reset
+
+**Update `reset()`:**
+- Also clears `qaMessages`
+
+---
+
+### 3. New `src/components/agent/QAOutput.tsx`
+
+Conversation display in terminal aesthetic:
+- Each user turn: dim `> USER: question` line
+- Each assistant turn: streaming terminal text
+- Last assistant message animates in with blinking cursor while streaming
+- "Clear conversation" button in header (calls `resetQA`)
+- Copy-to-clipboard for individual responses
+
+---
+
+### 4. `src/components/agent/GoalInput.tsx`
+
+- Add 3rd toggle: `"qa"` mode (label: `t("qaMode.qaChat")`)
+- When mode is `"qa"`: show a different placeholder set ("探索式问题" examples)
+- When mode is `"qa"` and `isRunning`: show abort button as usual
+- When mode is `"qa"` and NOT running (idle after auto-reset): no extra button needed — textarea is already active and ready
+- Add hint text for QA mode (similar to agent build hint)
+
+---
+
+### 5. `src/pages/Index.tsx`
+
+Conditional rendering:
+```
+outputMode === "qa"
+  → show QAOutput (when qaMessages.length > 0)
+  → hide: TaskList, TerminalOutput, FileTree, completion banner, EvolutionPanel
+  → hide: planning indicator (QA has no planning step)
+  
+outputMode !== "qa"
+  → show existing layout unchanged
+```
+Pass `qaMessages`, `resetQA` to QAOutput.
+
+---
+
+### 6. i18n — `en.json` + `zh.json`
+
 ```json
-{ "mode": "reflect", "goal": "...", "tasks": [...], "taskOutputs": {...} }
-```
-
-System prompt — asks LLM to return a **streaming** JSON-structured critique:
-```
-You are a critical AI evaluator. Analyze the completed agent run:
-- Score overall quality (0-100)
-- List 2-3 concrete strengths
-- List 2-3 specific weaknesses or missed aspects
-- Propose 2-3 actionable improvements for the next iteration
-- Suggest a refined version of the original goal that captures what was missed
-
-Respond ONLY in this JSON format (no markdown fences):
-{
-  "qualityScore": 75,
-  "strengths": ["..."],
-  "weaknesses": ["..."],
-  "improvements": ["..."],
-  "evolvedGoal": "..."
+"qaMode": {
+  "qaChat": "探索问答",          // "Q&A" in en
+  "qaChatHint": "直接提问，无需任务拆解",  // "Ask directly — no task decomposition"
+  "qaChatPlaceholders": [
+    "什么是向量数据库？",
+    "如何用 Python 实现单例模式？",
+    "React useEffect 的清理函数什么时候执行？",
+    "解释一下 CAP 定理"
+  ],
+  "clearChat": "清空对话",
+  "you": "YOU",
+  "assistant": "AGENT",
+  "thinking": "思考中..."
 }
 ```
 
-Non-streaming call (single JSON response, not SSE).
-
 ---
 
-## Evolution in Subsequent Runs
-
-When `evolutionRound > 0`, add to plan/execute system prompts:
-```
-EVOLUTION CONTEXT (Round N):
-Previous quality score: X/100
-Improvements to apply:
-- [improvement 1]
-- [improvement 2]
-Refined goal: [evolvedGoal]
-```
-
----
-
-## Files
-
-### New
-| File | Purpose |
-|---|---|
-| `src/components/agent/EvolutionPanel.tsx` | Reflection display + EVOLVE / APPLY buttons |
-
-### Modified
+## Files Modified
 | File | Change |
-|---|---|
-| `supabase/functions/harness-agent/index.ts` | Add `reflect` mode handler |
-| `src/hooks/useHarnessAgent.ts` | Add `evolutionStatus`, `reflection`, `evolutionRound`, `evolve()`, `applyEvolution()` |
-| `src/pages/Index.tsx` | Show `EvolutionPanel` below completion banner |
-| `src/i18n/locales/en.json` + `zh.json` | Add `evolution.*` keys |
-
----
-
-## `EvolutionPanel` Component
-
-States:
-1. **Idle** (status=done, evolutionStatus=idle) — show `[EVOLVE ↻]` button
-2. **Reflecting** — show streaming spinner + "AGENT SELF-REFLECTING..."
-3. **Reflected** — show:
-   - Quality score ring (e.g. `74 / 100`)
-   - Strengths (green bullet list)
-   - Weaknesses (amber bullet list)
-   - Improvements (primary bullet list)
-   - Round badge: "Round 1 → Round 2"
-   - `[APPLY EVOLUTION →]` button + `[DISMISS]`
-
----
-
-## `useHarnessAgent` additions
-
-```typescript
-// New state
-const [evolutionStatus, setEvolutionStatus] = useState<EvolutionStatus>("idle");
-const [reflection, setReflection] = useState<ReflectionResult | null>(null);
-const [evolutionRound, setEvolutionRound] = useState(0);
-
-// New function: triggers reflection phase
-const evolve = useCallback(async () => { ... }, [...]);
-
-// New function: re-runs with reflection insights
-const applyEvolution = useCallback(async (onComplete?) => { ... }, [...]);
-```
-
-`evolve()`:
-1. `setEvolutionStatus("reflecting")`
-2. Call edge function `reflect` mode (non-streaming fetch)
-3. Parse JSON → `setReflection(result)`
-4. `setEvolutionStatus("reflected")`
-
-`applyEvolution(onComplete?)`:
-1. `setEvolutionRound(r => r + 1)`
-2. Calls `runAgent(reflection.evolvedGoal, outputMode, onComplete, { evolutionRound: r+1, reflection })`
-3. The extra context is passed to the edge function so plan/execute prompts include it
-
----
-
-## Edge Function Changes
-
-Add `evolutionContext` to request body for plan/execute:
-```json
-{
-  "mode": "plan",
-  "goal": "...",
-  "outputMode": "text",
-  "evolutionContext": {
-    "round": 2,
-    "qualityScore": 74,
-    "improvements": ["..."],
-    "evolvedGoal": "..."
-  }
-}
-```
-When `evolutionContext` is present, prepend it to the system prompts.
-
----
-
-## i18n Keys
-
-```json
-"evolution": {
-  "evolveBtn": "EVOLVE",
-  "reflecting": "AGENT SELF-REFLECTING...",
-  "qualityScore": "QUALITY SCORE",
-  "strengths": "STRENGTHS",
-  "weaknesses": "WEAKNESSES",
-  "improvements": "IMPROVEMENT DIRECTIONS",
-  "applyBtn": "APPLY EVOLUTION",
-  "dismissBtn": "DISMISS",
-  "roundBadge": "Round {{from}} → Round {{to}}",
-  "maxRounds": "Maximum evolution rounds reached (5)"
-}
-```
-
----
+|------|--------|
+| `supabase/functions/harness-agent/index.ts` | Add `chat` mode |
+| `src/hooks/useHarnessAgent.ts` | Add `QAMessage`, `"qa"` in `OutputMode`, `qaMessages`, QA branch in `runAgent`, `resetQA` |
+| `src/components/agent/GoalInput.tsx` | Add 3rd mode toggle + QA placeholders/hint |
+| `src/components/agent/QAOutput.tsx` | **NEW** — conversation display |
+| `src/pages/Index.tsx` | Conditional rendering for QA vs task modes |
+| `src/i18n/locales/en.json` | Add `qaMode.*` keys |
+| `src/i18n/locales/zh.json` | Add `qaMode.*` keys |
 
 ## Verification
-
-1. Run any goal → completion banner + "EVOLVE" button visible
-2. Click EVOLVE → "REFLECTING..." spinner shows, then report appears
-3. Report shows quality score (0-100), 3 sections (strengths/weaknesses/improvements)
-4. Click "APPLY EVOLUTION" → agent re-runs with Round 2 badge
-5. New run uses evolved goal + improvements in prompts
-6. Can repeat up to 5 rounds (button disabled after round 5)
+1. Select "探索问答" in GoalInput and ask a simple question → single streaming response, no planning dots
+2. Ask a follow-up → second exchange appears, conversation accumulates
+3. Click "Clear conversation" → conversation resets
+4. Switch to Task Mode → full plan+execute pipeline works as before
+5. History/Evolution/FileTree not shown in QA mode
