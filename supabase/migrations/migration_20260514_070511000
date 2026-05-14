@@ -1,0 +1,12 @@
+
+-- Fix: add SET search_path = public so the trigger can find public.profiles
+-- when it fires inside the auth schema context
+CREATE OR REPLACE FUNCTION create_profile_on_signup()
+RETURNS TRIGGER LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+BEGIN
+  INSERT INTO public.profiles(id, email)
+  VALUES (NEW.id, NEW.email)
+  ON CONFLICT (id) DO NOTHING;
+  RETURN NEW;
+END;
+$$;
