@@ -16,6 +16,11 @@ function isClaudeModel(model: string): boolean {
   return model.startsWith("anthropic/");
 }
 
+// Claude Opus 4.x models require extended thinking (budget_tokens must be set)
+function isOpus4Model(model: string): boolean {
+  return model.includes("claude-opus-4");
+}
+
 interface EvolutionContext {
   round: number;
   qualityScore: number;
@@ -132,6 +137,7 @@ function translateAnthropicToOpenAI(anthropicStream: ReadableStream<Uint8Array>)
         const oaiChunk = { choices: [{ delta: { content: delta.text }, finish_reason: null }] };
         controller.enqueue(encoder.encode(`data: ${JSON.stringify(oaiChunk)}\n\n`));
       }
+      // thinking_delta is silently skipped — thinking content is internal reasoning
     } else if (eventType === "message_stop") {
       emitDone(controller);
     } else if (eventType === "message_delta") {
@@ -197,16 +203,22 @@ async function callLLMNonStream(
   userContent: string,
 ): Promise<string> {
   if (isClaudeModel(model)) {
+    const opus4 = isOpus4Model(model);
+    const requestBody: Record<string, unknown> = {
+      model,
+      system: systemPrompt,
+      messages: [{ role: "user", content: userContent }],
+      stream: false,
+      max_tokens: opus4 ? 16000 : 8192,
+    };
+    // Opus 4.x requires extended thinking; budget_tokens must be < max_tokens
+    if (opus4) {
+      requestBody.thinking = { type: "enabled", budget_tokens: 8000 };
+    }
     const res = await fetch(API_BASE_MESSAGES, {
       method: "POST",
       headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model,
-        system: systemPrompt,
-        messages: [{ role: "user", content: userContent }],
-        stream: false,
-        max_tokens: 8192,
-      }),
+      body: JSON.stringify(requestBody),
     });
     if (!res.ok) {
       const txt = await res.text();
@@ -250,16 +262,22 @@ async function callLLMStream(
   userMessages: Array<{ role: string; content: unknown }>,
 ): Promise<{ response: Response; isAnthropic: boolean }> {
   if (isClaudeModel(model)) {
+    const opus4 = isOpus4Model(model);
+    const requestBody: Record<string, unknown> = {
+      model,
+      system: systemPrompt,
+      messages: userMessages.filter((m) => m.role !== "system"),
+      stream: true,
+      max_tokens: opus4 ? 16000 : 8192,
+    };
+    // Opus 4.x requires extended thinking; budget_tokens must be < max_tokens
+    if (opus4) {
+      requestBody.thinking = { type: "enabled", budget_tokens: 8000 };
+    }
     const res = await fetch(API_BASE_MESSAGES, {
       method: "POST",
       headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model,
-        system: systemPrompt,
-        messages: userMessages.filter((m) => m.role !== "system"),
-        stream: true,
-        max_tokens: 8192,
-      }),
+      body: JSON.stringify(requestBody),
     });
     return { response: res, isAnthropic: true };
   } else {
@@ -424,8 +442,8 @@ Return ONLY the rewritten prompt as a plain string — no JSON, no markdown, no 
       if (!response.ok) throw new Error("Optimize LLM error");
 
       const data = await response.json();
-      const optimized = (data.choices?.[0]?.message?.content || goal).trim();
-      return new Response(JSON.stringify({ optimized }), {
+      const optimizedPrompt = (data.choices?.[0]?.message?.content || goal).trim();
+      return new Response(JSON.stringify({ optimizedPrompt }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
 
