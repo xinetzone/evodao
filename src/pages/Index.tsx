@@ -206,7 +206,20 @@ const Index = () => {
 
           <GoalInput
             status={status}
-            onRun={async (goal, mode, model) => {
+            onRun={async (goal, mode, model, attachments) => {
+              // Build text context from doc/PDF attachments
+              const textParts = attachments
+                .filter((a) => a.textContent)
+                .map((a) => `[附件: ${a.name}]\n${a.textContent!.slice(0, 8000)}`);
+              const textContext = textParts.length > 0
+                ? `\n\n--- 附件内容 ---\n${textParts.join("\n\n")}\n--- 附件内容结束 ---`
+                : "";
+              const enrichedGoal = textContext ? `${goal}${textContext}` : goal;
+              // Collect image data URLs for multimodal vision (QA mode)
+              const imageDataUrls = attachments
+                .filter((a) => a.type === "image" && a.dataUrl && !a.error)
+                .map((a) => a.dataUrl!);
+
               // Quota check — block non-admin users who exceed their limit
               const quotaResult = await checkQuota(mode);
               if (!quotaResult.allowed) {
@@ -221,7 +234,7 @@ const Index = () => {
               if (mode === "image") {
                 setActiveImageModelId(model);
                 setActiveModel(t(`modelSelector.models.${model}.name`, { defaultValue: "Image Model" }));
-                aiImage.submitAndPoll({ model, prompt: goal, type: "txt_2_img" });
+                aiImage.submitAndPoll({ model, prompt: enrichedGoal, type: "txt_2_img" });
               } else {
                 setActiveModel(model.split("/")[1] || model);
                 // Coze 长期记忆检索节点 — retrieve relevant past sessions to inject as context
@@ -230,7 +243,7 @@ const Index = () => {
                   const mems = await memory.searchMemory(goal);
                   memCtx = memory.formatAsContext(mems);
                 }
-                runAgent(goal, mode, handleComplete, undefined, model, memCtx);
+                runAgent(enrichedGoal, mode, handleComplete, undefined, model, memCtx, imageDataUrls);
               }
             }}
             onReset={handleReset}

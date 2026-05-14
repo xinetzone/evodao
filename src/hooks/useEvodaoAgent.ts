@@ -557,7 +557,8 @@ export function useEvodaoAgent() {
     onComplete?: (entry: HistoryEntry) => void,
     evolutionCtx?: EvolutionContext,
     model?: string,
-    memoryContext?: string[]   // long-term memory context (Coze 长期记忆检索节点)
+    memoryContext?: string[],   // long-term memory context (Coze 长期记忆检索节点)
+    imageDataUrls?: string[]   // base64 image data URLs for multimodal QA vision
   ) => {
     // ── Q&A Mode: single streaming call, no planning ──────────────────────
     if (mode === "qa") {
@@ -570,7 +571,23 @@ export function useEvodaoAgent() {
       const historyMsgs = qaMessagesRef.current
         .filter((m) => !m.streaming)
         .map((m) => ({ role: m.role, content: m.content }));
-      const messagesForAPI = [...historyMsgs, { role: "user", content: goal }];
+
+      // Build multimodal content when images are present
+      const userApiContent =
+        imageDataUrls && imageDataUrls.length > 0
+          ? [
+              { type: "text", text: goal },
+              ...imageDataUrls.map((url) => ({
+                type: "image_url",
+                image_url: { url },
+              })),
+            ]
+          : goal;
+
+      const messagesForAPI = [
+        ...historyMsgs,
+        { role: "user", content: userApiContent },
+      ];
 
       setQaMessages((prev) => [
         ...prev.filter((m) => !m.streaming),

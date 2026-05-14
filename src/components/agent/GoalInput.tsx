@@ -1,15 +1,16 @@
 import { useState, useRef, useEffect } from "react";
-import { Play, RotateCcw, Square, Wand2, Loader, Sparkles, ImageIcon, ChevronDown, Check } from "lucide-react";
+import { Play, RotateCcw, Square, Wand2, Loader, Sparkles, ImageIcon, ChevronDown, Check, Paperclip, FileText, X, Loader2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { AgentStatus, OutputMode } from "@/hooks/useEvodaoAgent";
 import { ModelSelector } from "@/components/agent/ModelSelector";
 import { ModelId, ImageModelId, IMAGE_MODELS, getAutoModel } from "@/lib/models";
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from "@/lib/config";
 import { cn } from "@/lib/utils";
+import { useAttachments, Attachment } from "@/hooks/useAttachments";
 
 interface GoalInputProps {
   status: AgentStatus;
-  onRun: (goal: string, outputMode: OutputMode, model: string) => void;
+  onRun: (goal: string, outputMode: OutputMode, model: string, attachments: Attachment[]) => void;
   onReset: () => void;
   suggestions?: string[];
   suggestionsLoading?: boolean;
@@ -31,6 +32,8 @@ export function GoalInput({
   const [imageModel, setImageModel] = useState<ImageModelId>("openai/gpt-image-2");
   const [imageModelOpen, setImageModelOpen] = useState(false);
   const imageModelRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const { attachments, hasLoading, addFiles, removeAttachment, clearAttachments } = useAttachments();
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -68,19 +71,27 @@ export function GoalInput({
   const isIdle = status === "idle";
 
   const handleRun = () => {
-    if (!goal.trim() || isRunning) return;
+    if (!goal.trim() || isRunning || hasLoading) return;
     if (outputMode === "image") {
-      onRun(goal.trim(), "image", imageModel);
+      onRun(goal.trim(), "image", imageModel, attachments);
+      clearAttachments();
       return;
     }
     const model = manualModel ?? getAutoModel(outputMode);
-    onRun(goal.trim(), outputMode, model);
+    onRun(goal.trim(), outputMode, model, attachments);
+    clearAttachments();
   };
 
   const handleReset = () => {
     setGoal("");
+    clearAttachments();
     onReset();
     setTimeout(() => textareaRef.current?.focus(), 50);
+  };
+
+  const handleFiles = (files: FileList | null) => {
+    if (!files || files.length === 0) return;
+    addFiles(Array.from(files));
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -319,6 +330,45 @@ export function GoalInput({
         )}
       </div>
 
+      {/* Attachment preview strip */}
+      {attachments.length > 0 && (
+        <div className="flex items-center gap-2 mb-2 overflow-x-auto pb-1 scrollbar-none">
+          {attachments.map((att) => (
+            <div
+              key={att.id}
+              className={cn(
+                "flex items-center gap-1.5 shrink-0 px-2 py-1 rounded border text-[10px] max-w-[160px]",
+                att.error
+                  ? "border-destructive/40 bg-destructive/5 text-destructive"
+                  : "border-border bg-card text-muted-foreground"
+              )}
+            >
+              {att.isLoading ? (
+                <Loader2 className="w-3 h-3 animate-spin shrink-0" />
+              ) : att.type === "image" && att.previewUrl ? (
+                <img
+                  src={att.previewUrl}
+                  alt={att.name}
+                  className="w-4 h-4 object-cover rounded shrink-0"
+                />
+              ) : (
+                <FileText className="w-3 h-3 text-primary shrink-0" />
+              )}
+              <span className="truncate max-w-[80px]">
+                {att.error ? att.error : att.name}
+              </span>
+              <button
+                onClick={() => removeAttachment(att.id)}
+                className="shrink-0 text-muted-foreground/50 hover:text-destructive transition-colors"
+                title="移除"
+              >
+                <X className="w-3 h-3" />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
       {/* Input area */}
       <div
         className={cn(
@@ -346,6 +396,13 @@ export function GoalInput({
               value={goal}
               onChange={(e) => setGoal(e.target.value)}
               onKeyDown={handleKeyDown}
+              onPaste={(e) => {
+                const files = Array.from(e.clipboardData?.files ?? []);
+                if (files.length > 0) {
+                  e.preventDefault();
+                  addFiles(files);
+                }
+              }}
               disabled={isRunning}
               placeholder={activePlaceholders[placeholderIndex % activePlaceholders.length]}
               rows={3}
@@ -359,11 +416,36 @@ export function GoalInput({
 
           {/* Bottom toolbar */}
           <div className="flex items-center justify-between mt-3 pt-3 border-t border-border gap-2 flex-wrap">
-            <p className="text-[10px] text-muted-foreground/60 tracking-wider">
-              {goal.length > 0
-                ? t("goalInput.chars", { count: goal.length })
-                : t("goalInput.awaiting")}
-            </p>
+            <div className="flex items-center gap-2">
+              {/* Paperclip / attach button */}
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                disabled={isRunning}
+                title="上传附件（图片、PDF、TXT…）"
+                className="flex items-center gap-1 px-2 py-1.5 text-[10px] text-muted-foreground border border-border rounded hover:border-primary/40 hover:text-foreground transition-all duration-200 disabled:opacity-40"
+              >
+                <Paperclip className="w-3 h-3" />
+                <span className="hidden sm:inline tracking-wider">附件</span>
+                {attachments.length > 0 && (
+                  <span className="ml-0.5 font-bold text-primary">{attachments.length}</span>
+                )}
+              </button>
+              {/* Hidden file input */}
+              <input
+                ref={fileInputRef}
+                type="file"
+                multiple
+                accept="image/*,.txt,.md,.csv,.json,.xml,.pdf"
+                className="hidden"
+                onChange={(e) => handleFiles(e.target.files)}
+                onClick={(e) => { (e.target as HTMLInputElement).value = ""; }}
+              />
+              <p className="text-[10px] text-muted-foreground/60 tracking-wider">
+                {goal.length > 0
+                  ? t("goalInput.chars", { count: goal.length })
+                  : t("goalInput.awaiting")}
+              </p>
+            </div>
 
             <div className="flex items-center gap-2 flex-wrap justify-end">
               {/* Optimize button */}
@@ -409,16 +491,20 @@ export function GoalInput({
               ) : (
                 <button
                   onClick={handleRun}
-                  disabled={!goal.trim() || isRunning}
+                  disabled={!goal.trim() || isRunning || hasLoading}
                   className={cn(
                     "flex items-center gap-1.5 px-4 py-1.5 text-xs font-semibold tracking-widest rounded border transition-all duration-200",
-                    goal.trim() && isIdle
+                    goal.trim() && isIdle && !hasLoading
                       ? "text-primary-foreground bg-primary border-primary hover:bg-primary/90 terminal-glow"
                       : "text-muted-foreground border-border cursor-not-allowed"
                   )}
                 >
-                  <Play className="w-3 h-3" />
-                  {outputMode === "qa" ? t("goalInput.send") : outputMode === "image" ? t("goalInput.generate") : t("goalInput.execute")}
+                  {hasLoading ? (
+                    <Loader2 className="w-3 h-3 animate-spin" />
+                  ) : (
+                    <Play className="w-3 h-3" />
+                  )}
+                  {hasLoading ? "处理中…" : outputMode === "qa" ? t("goalInput.send") : outputMode === "image" ? t("goalInput.generate") : t("goalInput.execute")}
                 </button>
               )}
             </div>
