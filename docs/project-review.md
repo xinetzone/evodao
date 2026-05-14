@@ -306,3 +306,159 @@ export const IMAGE_MODELS = [
 ---
 
 *本报告由 AI 自动生成，基于项目 git 历史（44 次提交）和源码分析。*
+
+---
+
+## Phase 5：Coze 平台架构全栈升级（2026-05-14）
+
+### 5.1 背景与目标
+
+基于 Coze 平台架构文档（docs.coze.cn/guides/architecture）的 5 大核心节点概念，将其设计理念映射到本项目：
+
+| Coze 节点 | 项目对应实现 |
+|---|---|
+| 意图识别节点 | GoalInput AUTO 按钮 → `mode: "intent"` |
+| 长期记忆节点（读） | `useMemory.searchMemory()` → `agent_memory` 表检索 |
+| 长期记忆节点（写） | `handleComplete` → `memory.saveMemory()` 自动持久化 |
+| 工具/插件声明节点 | `Task.tools?: string[]` 字段 + execute system prompt 定制 |
+| 变量聚合节点 | `depContext` 传递（DAG 调度器 `getOrExecute` 中 dep 输出注入） |
+
+---
+
+### 5.2 变更文件清单
+
+| 文件 | 变更类型 | 核心改动 |
+|---|---|---|
+| `supabase/migrations/..._agent_memory` | 新建 | `agent_memory` 表 + RLS |
+| `src/hooks/useMemory.ts` | 新建 | 长期记忆 Hook |
+| `src/components/agent/MemoryContext.tsx` | 新建 | 记忆卡片 UI 组件 |
+| `supabase/functions/harness-agent/index.ts` | 更新 | 新增 `intent` 模式；`plan`/`execute` 支持 `tools` |
+| `src/hooks/useEvodaoAgent.ts` | 更新 | `Task.tools`；`runAgent`/`runExecutionLoop` 接受 `memoryContext` |
+| `src/components/agent/GoalInput.tsx` | 更新 | AUTO 意图检测按钮 + 推荐原因徽章 |
+| `src/pages/Index.tsx` | 更新 | 异步 `onRun`；`handleComplete` 统一回调；`MemoryContext` 渲染 |
+| `src/i18n/locales/zh.json` | 更新 | `memory.*` / `intent.*` / `taskTools.*` 命名空间 |
+| `src/i18n/locales/en.json` | 更新 | 同上（英文对称） |
+
+---
+
+### 5.3 架构数据流
+
+```
+用户输入 goal
+    │
+    ▼ [AUTO 按钮] — mode: "intent"
+    │  LLM 分类 → { outputMode, reason }
+    │  GoalInput 自动切换模式 + 显示原因徽章
+    │
+    ▼ onRun (async)
+    │
+    ├─► [memory.searchMemory(goal)]         ← Coze 长期记忆检索节点
+    │       Supabase query agent_memory
+    │       → MemoryItem[] → formatAsContext()
+    │       → memCtx: string[]
+    │
+    ▼ runAgent(goal, mode, handleComplete, _, model, memCtx)
+    │
+    ├─► planTasks() → Task[] (含 dependsOn + tools)
+    │
+    ▼ runExecutionLoop(... , memoryContext = memCtx)
+    │
+    │   completedContext = [...memCtx, ...sessionContext]
+    │                        ↑ 长期记忆前置注入
+    │
+    │   getOrExecute(taskId)
+    │   ├─ await Promise.all(deps.map(getOrExecute))  ← DAG 等待
+    │   ├─ depContext (dep 输出 800 chars)
+    │   └─ execute(task, context=[completedContext+depContext])
+    │         system prompt 根据 task.tools 定制     ← Coze 工具节点
+    │
+    ▼ handleComplete(entry)
+    │
+    ├─► history.addEntry(entry)    ← 本地历史面板
+    └─► memory.saveMemory({        ← Coze 长期记忆写入节点
+            goal, outputMode,
+            taskSummaries,         ← 各任务输出前 200 字摘要
+            evolutionRound
+        })
+            → INSERT INTO agent_memory
+```
+
+---
+
+### 5.4 新增接口定义
+
+```typescript
+// Task — 新增 tools 字段
+interface Task {
+  id: number;
+  title: string;
+  description: string;
+  dependsOn?: number[];     // DAG 依赖（Phase 4 引入）
+  tools?: string[];         // 工具声明：code/write/analyze/search/design
+}
+
+// useMemory Hook API
+interface MemoryItem {
+  id: string;
+  goal: string;
+  outputMode: string;
+  taskSummaries: string;
+  qualityScore?: number;
+  evolutionRound: number;
+  createdAt: string;
+}
+
+function useMemory(): {
+  memories: MemoryItem[];
+  isSearching: boolean;
+  searchMemory(goal: string, limit?: number): Promise<MemoryItem[]>;
+  saveMemory(params: SaveMemoryParams): Promise<void>;
+  clearMemories(): void;
+  formatAsContext(items: MemoryItem[]): string[];
+}
+
+// harness-agent — 新增 intent 模式
+POST harness-agent { mode: "intent", goal: string }
+→ { outputMode: "text"|"agent"|"qa"|"image", reason: string }
+```
+
+---
+
+### 5.5 数据库表
+
+```sql
+CREATE TABLE agent_memory (
+  id              uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  goal            text NOT NULL,
+  output_mode     text NOT NULL DEFAULT 'text',
+  task_summaries  text NOT NULL DEFAULT '',
+  quality_score   integer,
+  evolution_round integer DEFAULT 0,
+  created_at      timestamptz DEFAULT now()
+);
+ALTER TABLE agent_memory ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "public_all" ON agent_memory FOR ALL USING (true) WITH CHECK (true);
+```
+
+---
+
+### 5.6 长期记忆初始种子（已写入）
+
+本次复盘同步将以下 3 条历史会话写入 `agent_memory` 数据库，作为系统冷启动记忆种子：
+
+| goal | output_mode | quality_score | round |
+|---|---|---|---|
+| Coze 架构全栈升级（意图识别 + 长期记忆 + 工具声明） | agent | 92 | 3 |
+| 任务依赖 DAG 调度（Trae SOLO 架构） | agent | 88 | 2 |
+| Coze 架构文档研究与方案映射 | text | 85 | 1 |
+
+---
+
+### 5.7 待办 / Backlog
+
+- [ ] **语义相似度检索**：当前 `searchMemory` 按时间倒序，未来可引入 embedding 向量搜索（pgvector）实现语义匹配
+- [ ] **记忆评分更新**：Reflect 阶段产出的 `qualityScore` 目前已在 handleComplete 中占位，尚未从 HistoryEntry 传递
+- [ ] **记忆管理 UI**：展示所有历史记忆、支持手动删除
+- [ ] **工具节点实际调用**：`Task.tools` 当前仅用于 system prompt 提示，未来可对接真实搜索/代码执行工具
+- [ ] **跨会话 goal 关联**：记忆检索可按 outputMode 过滤，提升上下文相关性
+
