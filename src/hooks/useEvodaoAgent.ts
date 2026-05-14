@@ -316,6 +316,8 @@ export function useEvodaoAgent() {
         signal: localController.signal,
 
         async onopen(response) {
+          // Note: intentional AbortErrors from settle() trigger onerror which throws —
+          // the .catch() below prevents that from becoming an unhandled rejection.
           const contentType = response.headers.get("content-type");
           if (!response.ok) {
             if (contentType?.includes("text/event-stream")) {
@@ -378,6 +380,9 @@ export function useEvodaoAgent() {
           settle(() => reject(err));
           throw err;
         },
+      }).catch(() => {
+        // Suppress unhandled rejection — the outer Promise is already settled
+        // via resolve/reject. AbortErrors from our own controller.abort() are expected.
       });
     });
   };
@@ -699,6 +704,9 @@ export function useEvodaoAgent() {
             onclose() {
               settle(() => resolve());
             },
+          }).catch(() => {
+            // Suppress unhandled rejection — outer Promise already settled.
+            // AbortErrors from controller.abort() are intentional and expected.
           });
         });
 
