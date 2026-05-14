@@ -1,91 +1,78 @@
-# 项目复盘报告导出 + Git 推送
+# 项目开发总结 + Skill 萃取计划
 
-## Context
+## 项目开发过程总结
 
-用户希望对 EVODAO 项目进行全面复盘，导出报告，并推送到远程 Git 仓库。
+### 阶段一：基础架构（2026-04-14 ~ 2026-05-12 早期）
+- 项目初始化（Vite + React + Tailwind + shadcn）
+- 核心 SSE 流式 AI Agent 接入
+- i18n 国际化框架
+- 会话持久化（localStorage）、历史面板、Markdown 导出
+- Agent 自我反思/进化机制
+- Q&A 问答模式
 
-**重要限制（框架约束）：**
-- `git commit` / `git push` / `git add` 命令被框架拒绝，无法手动执行
-- 框架在每个有代码变更的 turn 后自动生成一次 commit
-- 当前 remote `origin` 指向 `/workspace/center`（Enter.pro 内部路径，非 GitHub）
-- 若需推送到真正的远程仓库（GitHub），需要用户提供 GitHub 仓库 URL，框架侧通过 Enter.pro 的 GitHub 连接功能实现
+### 阶段二：功能扩展（2026-05-12 中期）
+- Prompt 建议与优化
+- 多模型选择器（Claude / GPT / Gemini / GLM）
+- 并行任务执行引擎重构（TaskManager + DAG 依赖图）
+- 图像生成模式（多图像模型支持、轮询状态）
 
-**可执行部分：**
-1. 编写全面的项目复盘报告（写入文件 → 框架自动 commit）
-2. 可拆分为多个独立文件变更以产生多次 commit
-
----
-
-## 报告内容规划
-
-### 目标文件：`docs/project-report.md`
-
-报告结构（约 500 行）：
-
-```
-# EVODAO 项目复盘报告
-
-## 1. 项目概述
-## 2. 开发时间线（全量 commit 分类梳理）
-## 3. 系统架构
-   - 前端架构
-   - 后端架构（Supabase + Edge Functions）
-   - 数据库 Schema（全部表字段）
-## 4. 已实现功能清单
-   - Agent 核心（并行任务、自我进化、QA模式、构建模式）
-   - 多模型选择（LLM + 图像模型）
-   - 多模态输出（文本/代码/图像）
-   - 任务管理器
-   - 长期记忆
-   - 国际化（中/英）
-   - 用户认证与管理
-   - 配额系统（运行次数 + Token 计量）
-   - 套餐订阅架构（预留支付接入点）
-## 5. 关键技术决策
-## 6. 发现并修复的 Bug
-## 7. 当前状态与已知问题
-## 8. 未来路线图（支付接入、功能扩展）
-```
+### 阶段三：系统化（2026-05-14）
+- 长期记忆系统（agent_memory + 检索）
+- 用户认证 + 管理员后台（profiles + RLS + AdminRoute）
+- DB 触发器 search_path 关键修复
+- 配额系统：每日/月次数限制 + Token 配额
+- fetchProfile Bug 修复（未 select 配额字段 → undefined 静默通过）
+- 套餐订阅架构（Basic/Pro）+ Admin 一键激活
+- 项目全面复盘文档
 
 ---
 
-## 实现步骤
+## 萃取的 Skills（4 个，无重复）
 
-### Step 1：写入主报告
-- 创建 `docs/project-report.md`（全量复盘，~500 行）
-- 框架自动产生 commit: `docs(report): add comprehensive project retrospective`
+### Skill 1: `supabase-quota-metering`
+**价值**：任何需要限流/计量的 SaaS 应用都需要这个模式
+- 两阶段写入：INSERT 占位 → finalizeUsage UPDATE token
+- checkQuota Hook 模式（daily/monthly/token 多维度）
+- QuotaExceededModal 通用组件
+- Admin 内联编辑配额
+- 关键 Bug 预防：fetchProfile 必须 select 全部配额字段
 
-### Step 2：更新 README
-- 在 `README.md` 顶部添加项目当前功能摘要，同步最新状态
-- 框架自动产生 commit: `docs: sync README with current feature set`
+### Skill 2: `supabase-subscription-plans`
+**价值**：快速搭建套餐 UI + 管理员手动激活，支付后接入
+- planConfig.ts 外部化（避免 fast-refresh 警告）
+- PricingModal 双列对比卡片
+- Admin 一键应用配额预设
+- plan badge + 多处升级入口
+- 支付按钮占位设计（大陆支付后接入）
 
-### Step 3：在报告中补充 DB Schema 截面
-- 根据 `src/integrations/supabase/types.ts` 提取所有自定义表的完整字段
-- 追加 `docs/db-schema.md`（数据库专项文档）
-- 框架自动产生 commit: `docs(db): add database schema documentation`
+### Skill 3: `sse-streaming-agent`
+**价值**：构建任何 SSE 流式 AI Agent 的标准模式
+- Edge Function SSE 格式（Deno.serve + ReadableStream）
+- 前端 fetch + reader.read() 消费流
+- 状态机：idle → planning → running → done
+- 并行子任务流管理
+- Token 实时累计追踪
+
+### Skill 4: `supabase-auth-admin-roles`
+**价值**：Supabase Auth + 管理员角色 + RLS 的正确配置方式
+- is_admin_user() SECURITY DEFINER 函数（避免 RLS 递归）
+- profiles 触发器 SET search_path = public（关键修复）
+- ProtectedRoute + AdminRoute 路由保护
+- 管理员绕过所有业务检查的模式
+- 自动确认邮箱配置
 
 ---
 
-## Git Push 说明
+## 写入位置
 
-当前远程 (`origin /workspace/center`) 为 Enter.pro 内部同步路径，不是外部 GitHub。
+每个 skill 写入：
+`/workspace/skill-drafts/custom/{skill_key}@1/SKILL.md`
 
-**要推送到 GitHub，有两个路径：**
-
-**路径 A（推荐）：** 通过 Enter.pro 连接 GitHub
-- Enter.pro 设置页 → GitHub Integration → 连接后自动同步到您的 GitHub 仓库
-
-**路径 B：** 手动配置
-- 用户在本地克隆 Enter.pro 项目代码
-- 添加 GitHub remote：`git remote add github https://github.com/yourname/yourrepo.git`
-- 执行：`git push github main`
-
-这两步都需要用户主动操作，代理无法代替执行（`git push` 被框架拒绝）。
+然后通过 `confirm_skill` 提交到 Enter 平台供保存。
 
 ---
 
-## 验证
-- `docs/project-report.md` 存在，内容覆盖所有功能模块
-- `docs/db-schema.md` 存在，字段与 types.ts 一致
-- `README.md` 顶部有最新功能概览
-- `git log --oneline` 可见 3 条新 docs 类型 commit
+## 执行步骤
+
+1. 并行写入 4 个 SKILL.md 草稿文件
+2. 依次调用 confirm_skill 提交每个 skill（需用户逐个确认）
