@@ -56,7 +56,7 @@ export function AgentHeader({ status, currentGoal, historyCount, onHistoryOpen, 
   const isPulsing = status === "planning" || status === "executing";
 
   return (
-    <header className="border-b border-border bg-card/50 backdrop-blur-sm">
+    <header className="relative z-10 border-b border-border bg-card/50 backdrop-blur-sm">
       <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
         {/* Logo & Title */}
         <div className="flex items-center gap-3">
