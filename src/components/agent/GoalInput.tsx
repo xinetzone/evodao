@@ -1,5 +1,5 @@
-import { useState, useRef } from "react";
-import { Play, RotateCcw, Square, Wand2, Loader, Sparkles, ImageIcon } from "lucide-react";
+import { useState, useRef, useEffect } from "react";
+import { Play, RotateCcw, Square, Wand2, Loader, Sparkles, ImageIcon, ChevronDown, Check } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { AgentStatus, OutputMode } from "@/hooks/useEvodaoAgent";
 import { ModelSelector } from "@/components/agent/ModelSelector";
@@ -29,6 +29,18 @@ export function GoalInput({
   const [outputMode, setOutputMode] = useState<OutputMode>("text");
   const [manualModel, setManualModel] = useState<ModelId | null>(null);
   const [imageModel, setImageModel] = useState<ImageModelId>("openai/gpt-image-2");
+  const [imageModelOpen, setImageModelOpen] = useState(false);
+  const imageModelRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (imageModelRef.current && !imageModelRef.current.contains(e.target as Node)) {
+        setImageModelOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
   const [isOptimizing, setIsOptimizing] = useState(false);
   const [isDetecting, setIsDetecting] = useState(false);
   const [detectedReason, setDetectedReason] = useState<string | null>(null);
@@ -197,23 +209,43 @@ export function GoalInput({
 
           {/* Image model selector — visible in image mode only */}
           {outputMode === "image" ? (
-            <div className="flex items-center gap-0.5 p-0.5 rounded border border-border bg-card">
-              <ImageIcon className="w-2.5 h-2.5 text-primary/50 ml-1.5 shrink-0" />
-              {IMAGE_MODELS.map((m) => (
-                <button
-                  key={m}
-                  onClick={() => setImageModel(m)}
-                  disabled={isRunning}
-                  className={cn(
-                    "px-2 py-0.5 text-[9px] font-bold tracking-widest rounded transition-all duration-150",
-                    imageModel === m
-                      ? "bg-primary text-primary-foreground"
-                      : "text-muted-foreground hover:text-foreground"
-                  )}
-                >
-                  {t(`modelSelector.models.${m}.name`)}
-                </button>
-              ))}
+            <div className="relative" ref={imageModelRef}>
+              <button
+                onClick={() => setImageModelOpen(!imageModelOpen)}
+                disabled={isRunning}
+                className="flex items-center gap-1.5 pl-2 pr-2 py-1 rounded border border-border bg-card hover:border-primary/40 transition-all duration-200 disabled:opacity-50"
+              >
+                <ImageIcon className="w-2.5 h-2.5 text-primary/60 shrink-0" />
+                <span className="text-[9px] font-bold tracking-widest text-foreground/80 font-mono max-w-[100px] truncate">
+                  {t(`modelSelector.models.${imageModel}.name`)}
+                </span>
+                <ChevronDown className={cn("w-2.5 h-2.5 text-muted-foreground/50 transition-transform duration-200 shrink-0", imageModelOpen && "rotate-180")} />
+              </button>
+
+              {imageModelOpen && (
+                <div className="absolute right-0 top-full mt-1 w-44 rounded border border-border/80 bg-card shadow-xl z-[60] overflow-hidden animate-fade-in">
+                  <div className="px-2.5 py-1.5 border-b border-border/40">
+                    <p className="text-[9px] text-muted-foreground/50 tracking-widest font-mono">IMAGE MODEL</p>
+                  </div>
+                  <div className="py-0.5">
+                    {IMAGE_MODELS.map((m) => (
+                      <button
+                        key={m}
+                        onClick={() => { setImageModel(m); setImageModelOpen(false); }}
+                        className={cn(
+                          "w-full flex items-center justify-between gap-2 px-3 py-2 text-[10px] tracking-wider transition-colors",
+                          m === imageModel
+                            ? "text-primary bg-primary/10"
+                            : "text-muted-foreground hover:text-foreground hover:bg-muted/30"
+                        )}
+                      >
+                        <span className="font-mono font-bold">{t(`modelSelector.models.${m}.name`)}</span>
+                        {m === imageModel && <Check className="w-3 h-3 text-primary shrink-0" />}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           ) : (
             <ModelSelector
