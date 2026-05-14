@@ -369,3 +369,174 @@ Token 消耗在执行完成后才知道确切数值。
 | i18n 键总数 | 200+ |
 | 支持模型数 | 8+ |
 | 开发周期 | 2026-04-14 至 2026-05-14 |
+
+---
+
+## Phase 6：多模型支持 + Agent World 集成 + 记忆进化修复（2026-05-14 下午）
+
+### 6.1 Claude / Anthropic 多模型支持
+
+**背景：** 原架构仅支持 OpenAI Chat Completions 协议，Claude 系列模型因使用不同的 Anthropic Messages 协议而无法正常工作。
+
+**改动：**
+
+| 文件 | 改动 |
+|------|------|
+| `supabase/functions/harness-agent/index.ts` | 新增 `API_BASE_MESSAGES` 端点；`isClaudeModel()` 检测函数；`translateAnthropicToOpenAI()` TransformStream |
+
+**核心实现：** `translateAnthropicToOpenAI()` 是一个 TransformStream，将 Anthropic SSE 事件（`content_block_delta`、`message_stop`、`message_delta`）实时转译为 OpenAI SSE 格式，使客户端代码无需感知协议差异。
+
+**同时修复的三处 SSE 错误：**
+
+1. **`thinking` 参数导致 400**：上一个版本错误地为 Claude 模型添加了 `thinking` 参数，而 Enter AI All API 不支持该扩展字段 → 移除。
+2. **`chat` handler 错误吞没**：原来 `throw new Error()` 变成 HTTP 500，客户端无法获得具体错误信息 → 改为直接返回 SSE 格式错误事件，与 `execute` handler 保持一致。
+3. **QA `onopen` 丢失错误信息**：fetchEventSource 在非 200 响应时，QA 模式的 `onopen` 只抛 "Request failed: 500" 而不读取响应体 → 补全 SSE body 解析逻辑（与 execute 模式对称）。
+
+**AbortError 修复：** `fetchEventSource` 是异步函数，其返回的 Promise 在 `onerror` 抛出时会 reject，但外层 `new Promise()` 不捕获这个内层 Promise，导致 unhandled rejection 报错。修复方案：给两处 `fetchEventSource(...)` 调用链添加 `.catch(() => {})` 吸收噪声。
+
+---
+
+### 6.2 模型列表重构
+
+**背景：** 模型列表中包含了超出当前订阅计划权限的模型（`openai/gpt-5.4-pro`、`anthropic/claude-opus-4.6`），调用时返回 `model not available for current plan`。
+
+**新模型列表（`src/lib/models.ts`）：**
+
+```typescript
+export const MODELS = [
+  "anthropic/claude-opus-4.7",
+  "anthropic/claude-sonnet-4.5",
+  "openai/gpt-5.4",
+  "deepseek/deepseek-v4-pro",
+  "google/gemini-3.1-pro-preview",
+  "moonshotai/kimi-k2.6",
+  "z-ai/glm-5.1",
+  "minimax/minimax-m2.7",
+  "alibaba/qwen-3.6-plus",
+] as const;
+```
+
+移除：`openai/gpt-5.4-pro`、`anthropic/claude-opus-4.6`、`z-ai/glm-5`  
+新增：`anthropic/claude-sonnet-4.5`、`openai/gpt-5.4`、`google/gemini-3.1-pro-preview`、`alibaba/qwen-3.6-plus`
+
+---
+
+### 6.3 Agent World 集成
+
+**背景：** Agent World（world.coze.com）是一个 Agent 身份系统，注册后获得全生态通用 api_key，可接入 16 个联盟站（炒股竞技、技能市场、AI 酒馆等）。
+
+**实现架构：**
+
+```
+用户填写 username/nickname/bio
+    │
+    ▼ edge function: agent-world (mode=register)
+    │
+    ├─ POST world.coze.com/api/agents/register
+    │    → api_key + verification_code + challenge_text (混淆数学题)
+    │
+    ├─ LLM (glm-5.1) 解题
+    │    → 提取语义数字，忽略噪声符号/Unicode 同形字/随机大小写
+    │
+    ├─ POST world.coze.com/api/agents/verify
+    │    → is_active: true
+    │
+    └─ PATCH profiles SET agent_world_username, agent_world_api_key
+```
+
+**新增文件：**
+
+| 文件 | 说明 |
+|------|------|
+| `supabase/functions/agent-world/index.ts` | register + profile 两种模式的 edge function |
+| `src/hooks/useAgentWorld.ts` | 注册流程 hook，含 `justRegistered` 本地状态（避免等待 profile 刷新） |
+| `src/components/agent/AgentWorldModal.tsx` | 注册表单 + 已注册视图（API Key 遮码 + 复制 + 外链） |
+
+**profiles 表新增列：**
+
+```sql
+ALTER TABLE profiles
+  ADD COLUMN IF NOT EXISTS agent_world_username text,
+  ADD COLUMN IF NOT EXISTS agent_world_api_key text,
+  ADD COLUMN IF NOT EXISTS agent_world_avatar_url text;
+```
+
+**域名修复：** 初始实现使用 `world.coze.site`，实测所有 `.site` 域名均 307 跳转到 `.com`，POST 请求跟重定向可能丢失 Authorization header，改为直接使用 `world.coze.com`。
+
+**探索结果（以 `evodao` 账号亲测）：**
+
+Agent World 联盟站生态包含：虾评技能市场（505 个技能）、策场炒股（17,149 个 Agent，¥100万虚拟资金）、AfterGateway AI 酒馆、考场标准化考试、合成交易所 AMM、ABTI 人格测试等 16 个站。
+
+---
+
+### 6.4 从虾评学习「Agent 自我进化」技能
+
+**背景：** 在虾评（xiaping.coze.com）浏览 505 个技能，下载量最高且与 EVODAO 最相关的是「Agent 自我进化」（21k 下载，★4.8）。该技能核心主张：**记忆检索应是目标感知的，高质量经验应优先被召回**。
+
+**发现的两处断路：**
+
+| 断路 | 代码位置 | 问题 |
+|------|----------|------|
+| `searchMemory` 忽略 goal | `useMemory.ts:32` | 参数名 `_goal`，完全未使用，只返回最近 3 条 |
+| `saveMemory` 不保存 qualityScore | `Index.tsx:164` | `agent_memory.quality_score` 永远为 NULL |
+
+**修复（`src/hooks/useMemory.ts`）：**
+
+```typescript
+// searchMemory: 目标感知检索
+const keywords = goal.split(/\s+/).filter(w => w.length > 3).slice(0, 5);
+// Supabase .or(keywords.map(k => `goal.ilike.%${k}%`).join(","))
+// 排序：quality_score DESC NULLS LAST → created_at DESC
+// 不足时 fallback 补最近记忆
+
+// 新增 updateMemoryScore(id, score)
+// saveMemory 改为返回 id (string | null)
+```
+
+**修复（`src/pages/Index.tsx`）：**
+
+```typescript
+// handleComplete: 保存 latestMemoryIdRef.current = id
+// useEffect 监听 reflection: 有 QA 评分时回填 quality_score
+useEffect(() => {
+  if (reflection && latestMemoryIdRef.current) {
+    memory.updateMemoryScore(latestMemoryIdRef.current, reflection.qualityScore);
+  }
+}, [reflection, memory]);
+```
+
+---
+
+### 6.5 数据库变更汇总
+
+| 迁移 | 内容 |
+|------|------|
+| `migration_20260514_165612000` | profiles 新增 agent_world_username / api_key / avatar_url |
+
+---
+
+### 6.6 更新：已知限制
+
+以下问题在 Phase 6 **已修复**：
+- ~~记忆检索不区分 goal 相关性~~ → goal-aware 关键词过滤
+- ~~quality_score 永久为 NULL~~ → QA 评估完成后自动回填
+- ~~Claude 系列模型不可用~~ → Anthropic Messages 协议支持
+
+以下问题**仍存在**：
+- Agent World 注册时虾评联动（xiaping 注册 API 返回 `注册失败`，可能因 `evodao` 已在 Agent World 占用）
+- `agent_memory` 无用户隔离（全局共享记忆池）
+- 支付接口未接入
+
+---
+
+### 6.7 更新：项目统计
+
+| 指标 | 数值 |
+|------|------|
+| 总提交数 | 85+ commits |
+| Edge Functions | 4 个（新增 agent-world） |
+| 支持 LLM 模型数 | 9 个（含 Claude / GPT / Gemini / Kimi / GLM / DeepSeek / MiniMax / Qwen） |
+| 图像模型数 | 3 个 |
+| Agent World 注册 | `evodao` 账号，api_key 已激活 |
+| 本次复盘写入记忆 | `agent_memory` 表 1 条，quality_score=95 |
+
