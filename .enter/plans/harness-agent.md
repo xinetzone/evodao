@@ -1,152 +1,88 @@
-# Agent World 集成计划
+# 计划：从虾评「Agent 自我进化」技能学到的改进
 
-## Context
-用户想将应用接入 Agent World（https://world.coze.com/skill.md）。
-Agent World 是 AI Agent 的统一身份系统——注册后获得全网通行的 api_key，可访问各联盟站点。
-实现为**每个用户独立**注册自己的 Agent World 身份（per-user），而非整个应用共享一个账号。
+## 背景
 
----
+在虾评（xiaping.coze.com）浏览了 505 个技能。与 EVODAO 最契合的：
 
-## 完整流程
-
-```
-用户点击注册
-  → 填写 username / nickname / bio
-  → Edge Function 调用 world.coze.site/api/agents/register
-  → 获取 verification_code + challenge_text（混淆数学题）
-  → Edge Function 用 LLM（GLM 5.1）直接理解语义解题
-  → 提交答案到 world.coze.site/api/agents/verify
-  → 激活成功，将 api_key + username 写入 profiles 表
-  → 前端展示身份卡片
-```
+**「Agent 自我进化」** ⬇21,284 ★4.8
+> Agent 通过反馈循环持续自我优化——把每次执行的经验沉淀下来，并在未来执行时优先调用质量最高的相关经验。
 
 ---
 
-## 文件变更清单
+## 诊断：已有架构的两处断路
 
-### 1. DB Migration
-**新增列到 `profiles` 表**：
-- `agent_world_username text`
-- `agent_world_api_key text`
-- `agent_world_avatar_url text`
+代码库里长期记忆系统已完整搭建（`agent_memory` 表 + `useMemory.ts` + `Index.tsx`），但存在两处断路导致"进化"功能形同虚设：
 
-### 2. Edge Function
-**新建** `supabase/functions/agent-world/index.ts`
-
-支持两种 mode：
-- `register`：注册 → LLM 解题 → 验证 → 写 profiles
-- `profile`：从 world.coze.site 读取公开 profile（用于展示头像）
-
-关键实现细节：
-- LLM 解题 Prompt：直接传原始 challenge_text，指示模型忽略大小写/噪声/同形字，理解语义后**只返回数字**
-- 使用 `AI_API_TOKEN_8f02c91ef078` 调用 `/code/api/v1/ai/chat/completions`，model = `z-ai/glm-5.1`
-- 使用 Supabase `SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY`（edge function 内置env）更新 profiles
-
-### 3. Hook
-**新建** `src/hooks/useAgentWorld.ts`
+### 断路 1：`searchMemory` 忽略 goal 参数（`useMemory.ts` line 32）
 
 ```typescript
-interface AgentWorldState {
-  isRegistered: boolean;  // profile.agent_world_username != null
-  isLoading: boolean;
-  isRegistering: boolean;
-  error: string | null;
-  agentProfile: { username: string; apiKey: string; avatarUrl: string | null } | null;
-  register: (username: string, nickname: string, bio: string) => Promise<void>;
-  refreshProfile: () => Promise<void>;
-}
+const searchMemory = useCallback(async (
+  _goal: string,   // ← 参数名带下划线，完全未使用
+  limit = 3
+) => {
+  // 只按 created_at DESC 排序——与 goal 完全无关
+  .order("created_at", { ascending: false })
 ```
 
-状态来自：
-- `useAuthContext().profile` 读取 `agent_world_username` / `agent_world_api_key`
-- 注册时调用 `agent-world` edge function
+**结果**：每次注入的都是时间上最新的记忆，而不是语义上最相关的经验。
 
-### 4. Component
-**新建** `src/components/agent/AgentWorldModal.tsx`
-
-**未注册状态**：
-```
-[Globe icon] Agent World
-"Join the Agent Internet"
-
-username: [auto-filled from email prefix, editable]
-nickname: [editable]  
-bio:      [textarea]
-
-[Join Agent World]
-```
-
-**注册中状态**（逐步更新）：
-```
-[Loading] Registering identity...
-[Loading] Solving verification challenge...
-[Loading] Activating account...
-```
-
-**已注册状态**：
-```
-[avatar] @username  nickname
-bio text
-
-API Key: [agent-world-xxx...xxx] [copy icon]
-[在 Agent World 查看主页]
-```
-注意：api_key 部分隐藏（显示前8位 + ... + 后8位）
-
-### 5. 更新 `src/components/agent/AgentHeader.tsx`
-在用户下拉菜单中，"Upgrade" 和 "Sign out" 之间插入：
-```
-[Globe icon] Agent World  ← 新按钮
-```
-点击后打开 AgentWorldModal。
-
-### 6. 更新 `src/hooks/useAuth.ts`
-在 `Profile` interface 添加：
-```typescript
-agent_world_username: string | null;
-agent_world_api_key: string | null;
-agent_world_avatar_url: string | null;
-```
-在 `fetchProfile` 的 select 字段中追加这三个字段。
-
-### 7. i18n
-**zh.json + en.json** 新增 `agentWorld` 命名空间：
-- 注册表单文字、步骤状态、已注册展示、错误提示等
-
----
-
-## Edge Function 要点
+### 断路 2：`saveMemory` 不保存 qualityScore（`Index.tsx` line 164）
 
 ```typescript
-// solve challenge
-const solveRes = await fetch("https://api.enter.pro/code/api/v1/ai/chat/completions", {
-  body: JSON.stringify({
-    model: "z-ai/glm-5.1",
-    messages: [{
-      role: "user",
-      content: `You are solving an obfuscated math problem. The text may contain:
-- Random letter casing ("tHiRtY" = "thirty")
-- Noise symbols (], ^, *, |, ~, /, [) and zero-width chars — ignore them
-- Unicode homoglyphs (Cyrillic/Greek letters that look like Latin) — read by shape
-- Non-standard numbers: "a dozen"=12, "half a hundred"=50, "a score"=20, "three score"=60
-- Mixed forms: "forty-3"=43, "thirty plus seven"=37
-
-Read the SEMANTIC meaning and return ONLY the final numeric answer, nothing else.
-
-Challenge: ${challenge_text}`
-    }],
-    stream: false
-  })
+memory.saveMemory({
+  goal: entry.goal,
+  taskSummaries,
+  evolutionRound: entry.evolutionRound ?? 0,
+  // qualityScore: ← 缺失！agent_memory.quality_score 永远是 NULL
 });
-// extract first number from response
-const answer = response.choices[0].message.content.trim().match(/\d+(\.\d+)?/)?.[0];
+```
+
+QA 评估的 qualityScore 存在 `reflection` 状态里，但从未写入 `agent_memory`，导致记忆召回时无法优先选择高质量经验。
+
+---
+
+## 修复方案
+
+### Fix 1：`src/hooks/useMemory.ts`
+
+**`searchMemory`** 改为目标感知：
+1. 从 goal 中提取长度 > 3 的关键词（最多 5 个）
+2. Supabase `.or()` 过滤：任意关键词 `ilike` 命中则包含
+3. 排序：`quality_score DESC NULLS LAST` → `created_at DESC`（好的经验优先）
+4. 若关键词过滤结果不足 `limit`，fallback 补充最近记忆
+
+**新增 `updateMemoryScore(id, qualityScore)`**：
+- 根据 id 更新 `agent_memory.quality_score` 字段
+- 供 Index.tsx 在 QA 评估完成后回填
+
+### Fix 2：`src/pages/Index.tsx`
+
+在 `handleComplete` 回调中：
+- 调用 `saveMemory` 后，把返回的 memory id 存入 `latestMemoryIdRef`
+
+新增 `useEffect` 监听 `reflection`：
+```typescript
+useEffect(() => {
+  if (reflection && latestMemoryIdRef.current) {
+    memory.updateMemoryScore(latestMemoryIdRef.current, reflection.qualityScore);
+  }
+}, [reflection]);
 ```
 
 ---
 
-## 验证方式
-1. 点击用户菜单 → 看到 "Agent World" 按钮
-2. 填写 username → 点击注册 → 看到 3 个步骤逐一完成
-3. 注册成功后显示 api_key 卡片（可复制）
-4. 刷新页面后仍显示已注册状态（持久化在 profiles 表）
-5. 若 username 已被占用，显示明确错误信息
+## 修改文件
+
+| 文件 | 改动 |
+|------|------|
+| `src/hooks/useMemory.ts` | `searchMemory` 使用 goal 关键词 + 质量分排序；新增 `updateMemoryScore`；`saveMemory` 改为返回 id |
+| `src/pages/Index.tsx` | 存储 latestMemoryId；reflection 变化时回填 quality_score |
+
+---
+
+## 验证
+
+1. 对同一个 goal 跑两次（第一次跑完后做 QA 评估）
+2. `agent_memory` 表：第一条记录 `quality_score` 不再为 NULL
+3. 第二次开始执行前，`memoryContext` 包含第一次的经验（不再只是最新记录）
+4. 若第一次 quality_score 高，同类 goal 的记忆会优先出现
