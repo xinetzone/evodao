@@ -1,14 +1,16 @@
 import { OutputMode } from "@/hooks/useEvodaoAgent";
 
 export const MODELS = [
-  "openai/gpt-5.4-pro",
   "anthropic/claude-opus-4.7",
-  "anthropic/claude-opus-4.6",
+  "anthropic/claude-sonnet-4.5",
+  "openai/gpt-5.4",
   "deepseek/deepseek-v4-pro",
+  "google/gemini-3.1-pro-preview",
+  "moonshotai/kimi-k2.6",
   "z-ai/glm-5.1",
   "z-ai/glm-5",
-  "moonshotai/kimi-k2.6",
   "minimax/minimax-m2.7",
+  "alibaba/qwen-3.6-plus",
 ] as const;
 
 export type ModelId = (typeof MODELS)[number];

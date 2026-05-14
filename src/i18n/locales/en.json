@@ -163,21 +163,29 @@
     "auto": "AUTO",
     "autoDesc": "Auto-selects the best model for each mode",
     "models": {
-      "openai/gpt-5.4-pro": {
-        "name": "GPT 5.4 Pro",
-        "desc": "Advanced reasoning, coding & complex tasks"
-      },
       "anthropic/claude-opus-4.7": {
         "name": "Claude Opus 4.7",
         "desc": "Deep reasoning, long context & complex analysis"
       },
-      "anthropic/claude-opus-4.6": {
-        "name": "Claude Opus 4.6",
-        "desc": "Powerful reasoning & instruction following"
+      "anthropic/claude-sonnet-4.5": {
+        "name": "Claude Sonnet 4.5",
+        "desc": "Clear writing, analysis & instruction following"
+      },
+      "openai/gpt-5.4": {
+        "name": "GPT 5.4",
+        "desc": "Frontier reasoning & high-quality generation"
       },
       "deepseek/deepseek-v4-pro": {
         "name": "DeepSeek V4 Pro",
         "desc": "Coding, math & deep reasoning"
+      },
+      "google/gemini-3.1-pro-preview": {
+        "name": "Gemini 3.1 Pro",
+        "desc": "Google's frontier reasoning model"
+      },
+      "moonshotai/kimi-k2.6": {
+        "name": "Kimi K2.6",
+        "desc": "Multimodal & tool use"
       },
       "z-ai/glm-5.1": {
         "name": "GLM 5.1",
@@ -187,13 +195,13 @@
         "name": "GLM 5",
         "desc": "Complex system design"
       },
-      "moonshotai/kimi-k2.6": {
-        "name": "Kimi K2.6",
-        "desc": "Multimodal & tool use"
-      },
       "minimax/minimax-m2.7": {
         "name": "MiniMax M2.7",
         "desc": "Coding & workflows"
+      },
+      "alibaba/qwen-3.6-plus": {
+        "name": "Qwen 3.6 Plus",
+        "desc": "Reasoning, coding & instruction following"
       },
       "openai/gpt-image-2": {
         "name": "GPT Image 2",
