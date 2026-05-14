@@ -45,10 +45,14 @@ export default function Auth() {
         }
         // navigation handled by useEffect above
       } else {
-        const err = await signUp(email, password);
-        if (err) {
-          setError(err.message || t("auth.loginError"));
+        const { data, error: signUpError } = await signUp(email, password);
+        if (signUpError) {
+          setError(signUpError.message || t("auth.loginError"));
+        } else if (data?.session) {
+          // auto_confirm_email is on — user is already signed in, navigate directly
+          navigate("/", { replace: true });
         } else {
+          // email confirmation required
           setSuccess(t("auth.registerSuccess"));
           setTab("login");
           setPassword("");
