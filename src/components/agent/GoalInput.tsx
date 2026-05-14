@@ -3,7 +3,7 @@ import { Play, RotateCcw, Square, Wand2, Loader, Sparkles, ImageIcon, ChevronDow
 import { useTranslation } from "react-i18next";
 import { AgentStatus, OutputMode } from "@/hooks/useEvodaoAgent";
 import { ModelSelector } from "@/components/agent/ModelSelector";
-import { ModelId, ImageModelId, IMAGE_MODELS, getAutoModel } from "@/lib/models";
+import { ModelId, ImageModelId, IMAGE_MODELS, getAutoModel, IMAGE_MODEL_DISPLAY } from "@/lib/models";
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from "@/lib/config";
 import { cn } from "@/lib/utils";
 import { useAttachments, Attachment } from "@/hooks/useAttachments";
@@ -238,7 +238,7 @@ export function GoalInput({
               >
                 <ImageIcon className="w-2.5 h-2.5 text-primary/60 shrink-0" />
                 <span className="text-[9px] font-bold tracking-widest text-foreground/80 font-mono max-w-[100px] truncate">
-                  {t(`modelSelector.models.${imageModel}.name`)}
+                  {IMAGE_MODEL_DISPLAY[imageModel]?.name ?? imageModel.split("/")[1]}
                 </span>
                 <ChevronDown className={cn("w-2.5 h-2.5 text-muted-foreground/50 transition-transform duration-200 shrink-0", imageModelOpen && "rotate-180")} />
               </button>
@@ -260,7 +260,7 @@ export function GoalInput({
                             : "text-muted-foreground hover:text-foreground hover:bg-muted/30"
                         )}
                       >
-                        <span className="font-mono font-bold">{t(`modelSelector.models.${m}.name`)}</span>
+                        <span className="font-mono font-bold">{IMAGE_MODEL_DISPLAY[m]?.name ?? m.split("/")[1]}</span>
                         {m === imageModel && <Check className="w-3 h-3 text-primary shrink-0" />}
                       </button>
                     ))}

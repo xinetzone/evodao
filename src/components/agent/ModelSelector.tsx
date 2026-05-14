@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { ChevronDown, Cpu, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { OutputMode } from "@/hooks/useEvodaoAgent";
-import { MODELS, ModelId, getAutoModel } from "@/lib/models";
+import { MODELS, ModelId, getAutoModel, MODEL_DISPLAY } from "@/lib/models";
 
 interface ModelSelectorProps {
   outputMode: OutputMode;
@@ -13,18 +13,19 @@ interface ModelSelectorProps {
 }
 
 export function ModelSelector({ outputMode, manualModel, onChange, disabled }: ModelSelectorProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [open, setOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   const activeModel = manualModel ?? getAutoModel(outputMode);
   const isAuto = manualModel === null;
 
-  const modelName = (id: ModelId): string =>
-    (t(`modelSelector.models.${id}.name`, { defaultValue: id.split("/")[1] }) as string);
-
+  // Use MODEL_DISPLAY directly — avoids i18n keySeparator dot-parsing issues with model IDs
+  const modelName = (id: ModelId): string => MODEL_DISPLAY[id]?.name ?? id.split("/")[1];
   const modelDesc = (id: ModelId): string =>
-    (t(`modelSelector.models.${id}.desc`, { defaultValue: "" }) as string);
+    i18n.language === "zh"
+      ? (MODEL_DISPLAY[id]?.descZh ?? "")
+      : (MODEL_DISPLAY[id]?.desc ?? "");
 
   // Close on outside click
   useEffect(() => {

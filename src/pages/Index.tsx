@@ -21,6 +21,7 @@ import { MemoryContext } from "@/components/agent/MemoryContext";
 import { QuotaExceededModal } from "@/components/quota/QuotaExceededModal";
 import { PricingModal } from "@/components/pricing/PricingModal";
 import { AlertCircle, Trophy, RotateCcw, X } from "lucide-react";
+import { MODEL_DISPLAY, IMAGE_MODEL_DISPLAY, ModelId, ImageModelId } from "@/lib/models";
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from "@/lib/config";
 
 const Index = () => {
@@ -354,7 +355,7 @@ const Index = () => {
               isPolling={aiImage.isPolling}
               error={aiImage.error}
               taskId={aiImage.taskId}
-              modelName={t(`modelSelector.models.${activeImageModelId}.name`, { defaultValue: activeImageModelId })}
+              modelName={IMAGE_MODEL_DISPLAY[activeImageModelId as ImageModelId]?.name ?? activeImageModelId}
               onDownload={aiImage.downloadImage}
               onDownloadAll={aiImage.downloadAllImages}
             />
@@ -476,7 +477,9 @@ const Index = () => {
                   : lastRunMode === "image"
                   ? activeImageModelId
                   : currentModel;
-                return t(`modelSelector.models.${modelId}.name`, { defaultValue: modelId.split("/")[1] });
+                return lastRunMode === "image"
+                  ? (IMAGE_MODEL_DISPLAY[modelId as ImageModelId]?.name ?? modelId.split("/")[1])
+                  : (MODEL_DISPLAY[modelId as ModelId]?.name ?? modelId.split("/")[1]);
               })()}
             </span>
             <span className="hidden sm:inline">|</span>
