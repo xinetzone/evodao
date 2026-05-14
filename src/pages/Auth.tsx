@@ -132,9 +132,9 @@ export default function Auth() {
 
             {/* Error message */}
             {error && (
-              <div className="flex items-center gap-2 p-3 mb-4 rounded border border-destructive/30 bg-destructive/5 text-xs text-destructive">
-                <AlertCircle className="w-3.5 h-3.5 shrink-0" />
-                {error}
+              <div className="flex items-start gap-2.5 p-3 mb-4 rounded border border-destructive/40 bg-destructive/8 text-xs text-destructive animate-fade-in">
+                <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+                <span className="leading-relaxed">{error}</span>
               </div>
             )}
 
