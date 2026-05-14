@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
+import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 import { useEvodaoAgent, HistoryEntry } from "@/hooks/useEvodaoAgent";
 import { useAgentHistory } from "@/hooks/useAgentHistory";
@@ -20,12 +21,12 @@ import { ImageOutput } from "@/components/agent/ImageOutput";
 import { MemoryContext } from "@/components/agent/MemoryContext";
 import { QuotaExceededModal } from "@/components/quota/QuotaExceededModal";
 import { PricingModal } from "@/components/pricing/PricingModal";
-import { AlertCircle, Trophy, RotateCcw, X } from "lucide-react";
+import { AlertCircle, Trophy, RotateCcw, X, PenLine } from "lucide-react";
 import { MODEL_DISPLAY, IMAGE_MODEL_DISPLAY, ModelId, ImageModelId } from "@/lib/models";
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from "@/lib/config";
 
 const Index = () => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const history = useAgentHistory();
   const taskManager = useTaskManager();
   const aiImage = useAIImage();
@@ -46,6 +47,10 @@ const Index = () => {
   const [suggestionsAI, setSuggestionsAI] = useState(false);
   const prevQACountRef = useRef(0);
   const latestMemoryIdRef = useRef<string | null>(null);
+  // Text-selection-to-prompt feature
+  const [textSelection, setTextSelection] = useState<{ text: string; x: number; y: number } | null>(null);
+  const [pendingPrompt, setPendingPrompt] = useState<string | undefined>(undefined);
+  const goalInputAreaRef = useRef<HTMLDivElement>(null);
   const {
     status,
     tasks,
@@ -196,6 +201,35 @@ const Index = () => {
     }
   }, [reflection, memory]);
 
+  // Text-selection-to-prompt: listen for mouseup outside GoalInput area
+  useEffect(() => {
+    const handleMouseUp = () => {
+      setTimeout(() => {
+        const sel = window.getSelection();
+        const text = sel?.toString().trim() ?? "";
+        // Require at least 10 chars; ignore selections inside GoalInput itself
+        if (text.length >= 10) {
+          const range = sel?.getRangeAt(0);
+          const rect = range?.getBoundingClientRect();
+          // Ignore if selection is inside the goal input area
+          const anchorNode = sel?.anchorNode;
+          if (
+            rect && rect.width > 0 &&
+            anchorNode &&
+            goalInputAreaRef.current &&
+            !goalInputAreaRef.current.contains(anchorNode as Node)
+          ) {
+            setTextSelection({ text, x: rect.left + rect.width / 2, y: rect.top });
+            return;
+          }
+        }
+        setTextSelection(null);
+      }, 30);
+    };
+    document.addEventListener("mouseup", handleMouseUp);
+    return () => document.removeEventListener("mouseup", handleMouseUp);
+  }, []);
+
   return (
     <div className="w-full h-full flex flex-col bg-background overflow-hidden">
       <AgentHeader
@@ -221,10 +255,13 @@ const Index = () => {
             }}
           />
 
-          <GoalInput
-            status={status}
-            onModelChange={setSelectedModel}
-            onRun={async (goal, mode, model, attachments) => {
+          <div ref={goalInputAreaRef}>
+            <GoalInput
+              status={status}
+              onModelChange={setSelectedModel}
+              pendingPrompt={pendingPrompt}
+              onPendingPromptConsumed={() => setPendingPrompt(undefined)}
+              onRun={async (goal, mode, model, attachments) => {
               // Build text context from doc/PDF attachments
               const textParts = attachments
                 .filter((a) => a.textContent)
@@ -263,10 +300,11 @@ const Index = () => {
               }
             }}
             onReset={handleReset}
-            suggestions={suggestions}
-            suggestionsLoading={suggestionsLoading}
-            suggestionsAI={suggestionsAI}
-          />
+              suggestions={suggestions}
+              suggestionsLoading={suggestionsLoading}
+              suggestionsAI={suggestionsAI}
+            />
+          </div>
 
           {/* Coze 长期记忆节点 — display recalled memory context */}
           {status === "idle" && (memory.isSearching || memory.memories.length > 0) && (
@@ -517,6 +555,32 @@ const Index = () => {
         onUpgrade={() => setPricingOpen(true)}
       />
       <PricingModal open={pricingOpen} onClose={() => setPricingOpen(false)} />
+
+      {/* Text-selection-to-prompt floating button */}
+      {textSelection && createPortal(
+        <button
+          style={{
+            position: "fixed",
+            top: textSelection.y - 44,
+            left: textSelection.x,
+            transform: "translateX(-50%)",
+          }}
+          className="z-[300] flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-primary text-primary-foreground text-[11px] font-semibold shadow-lg shadow-primary/30 hover:bg-primary/90 transition-all animate-fade-in select-none whitespace-nowrap"
+          onMouseDown={(e) => {
+            // Prevent this click from clearing the text selection
+            e.preventDefault();
+          }}
+          onClick={() => {
+            setPendingPrompt(textSelection.text);
+            setTextSelection(null);
+            window.getSelection()?.removeAllRanges();
+          }}
+        >
+          <PenLine className="w-3 h-3" />
+          {t("common.useAsPrompt", { defaultValue: i18n.language === "zh" ? "作为提示词" : "Use as Prompt" })}
+        </button>,
+        document.body
+      )}
     </div>
   );
 };

@@ -13,6 +13,8 @@ interface GoalInputProps {
   onRun: (goal: string, outputMode: OutputMode, model: string, attachments: Attachment[]) => void;
   onReset: () => void;
   onModelChange?: (model: string) => void;
+  pendingPrompt?: string;
+  onPendingPromptConsumed?: () => void;
   suggestions?: string[];
   suggestionsLoading?: boolean;
   suggestionsAI?: boolean;
@@ -23,6 +25,8 @@ export function GoalInput({
   onRun,
   onReset,
   onModelChange,
+  pendingPrompt,
+  onPendingPromptConsumed,
   suggestions = [],
   suggestionsLoading = false,
   suggestionsAI = false,
@@ -44,6 +48,14 @@ export function GoalInput({
       : (manualModel ?? getAutoModel(outputMode));
     onModelChange?.(effective);
   }, [outputMode, manualModel, imageModel, onModelChange]);
+
+  // Apply externally injected prompt (e.g. from text selection)
+  useEffect(() => {
+    if (pendingPrompt) {
+      setGoal(pendingPrompt);
+      onPendingPromptConsumed?.();
+    }
+  }, [pendingPrompt, onPendingPromptConsumed]);
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
