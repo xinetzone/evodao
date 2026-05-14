@@ -156,15 +156,15 @@ export function GoalInput({
   return (
     <div className="animate-fade-in">
       {/* Mode toggle + prompt header */}
-      <div className="flex items-center justify-between mb-3">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-3">
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
           <span className="text-primary">$</span>
           <span className="tracking-wider">{t("goalInput.prompt")}</span>
-          <span className="text-muted-foreground/40">{t("goalInput.hint")}</span>
+          <span className="hidden sm:inline text-muted-foreground/40">{t("goalInput.hint")}</span>
         </div>
 
-        {/* Mode toggle pills */}
-        <div className="flex items-center gap-2">
+        {/* Mode toggle pills + model selector */}
+        <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
           {/* Intent auto-detect button (Coze 意图识别节点) */}
           {isIdle && goal.trim().length > 3 && (
             <button
@@ -193,7 +193,7 @@ export function GoalInput({
                 onClick={() => setOutputMode(m)}
                 disabled={isRunning}
                 className={cn(
-                  "px-2.5 py-1 text-[10px] font-semibold tracking-widest rounded transition-all duration-150",
+                  "px-2 sm:px-2.5 py-0.5 sm:py-1 text-[10px] font-semibold tracking-widest rounded transition-all duration-150",
                   outputMode === m
                     ? "bg-primary text-primary-foreground"
                     : "text-muted-foreground hover:text-foreground"
@@ -286,7 +286,7 @@ export function GoalInput({
       )}
 
       {/* Prompt suggestion chips */}
-      <div className="flex items-center gap-1.5 flex-wrap mb-3 min-h-[26px]">
+      <div className="flex items-center gap-1.5 mb-3 min-h-[26px] overflow-x-auto pb-0.5 scrollbar-none">
         {suggestionsLoading ? (
           <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground/60">
             <Loader className="w-3 h-3 animate-spin" />
@@ -309,7 +309,7 @@ export function GoalInput({
                 key={i}
                 onClick={() => handleSuggestionClick(s)}
                 disabled={isRunning}
-                className="px-2 py-0.5 text-[10px] text-muted-foreground/70 border border-border/60 rounded hover:border-primary/40 hover:text-foreground hover:bg-primary/5 transition-all duration-150 truncate max-w-[240px] text-left"
+                className="shrink-0 px-2 py-0.5 text-[10px] text-muted-foreground/70 border border-border/60 rounded hover:border-primary/40 hover:text-foreground hover:bg-primary/5 transition-all duration-150 truncate max-w-[200px] sm:max-w-[240px] text-left"
                 title={s}
               >
                 {s.length > 42 ? s.slice(0, 42) + "…" : s}
@@ -358,14 +358,14 @@ export function GoalInput({
           </div>
 
           {/* Bottom toolbar */}
-          <div className="flex items-center justify-between mt-3 pt-3 border-t border-border">
+          <div className="flex items-center justify-between mt-3 pt-3 border-t border-border gap-2 flex-wrap">
             <p className="text-[10px] text-muted-foreground/60 tracking-wider">
               {goal.length > 0
                 ? t("goalInput.chars", { count: goal.length })
                 : t("goalInput.awaiting")}
             </p>
 
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap justify-end">
               {/* Optimize button */}
               {isIdle && goal.trim().length > 5 && (
                 <button

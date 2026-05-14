@@ -192,7 +192,7 @@ const Index = () => {
       />
 
       <main className="flex-1 overflow-y-auto">
-        <div className="max-w-6xl mx-auto px-6 py-8 space-y-8">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6 sm:py-8 space-y-6 sm:space-y-8">
 
           {/* Grid lines decoration */}
           <div
@@ -246,25 +246,27 @@ const Index = () => {
 
           {/* Resume banner */}
           {savedSession && status === "idle" && (
-            <div className="animate-fade-in flex items-center gap-3 px-4 py-3 rounded border border-primary/50 bg-primary/10 terminal-glow">
-              <RotateCcw className="w-4 h-4 text-primary shrink-0" />
-              <div className="flex-1 min-w-0">
-                <p className="text-xs font-bold text-primary tracking-wider mb-0.5">
-                  {t("resume.banner")}
-                </p>
-                <p className="text-[11px] text-foreground/60 truncate">
-                  {savedSession.goal}
-                </p>
-                <p className="text-[10px] text-muted-foreground mt-0.5">
-                  {t("resume.tasksProgress", {
-                    done: savedSession.tasks.filter(
-                      (t) => savedSession.taskStatuses[t.id] === "completed"
-                    ).length,
-                    total: savedSession.tasks.length,
-                  })}
-                </p>
+            <div className="animate-fade-in flex flex-col sm:flex-row sm:items-center gap-3 px-4 py-3 rounded border border-primary/50 bg-primary/10 terminal-glow">
+              <div className="flex items-start gap-3 flex-1 min-w-0">
+                <RotateCcw className="w-4 h-4 text-primary shrink-0 mt-0.5" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-bold text-primary tracking-wider mb-0.5">
+                    {t("resume.banner")}
+                  </p>
+                  <p className="text-[11px] text-foreground/60 truncate">
+                    {savedSession.goal}
+                  </p>
+                  <p className="text-[10px] text-muted-foreground mt-0.5">
+                    {t("resume.tasksProgress", {
+                      done: savedSession.tasks.filter(
+                        (t) => savedSession.taskStatuses[t.id] === "completed"
+                      ).length,
+                      total: savedSession.tasks.length,
+                    })}
+                  </p>
+                </div>
               </div>
-              <div className="flex items-center gap-2 shrink-0">
+              <div className="flex items-center gap-2 shrink-0 pl-7 sm:pl-0">
                 <button
                   onClick={() => resumeAgent(handleComplete)}
                   className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold tracking-widest text-primary-foreground bg-primary border border-primary rounded hover:bg-primary/90 transition-all duration-200"
@@ -434,15 +436,15 @@ const Index = () => {
       </main>
 
       {/* Footer */}
-      <footer className="border-t border-border bg-card/50 px-6 py-2">
-        <div className="max-w-6xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-3 text-[10px] text-muted-foreground tracking-wider">
+      <footer className="border-t border-border bg-card/50 px-4 sm:px-6 py-2">
+        <div className="max-w-6xl mx-auto flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2 sm:gap-3 text-[10px] text-muted-foreground tracking-wider">
             <span className="flex items-center gap-1">
               <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
               {activeModel}
             </span>
-            <span>|</span>
-            <span>{lastRunMode === "image" ? t("index.protocolImage") : t("index.protocolLLM")}</span>
+            <span className="hidden sm:inline">|</span>
+            <span className="hidden sm:inline">{lastRunMode === "image" ? t("index.protocolImage") : t("index.protocolLLM")}</span>
           </div>
           <div className="text-[10px] text-muted-foreground tracking-wider">
             {t("index.footer")}

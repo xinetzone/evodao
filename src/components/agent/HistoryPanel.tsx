@@ -176,10 +176,10 @@ export function HistoryPanel({ open, onClose, entries, onRemove, onClear, isLoad
                           <ChevronRight className="w-3.5 h-3.5 text-muted-foreground shrink-0 mt-0.5 group-hover:text-primary transition-colors" />
                         </div>
                       </button>
-                      {/* Delete button */}
+                      {/* Delete button - always visible on mobile, hover-only on desktop */}
                       <button
                         onClick={(e) => { e.stopPropagation(); onRemove(entry.id); }}
-                        className="absolute right-4 top-1/2 -translate-y-1/2 p-1.5 rounded opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive transition-all"
+                        className="absolute right-4 top-1/2 -translate-y-1/2 p-1.5 rounded opacity-100 sm:opacity-0 sm:group-hover:opacity-100 text-muted-foreground hover:text-destructive transition-all"
                         title={t("history.deleteEntry")}
                       >
                         <Trash2 className="w-3.5 h-3.5" />

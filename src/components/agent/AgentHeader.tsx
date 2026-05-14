@@ -60,29 +60,29 @@ export function AgentHeader({ status, currentGoal, historyCount, onHistoryOpen, 
   return (
     <>
     <header className="relative z-10 border-b border-border bg-card/50 backdrop-blur-sm">
-      <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
+      <div className="max-w-6xl mx-auto px-3 sm:px-6 py-3 sm:py-4 flex items-center justify-between">
         {/* Logo & Title */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3">
           <div className="relative">
-            <div className="w-8 h-8 rounded border border-primary/60 flex items-center justify-center terminal-glow">
-              <Cpu className="w-4 h-4 text-primary" />
+            <div className="w-7 h-7 sm:w-8 sm:h-8 rounded border border-primary/60 flex items-center justify-center terminal-glow">
+              <Cpu className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-primary" />
             </div>
             {isPulsing && (
               <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-primary animate-pulse" />
             )}
           </div>
           <div>
-            <h1 className="text-sm font-bold tracking-[0.3em] text-primary text-glow">
+            <h1 className="text-xs sm:text-sm font-bold tracking-[0.3em] text-primary text-glow">
               {t("header.title")}
             </h1>
-            <p className="text-[10px] tracking-widest text-muted-foreground">
+            <p className="hidden sm:block text-[10px] tracking-widest text-muted-foreground">
               {t("header.subtitle")}
             </p>
           </div>
         </div>
 
         {/* Status + Goal + Token Stats + Switcher */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-1.5 sm:gap-3">
           {currentGoal && status !== "idle" && (
             <p className="hidden md:block text-xs text-muted-foreground max-w-56 truncate">
               <span className="text-primary/60">{t("header.goalPrefix")}</span>
@@ -103,19 +103,19 @@ export function AgentHeader({ status, currentGoal, historyCount, onHistoryOpen, 
 
           <div
             className={cn(
-              "flex items-center gap-1.5 px-2.5 py-1 rounded border text-xs font-semibold tracking-widest",
+              "flex items-center gap-1.5 px-2 sm:px-2.5 py-1 rounded border text-xs font-semibold tracking-widest",
               isPulsing ? "border-primary/40 bg-primary/5" : "border-border bg-card",
               statusColorMap[status]
             )}
           >
             {statusIconMap[status]}
-            {t(`header.status.${status}`)}
+            <span className="hidden sm:inline">{t(`header.status.${status}`)}</span>
           </div>
 
           {/* Task Manager button */}
           <button
             onClick={onTaskManagerOpen}
-            className="relative flex items-center gap-1.5 px-2.5 py-1 rounded border border-border bg-card text-xs text-muted-foreground hover:border-primary/40 hover:text-foreground transition-all duration-200"
+            className="relative flex items-center gap-1.5 px-2 sm:px-2.5 py-1 rounded border border-border bg-card text-xs text-muted-foreground hover:border-primary/40 hover:text-foreground transition-all duration-200"
             title={t("taskManager.title")}
           >
             <LayoutGrid className="w-3.5 h-3.5" />
@@ -130,7 +130,7 @@ export function AgentHeader({ status, currentGoal, historyCount, onHistoryOpen, 
           {/* History button */}
           <button
             onClick={onHistoryOpen}
-            className="relative flex items-center gap-1.5 px-2.5 py-1 rounded border border-border bg-card text-xs text-muted-foreground hover:border-primary/40 hover:text-foreground transition-all duration-200"
+            className="relative flex items-center gap-1.5 px-2 sm:px-2.5 py-1 rounded border border-border bg-card text-xs text-muted-foreground hover:border-primary/40 hover:text-foreground transition-all duration-200"
             title={t("history.title")}
           >
             <Clock className="w-3.5 h-3.5" />
@@ -150,7 +150,7 @@ export function AgentHeader({ status, currentGoal, historyCount, onHistoryOpen, 
               <button
                 onClick={() => setUserMenuOpen(!userMenuOpen)}
                 className={cn(
-                  "flex items-center gap-1.5 pl-1.5 pr-2.5 py-1 rounded border transition-all duration-200",
+                  "flex items-center gap-1 sm:gap-1.5 pl-1.5 pr-1.5 sm:pr-2.5 py-1 rounded border transition-all duration-200",
                   isAdmin
                     ? "border-primary/40 bg-primary/5 hover:border-primary/70 hover:bg-primary/10 terminal-glow"
                     : "border-border bg-card hover:border-primary/40"
@@ -167,12 +167,12 @@ export function AgentHeader({ status, currentGoal, historyCount, onHistoryOpen, 
                 <span className="hidden sm:block text-[10px] text-muted-foreground max-w-[90px] truncate font-mono">
                   {user.email}
                 </span>
-                <ChevronDown className={cn("w-3 h-3 text-muted-foreground/60 transition-transform duration-200 shrink-0", userMenuOpen && "rotate-180")} />
+                <ChevronDown className={cn("hidden sm:block w-3 h-3 text-muted-foreground/60 transition-transform duration-200 shrink-0", userMenuOpen && "rotate-180")} />
               </button>
 
               {/* Dropdown */}
               {userMenuOpen && (
-                <div className="absolute right-0 top-full mt-1.5 w-60 rounded border border-border/80 bg-card shadow-xl z-50 overflow-hidden animate-fade-in">
+                <div className="absolute right-0 top-full mt-1.5 w-56 sm:w-60 rounded border border-border/80 bg-card shadow-xl z-50 overflow-hidden animate-fade-in">
                   {/* Profile header */}
                   <div className="px-4 py-3 border-b border-border/50 bg-muted/20">
                     <div className="flex items-center gap-2.5">
