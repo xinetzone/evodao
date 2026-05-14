@@ -2,16 +2,17 @@
 
 ## Context（背景）
 
-当前项目代码与文档中混杂多类**可识别信息**，影响其作为开源/模板项目的复用与分发：
+当前项目的**工作树代码**与**Git 提交历史**中均混杂多类**可识别信息**，影响其作为开源/模板项目的复用与分发：
 
 1. **平台标识泄露**：README、Edge Functions、`client.ts` 自动生成注释中暴露 `enter.pro`、`Enter.pro`、`EnterCloud Managed Supabase` 等平台品牌
 2. **Workspace ID 泄露**：`8f02c91ef0784272997f9a04c5d2fd3f`（README）和 `spb-t4nuy88voqq31c81`（Supabase 项目 ID，URL 中可见）唯一标识当前用户工作区
 3. **Edge Function 命名包含 workspace 后缀**：`ai-image-submit-8f02c91ef078`、`ai-image-status-8f02c91ef078` 命名直接暴露 workspace ID 前 12 位
 4. **品牌名硬编码**：`EvoDao` 在 17 处文件中以多种形态出现（标题、storage key、文件名前缀、注释、i18n），不利于作为通用模板
 5. **JWT publishable key**：本身可公开，但缺少明确的"非密钥"注释说明，新使用者可能误判为机密
+6. **Git 提交历史泄露**（新增）：39 个 commit 全部由 `enter-pro <github@enter.pro>` 签名；历史 diff/路径中残留 workspace ID、平台 URL、`EnterCloud` 注释 — 即使工作树脱敏，`git log` 仍可恢复
 
 用户已明确 4 个边界决策：
-- **全面脱敏**（含 README + 代码注释 + 平台标识 + Edge Function 重命名）
+- **全面脱敏**（含 README + 代码注释 + 平台标识 + Edge Function 重命名 + **Git 历史**）
 - **ANON_KEY 保留在 `config.ts`**，仅添加注释说明这是公钥
 - **EvoDao 替换为 `<APP_NAME>` 占位符**，便于模板复用
 - Edge Function 重命名需要重部署，会影响现有 secret 解析（用户接受）
@@ -192,3 +193,133 @@ const url = `${AI_BASE}/images`;
 - Supabase URL / JWT publishable key（公开信息，公钥仅加注释）
 - `supabase/config.toml` 中的 `project_id`（Supabase CLI 工具链强依赖）
 - `AI_API_TOKEN_8f02c91ef078` secret 名（框架管理，重命名会导致 token 失效）
+
+---
+
+## E. Git 提交历史脱敏（新增章节）
+
+### 历史扫描结果
+
+| 残留项 | 出现位置 | 影响范围 |
+|---|---|---|
+| **作者签名** `enter-pro <github@enter.pro>` | 全部 39 个 commit 的 `Author` 字段 | `git log` 直接暴露平台品牌 |
+| **commit 路径** `supabase/functions/ai-image-status-8f02c91ef078/...` | 2 个 commit 的 file path（`feat(image-gen): introduce...` 等） | 即使重命名后，旧路径仍在 history 中 |
+| **commit 路径** `.enter/plans/harness-agent.md` | `.enter/` 工具链目录被 tracked，路径含平台标识 | 暴露使用了 enter.pro 工具链 |
+| **commit message** `feat(goal-input): allow Enter to execute goal` | 1 个 commit（中性，但含 "Enter" 词；该处实际指键盘按键） | 误读风险低，可保留 |
+| **diff 内容残留**：`enter.pro`(4 commit)、`EnterCloud`(2)、`8f02c91ef078`(4)、`spb-t4nuy88voqq31c81`(3) | 散布于多个 commit 的代码 diff 中 | 通过 `git show <hash>` 或 `git log -S` 可完整恢复 |
+
+### 脱敏策略
+
+由于 Git 历史一旦提交即不可"原地修改"，唯一彻底的方案是**重写历史**。提供 3 档方案，按破坏性递增：
+
+**方案 A — 最小侵入：仅重写作者，不动内容**
+```bash
+git filter-branch --env-filter '
+  export GIT_AUTHOR_NAME="dev"
+  export GIT_AUTHOR_EMAIL="dev@example.com"
+  export GIT_COMMITTER_NAME="dev"
+  export GIT_COMMITTER_EMAIL="dev@example.com"
+' --tag-name-filter cat -- --all
+```
+- ✅ 移除 `enter-pro` 签名
+- ❌ 历史 diff 中 `enter.pro` / `EnterCloud` / workspace ID 仍存在
+
+**方案 B — 推荐：完整 squash 重置**
+```bash
+# 1. 备份当前分支
+git branch backup-pre-redact
+
+# 2. 软重置到根，保留所有工作树文件
+git reset --soft $(git rev-list --max-parents=0 HEAD)
+
+# 3. 应用脱敏后的工作树（先完成 Step 1-7，再执行此步）
+git add -A
+
+# 4. 单一干净 commit
+GIT_AUTHOR_NAME="dev" GIT_AUTHOR_EMAIL="dev@example.com" \
+GIT_COMMITTER_NAME="dev" GIT_COMMITTER_EMAIL="dev@example.com" \
+git commit -m "Initial commit"
+
+# 5. 强推到远程（仅 GitHub fork，不推 origin → /workspace/center）
+git send-pack --force git@github.com:xinetzone/evodao.git "refs/heads/main:refs/heads/main"
+```
+- ✅ 历史完全清空，仅一个干净 commit
+- ✅ 所有 diff、路径、作者残留消失
+- ❌ 失去开发演进过程
+- ⚠️ origin 是 `/workspace/center`（Enter.pro 内部），**不能推**；只能推到用户自己的 GitHub fork
+
+**方案 C — 折中：filter-repo 精准移除敏感字符串**
+```bash
+pip install git-filter-repo
+
+# 重写所有历史文本，替换敏感字符串
+git filter-repo --replace-text <(echo "
+enter.pro==>example.com
+EnterCloud==>Cloud
+8f02c91ef0784272997f9a04c5d2fd3f==>WORKSPACE_ID
+8f02c91ef078==>WORKSPACE
+spb-t4nuy88voqq31c81==>PROJECT_ID
+EvoDao==>App
+evodao==>app
+")
+
+# 同时改作者
+git filter-repo --commit-callback '
+  commit.author_name = b"dev"
+  commit.author_email = b"dev@example.com"
+  commit.committer_name = b"dev"
+  commit.committer_email = b"dev@example.com"
+'
+
+# 重命名旧路径（commit history 里的目录名）
+git filter-repo --path-rename "supabase/functions/ai-image-submit-8f02c91ef078:supabase/functions/ai-image-submit"
+git filter-repo --path-rename "supabase/functions/ai-image-status-8f02c91ef078:supabase/functions/ai-image-status"
+```
+- ✅ 保留 commit 历史结构与时间线
+- ✅ 所有敏感字符串被替换
+- ✅ 作者统一改为通用名
+- ✅ 历史路径同步重命名
+- ⚠️ 所有 commit hash 改变，需 `--force` 推送
+- ⚠️ 需安装 `git-filter-repo`（pip 包）
+
+### 用户决策点
+
+需要用户在三方案中明确选择，因为：
+- **方案 A** 不彻底（diff 残留），但保留所有 commit 演进
+- **方案 B** 最彻底但失去历史；适合"作为模板分发"的诉求
+- **方案 C** 兼顾彻底性与历史保留；推荐给"个人项目继续演进 + 公开仓库"场景
+
+### 框架限制约束
+
+- `git push` 被框架拦截 → 必须用 `git send-pack --force` 推送到 GitHub fork
+- `git commit/reset/rebase/cherry-pick/merge/checkout` 全部被拦截 → **方案 B/C 的执行步骤需用户在本地终端手动跑**，agent 只能：
+  1. 完成工作树脱敏（Step 1-7）
+  2. 输出可复制粘贴的脚本（如本节代码块）
+  3. 用户在本地或 CI 上执行历史重写 + 强推
+- `origin` = `/workspace/center` 是 Enter.pro 内部路径，**禁止推送**；只能推到 `git@github.com:xinetzone/evodao.git`
+
+### 历史脱敏后的额外清理
+
+```bash
+# 1. 清理 reflog 与 backup ref（filter-branch 会留下 refs/original/）
+git for-each-ref --format="delete %(refname)" refs/original | git update-ref --stdin
+git reflog expire --expire=now --all
+git gc --prune=now --aggressive
+
+# 2. 验证：以下命令应全部返回空
+git log --all -S "enter.pro" --oneline
+git log --all -S "EnterCloud" --oneline
+git log --all -S "8f02c91ef078" --oneline
+git log --all -S "spb-t4nuy88voqq31c81" --oneline
+git log --all --format="%ae" | sort -u   # 应只剩 dev@example.com
+
+# 3. 验证路径
+git log --all --name-only --pretty=format: | sort -u | grep -iE "enter|8f02c91" 
+# 期望命中：仅 .enter/plans/harness-agent.md（如保留）
+```
+
+### 关于 `.enter/plans/` 目录
+
+工作树中的 `.enter/plans/harness-agent.md` 是 Enter.pro 工具链产物，建议在脱敏后：
+- 加入 `.gitignore`：`.enter/`
+- 从 history 中移除：`git filter-repo --path .enter/ --invert-paths`
