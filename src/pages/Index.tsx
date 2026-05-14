@@ -1,9 +1,10 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useTranslation } from "react-i18next";
-import { useEvodaoAgent } from "@/hooks/useEvodaoAgent";
+import { useEvodaoAgent, HistoryEntry } from "@/hooks/useEvodaoAgent";
 import { useAgentHistory } from "@/hooks/useAgentHistory";
 import { useTaskManager } from "@/hooks/useTaskManager";
 import { useAIImage } from "@/hooks/useAIImage";
+import { useMemory } from "@/hooks/useMemory";
 import { AgentHeader } from "@/components/agent/AgentHeader";
 import { GoalInput } from "@/components/agent/GoalInput";
 import { TaskList } from "@/components/agent/TaskList";
@@ -15,6 +16,7 @@ import { ExportActions } from "@/components/agent/ExportActions";
 import { EvolutionPanel } from "@/components/agent/EvolutionPanel";
 import { QAOutput } from "@/components/agent/QAOutput";
 import { ImageOutput } from "@/components/agent/ImageOutput";
+import { MemoryContext } from "@/components/agent/MemoryContext";
 import { AlertCircle, Trophy, RotateCcw, X } from "lucide-react";
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from "@/lib/config";
 
@@ -23,6 +25,7 @@ const Index = () => {
   const history = useAgentHistory();
   const taskManager = useTaskManager();
   const aiImage = useAIImage();
+  const memory = useMemory();
   const [historyOpen, setHistoryOpen] = useState(false);
   const [taskManagerOpen, setTaskManagerOpen] = useState(false);
   const [activeModel, setActiveModel] = useState("GLM 5.1");
@@ -124,6 +127,7 @@ const Index = () => {
     prevQACountRef.current = 0;
     aiImage.clearImages();
     setLastRunMode("");
+    memory.clearMemories();
     reset();
   };
 
@@ -133,6 +137,30 @@ const Index = () => {
     prevQACountRef.current = 0;
     resetQA();
   };
+
+  /**
+   * Completion callback — saves the session to long-term memory (Coze 长期记忆写入节点)
+   * while also persisting it to the local history panel.
+   */
+  const handleComplete = useCallback((entry: HistoryEntry) => {
+    history.addEntry(entry);
+    // Build a concise summary of task outputs for memory storage
+    const completedTasks = entry.tasks.filter(
+      (t) => entry.taskStatuses[t.id] === "completed"
+    );
+    const taskSummaries = completedTasks
+      .map((t) => {
+        const out = entry.taskOutputs[t.id] || "";
+        return `${t.title}:\n${out.substring(0, 200)}${out.length > 200 ? "..." : ""}`;
+      })
+      .join("\n\n");
+    memory.saveMemory({
+      goal: entry.goal,
+      outputMode: entry.outputMode || "text",
+      taskSummaries,
+      evolutionRound: entry.evolutionRound ?? 0,
+    });
+  }, [history, memory]);
 
   return (
     <div className="w-full h-full flex flex-col bg-background overflow-hidden">
@@ -161,7 +189,7 @@ const Index = () => {
 
           <GoalInput
             status={status}
-            onRun={(goal, mode, model) => {
+            onRun={async (goal, mode, model) => {
               setLastRunMode(mode);
               if (mode === "image") {
                 setActiveImageModelId(model);
@@ -169,7 +197,13 @@ const Index = () => {
                 aiImage.submitAndPoll({ model, prompt: goal, type: "txt_2_img" });
               } else {
                 setActiveModel(model.split("/")[1] || model);
-                runAgent(goal, mode, history.addEntry, undefined, model);
+                // Coze 长期记忆检索节点 — retrieve relevant past sessions to inject as context
+                let memCtx: string[] = [];
+                if (mode !== "qa") {
+                  const mems = await memory.searchMemory(goal);
+                  memCtx = memory.formatAsContext(mems);
+                }
+                runAgent(goal, mode, handleComplete, undefined, model, memCtx);
               }
             }}
             onReset={handleReset}
@@ -177,6 +211,11 @@ const Index = () => {
             suggestionsLoading={suggestionsLoading}
             suggestionsAI={suggestionsAI}
           />
+
+          {/* Coze 长期记忆节点 — display recalled memory context */}
+          {status === "idle" && (memory.isSearching || memory.memories.length > 0) && (
+            <MemoryContext memories={memory.memories} isSearching={memory.isSearching} />
+          )}
 
           {/* Resume banner */}
           {savedSession && status === "idle" && (
@@ -200,7 +239,7 @@ const Index = () => {
               </div>
               <div className="flex items-center gap-2 shrink-0">
                 <button
-                  onClick={() => resumeAgent(history.addEntry)}
+                  onClick={() => resumeAgent(handleComplete)}
                   className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold tracking-widest text-primary-foreground bg-primary border border-primary rounded hover:bg-primary/90 transition-all duration-200"
                 >
                   <RotateCcw className="w-3 h-3" />
@@ -314,7 +353,7 @@ const Index = () => {
               evolutionRound={evolutionRound}
               maxRounds={maxEvolutionRounds}
               onEvolve={evolve}
-              onApply={() => applyEvolution(history.addEntry)}
+              onApply={() => applyEvolution(handleComplete)}
               onDismiss={dismissEvolution}
             />
           )}

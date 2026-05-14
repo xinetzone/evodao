@@ -30,6 +30,8 @@ export function GoalInput({
   const [manualModel, setManualModel] = useState<ModelId | null>(null);
   const [imageModel, setImageModel] = useState<ImageModelId>("openai/gpt-image-2");
   const [isOptimizing, setIsOptimizing] = useState(false);
+  const [isDetecting, setIsDetecting] = useState(false);
+  const [detectedReason, setDetectedReason] = useState<string | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const placeholders: string[] = t("goalInput.placeholders", { returnObjects: true }) as string[];
@@ -110,6 +112,35 @@ export function GoalInput({
     }
   };
 
+  /** Coze 意图识别节点 — auto-detect the best execution mode for current goal */
+  const handleDetectIntent = async () => {
+    if (!goal.trim() || isDetecting || isRunning) return;
+    setIsDetecting(true);
+    setDetectedReason(null);
+    try {
+      const resp = await fetch(`${SUPABASE_URL}/functions/v1/harness-agent`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+        },
+        body: JSON.stringify({ mode: "intent", goal: goal.trim() }),
+      });
+      if (!resp.ok) throw new Error("Intent detection failed");
+      const data = await resp.json();
+      if (data.outputMode) {
+        setOutputMode(data.outputMode as OutputMode);
+        setDetectedReason(data.reason || null);
+        // auto-clear reason badge after 6 seconds
+        setTimeout(() => setDetectedReason(null), 6000);
+      }
+    } catch {
+      // silently fail
+    } finally {
+      setIsDetecting(false);
+    }
+  };
+
   return (
     <div className="animate-fade-in">
       {/* Mode toggle + prompt header */}
@@ -122,6 +153,27 @@ export function GoalInput({
 
         {/* Mode toggle pills */}
         <div className="flex items-center gap-2">
+          {/* Intent auto-detect button (Coze 意图识别节点) */}
+          {isIdle && goal.trim().length > 3 && (
+            <button
+              onClick={handleDetectIntent}
+              disabled={isDetecting}
+              title={t("intent.detecting")}
+              className={cn(
+                "flex items-center gap-1 px-2 py-1 text-[9px] font-bold tracking-widest rounded border transition-all duration-200",
+                isDetecting
+                  ? "border-primary/20 text-primary/30 cursor-not-allowed"
+                  : "border-primary/20 text-primary/40 hover:border-primary/50 hover:text-primary/70 hover:bg-primary/5"
+              )}
+            >
+              {isDetecting ? (
+                <Loader className="w-2.5 h-2.5 animate-spin" />
+              ) : (
+                <Sparkles className="w-2.5 h-2.5" />
+              )}
+              {t("intent.autoBtn")}
+            </button>
+          )}
           <div className="flex items-center gap-0.5 p-0.5 rounded border border-border bg-card">
             {(["text", "agent", "qa", "image"] as OutputMode[]).map((m) => (
               <button
@@ -189,6 +241,16 @@ export function GoalInput({
         <p className="text-[10px] text-primary/60 tracking-wider mb-2 pl-4 border-l border-primary/30">
           {t("agentMode.imageGenHint")}
         </p>
+      )}
+
+      {/* Intent detection reason badge */}
+      {detectedReason && (
+        <div className="flex items-center gap-1.5 mb-2 px-3 py-1 rounded border border-primary/20 bg-primary/5 w-fit">
+          <Sparkles className="w-2.5 h-2.5 text-primary/60 shrink-0" />
+          <span className="text-[10px] text-primary/70 tracking-wide">
+            <span className="font-bold">{t("intent.reason")}</span>{detectedReason}
+          </span>
+        </div>
       )}
 
       {/* Prompt suggestion chips */}

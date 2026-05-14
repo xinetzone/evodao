@@ -199,6 +199,26 @@
     "copy": "Copy",
     "copied": "Copied"
   },
+  "memory": {
+    "label": "LONG-TERM MEMORY",
+    "searching": "Searching memory...",
+    "found": "{{count}} memories recalled",
+    "saved": "Saved to long-term memory",
+    "heading": "MEMORY CONTEXT"
+  },
+  "intent": {
+    "detecting": "Detecting intent...",
+    "detected": "Detected: {{mode}}",
+    "autoBtn": "AUTO",
+    "reason": "Reason: "
+  },
+  "taskTools": {
+    "search": "search",
+    "code": "code",
+    "write": "write",
+    "analyze": "analyze",
+    "design": "design"
+  },
   "taskManager": {
     "title": "TASK MANAGER",
     "addTask": "ADD",

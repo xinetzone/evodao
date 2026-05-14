@@ -199,6 +199,26 @@
     "copy": "复制",
     "copied": "已复制"
   },
+  "memory": {
+    "label": "长期记忆",
+    "searching": "检索历史记忆中...",
+    "found": "召回 {{count}} 条历史记忆",
+    "saved": "已保存至长期记忆",
+    "heading": "历史上下文"
+  },
+  "intent": {
+    "detecting": "识别意图中...",
+    "detected": "检测到: {{mode}}",
+    "autoBtn": "AUTO",
+    "reason": "推荐原因: "
+  },
+  "taskTools": {
+    "search": "搜索",
+    "code": "代码",
+    "write": "写作",
+    "analyze": "分析",
+    "design": "设计"
+  },
   "taskManager": {
     "title": "任务管理器",
     "addTask": "添加",

@@ -3109,7 +3109,36 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      agent_memory: {
+        Row: {
+          created_at: string | null
+          evolution_round: number | null
+          goal: string
+          id: string
+          output_mode: string
+          quality_score: number | null
+          task_summaries: string
+        }
+        Insert: {
+          created_at?: string | null
+          evolution_round?: number | null
+          goal: string
+          id?: string
+          output_mode?: string
+          quality_score?: number | null
+          task_summaries?: string
+        }
+        Update: {
+          created_at?: string | null
+          evolution_round?: number | null
+          goal?: string
+          id?: string
+          output_mode?: string
+          quality_score?: number | null
+          task_summaries?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

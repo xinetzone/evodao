@@ -5,7 +5,7 @@ const corsHeaders = {
 
 const API_BASE = "https://api.enter.pro/code/api/v1/ai/chat/completions";
 
-// Lightweight fallback model for utility calls (suggest / optimize / reflect)
+// Lightweight fallback model for utility calls (suggest / optimize / reflect / intent)
 const UTILITY_MODEL = "z-ai/glm-5.1";
 
 interface EvolutionContext {
@@ -34,27 +34,40 @@ function getPlanSystemPrompt(outputMode: string, evolutionContext?: EvolutionCon
     return `You are a senior software architect planning the implementation of an agent project.
 Decompose the goal into 3-6 implementation tasks. Each task should produce one or more concrete code files.
 Return ONLY a valid JSON array with no markdown fences, no explanation. Use this exact format:
-[{"id":1,"title":"Short Task Title","description":"One or two sentences describing what files this task creates.","dependsOn":[]},{"id":2,"title":"...","description":"...","dependsOn":[1]}]
+[{"id":1,"title":"Short Task Title","description":"One or two sentences describing what files this task creates.","dependsOn":[],"tools":["code"]},{"id":2,"title":"...","description":"...","dependsOn":[1],"tools":["code","write"]}]
 
 Rules for "dependsOn":
 - Value must be an array of task IDs whose OUTPUT this task genuinely needs as input.
 - Root tasks (no dependency on others) must have "dependsOn": [].
 - Maximise parallelism — only declare a dependency when absolutely necessary.
-- Never create circular dependencies.${evoSection}`;
+- Never create circular dependencies.
+
+Rules for "tools":
+- Declare the capabilities this task primarily relies on.
+- Valid values: "code" (write/generate code), "write" (prose/docs), "analyze" (research/summarize), "search" (find info), "design" (UI/UX/visual).
+- Each task should list 1-3 relevant tools.${evoSection}`;
   }
   return `You are a precise task planning agent. Given a goal, decompose it into 3-6 concrete, actionable sub-tasks.
 Return ONLY a valid JSON array with no markdown fences, no explanation, no extra text. Use this exact format:
-[{"id":1,"title":"Short Task Title","description":"One or two sentences describing what this task involves.","dependsOn":[]},{"id":2,"title":"...","description":"...","dependsOn":[1]}]
+[{"id":1,"title":"Short Task Title","description":"One or two sentences describing what this task involves.","dependsOn":[],"tools":["analyze"]},{"id":2,"title":"...","description":"...","dependsOn":[1],"tools":["write"]}]
 
 Rules for "dependsOn":
 - Value must be an array of task IDs whose OUTPUT this task genuinely needs as input.
 - Root tasks (no dependency on others) must have "dependsOn": [].
 - Maximise parallelism — only declare a dependency when absolutely necessary.
-- Never create circular dependencies.${evoSection}`;
+- Never create circular dependencies.
+
+Rules for "tools":
+- Declare the capabilities this task primarily relies on.
+- Valid values: "code" (write/generate code), "write" (prose/docs), "analyze" (research/summarize), "search" (find info), "design" (UI/UX/visual).
+- Each task should list 1-3 relevant tools.${evoSection}`;
 }
 
-function getExecuteSystemPrompt(outputMode: string, evolutionContext?: EvolutionContext): string {
+function getExecuteSystemPrompt(outputMode: string, tools?: string[], evolutionContext?: EvolutionContext): string {
   const evoSection = getEvolutionSection(evolutionContext);
+  const toolHints = tools && tools.length > 0
+    ? `\n\nThis task uses tools: [${tools.join(", ")}]. Tailor your response to leverage these capabilities.`
+    : "";
   if (outputMode === "agent") {
     return `You are an expert software engineer implementing part of an agent project.
 For EVERY file you create, you MUST use this exact format (language:filepath on the opening fence):
@@ -71,9 +84,9 @@ Rules:
 - Use realistic relative file paths (e.g. src/agent.py, config/settings.json, README.md)
 - Write complete, working code — no placeholders or TODOs
 - Multiple files per task is encouraged
-- Always include a README.md with setup and usage instructions in the first or last task${evoSection}`;
+- Always include a README.md with setup and usage instructions in the first or last task${toolHints}${evoSection}`;
   }
-  return `You are a skilled execution agent. Carry out assigned tasks thoroughly and produce high-quality, detailed outputs. Be specific, practical, and thorough. Use clear structure with headers and bullet points where helpful.${evoSection}`;
+  return `You are a skilled execution agent. Carry out assigned tasks thoroughly and produce high-quality, detailed outputs. Be specific, practical, and thorough. Use clear structure with headers and bullet points where helpful.${toolHints}${evoSection}`;
 }
 
 Deno.serve(async (req) => {
@@ -106,8 +119,47 @@ Deno.serve(async (req) => {
     // Resolved model for primary (plan / execute / chat) calls
     const primaryModel: string = requestedModel || "z-ai/glm-5.1";
 
+    // ── INTENT DETECTION ─────────────────────────────────────────────────────
+    if (mode === "intent") {
+      const intentPrompt = `You are an intelligent workflow router for an AI agent platform. Given a user goal, classify it into the most suitable execution mode.
+
+Available modes:
+- "text"  — multi-step autonomous task execution (research, writing, planning, analysis)
+- "agent" — software engineering / code generation (build apps, scripts, APIs, configs)
+- "qa"    — conversational Q&A, single-turn questions, quick lookups
+- "image" — visual output: generate images, illustrations, diagrams
+
+User goal: "${goal}"
+
+Return ONLY valid JSON, no markdown fences:
+{"outputMode":"text","reason":"One-sentence explanation of why this mode fits best."}`;
+
+      const response = await fetch(API_BASE, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${AI_API_TOKEN}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: UTILITY_MODEL,
+          messages: [{ role: "user", content: intentPrompt }],
+          stream: false,
+        }),
+      });
+
+      if (!response.ok) throw new Error("Intent LLM error");
+
+      const data = await response.json();
+      const content = (data.choices?.[0]?.message?.content || "{}").trim();
+      let result = { outputMode: "text", reason: "" };
+      try {
+        const cleaned = content.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
+        result = JSON.parse(cleaned);
+      } catch { /* fall back to text mode */ }
+
+      return new Response(JSON.stringify(result), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+
     // ── SUGGEST ───────────────────────────────────────────────────────────────
-    if (mode === "suggest") {
+    } else if (mode === "suggest") {
       const { taskSummary, lastQA } = body;
 
       const modeLabel = outputMode === "agent" ? "software agent build" : outputMode === "qa" ? "Q&A exploration" : "autonomous task execution";
@@ -267,13 +319,16 @@ Return ONLY the optimized prompt text. No explanation, no quotes, no preamble.`;
         ? `Overall Goal: ${goal}\n\nCurrent Task:\nTitle: ${task.title}\nDescription: ${task.description}${contextSection}\n\nImplement this task completely. Output every file using the \`\`\`language:path format. Write full, working code.`
         : `Overall Goal: ${goal}\n\nCurrent Task to Execute:\nTitle: ${task.title}\nDescription: ${task.description}${contextSection}\n\nPlease execute this task completely and provide detailed, actionable output.`;
 
+      // Use task.tools to customize system prompt behaviour
+      const taskTools: string[] | undefined = task?.tools;
+
       const response = await fetch(API_BASE, {
         method: "POST",
         headers: { Authorization: `Bearer ${AI_API_TOKEN}`, "Content-Type": "application/json" },
         body: JSON.stringify({
           model: primaryModel,
           messages: [
-            { role: "system", content: getExecuteSystemPrompt(outputMode, evolutionContext) },
+            { role: "system", content: getExecuteSystemPrompt(outputMode, taskTools, evolutionContext) },
             { role: "user", content: userPrompt },
           ],
           stream: true,

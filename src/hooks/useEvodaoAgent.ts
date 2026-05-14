@@ -13,6 +13,7 @@ export interface Task {
   title: string;
   description: string;
   dependsOn?: number[];
+  tools?: string[];           // declared tool capabilities (e.g. "search", "code", "analyze")
 }
 
 export interface AgentFile {
@@ -393,7 +394,8 @@ export function useEvodaoAgent() {
     startFiles: AgentFile[],
     onComplete?: (entry: HistoryEntry) => void,
     evolutionCtx?: EvolutionContext,
-    model?: string
+    model?: string,
+    memoryContext?: string[]   // injected long-term memory from Coze 长期记忆节点
   ) => {
     // Deep-copy tasks and strip any cycles so the graph is a valid DAG
     const safeTasks = stripCycles(
@@ -402,12 +404,14 @@ export function useEvodaoAgent() {
     const taskMap = new Map(safeTasks.map((t) => [t.id, t]));
 
     // Context from already-completed tasks (e.g. resumed session) — 400 chars each
-    const completedContext = safeTasks
+    // Long-term memory entries are prepended (labeled [LONG-TERM MEMORY])
+    const sessionContext = safeTasks
       .filter((t) => startStatuses[t.id] === "completed")
       .map((t) => {
         const out = startOutputs[t.id] || "";
         return `[Task ${t.id}: ${t.title}]\n${out.substring(0, 400)}${out.length > 400 ? "..." : ""}`;
       });
+    const completedContext = [...(memoryContext || []), ...sessionContext];
 
     if (startFiles.length > 0) setExtractedFiles(startFiles);
 
@@ -552,7 +556,8 @@ export function useEvodaoAgent() {
     mode: OutputMode = "text",
     onComplete?: (entry: HistoryEntry) => void,
     evolutionCtx?: EvolutionContext,
-    model?: string
+    model?: string,
+    memoryContext?: string[]   // long-term memory context (Coze 长期记忆检索节点)
   ) => {
     // ── Q&A Mode: single streaming call, no planning ──────────────────────
     if (mode === "qa") {
@@ -700,7 +705,7 @@ export function useEvodaoAgent() {
       setTaskStatuses(initialStatuses);
 
       setStatus("executing");
-      await runExecutionLoop(goal, plannedTasks, initialStatuses, {}, mode, [], onComplete, evolutionCtx, model);
+      await runExecutionLoop(goal, plannedTasks, initialStatuses, {}, mode, [], onComplete, evolutionCtx, model, memoryContext);
     } catch (err: unknown) {
       if (err instanceof Error && err.name === "AbortError") return;
       setError(err instanceof Error ? err.message : "Agent failed");
