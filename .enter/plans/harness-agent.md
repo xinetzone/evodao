@@ -1,103 +1,50 @@
-# 历史记录跨设备共享计划
+# Mobile UI Optimization Plan
 
-## 背景
+## Context
+The app is a desktop-first AI agent interface. On mobile (≤375px), several areas overflow or are hard to use:
+1. **AgentHeader** – `px-6` too wide, right-side has 5+ buttons crammed together
+2. **GoalInput** – Top control row: 4 mode pills + model selector + intent button doesn't fit on one line on small screens (~480px+ needed)
+3. **Index.tsx** – main `px-6 py-8` not reduced for mobile
+4. **Footer** – `px-6` both sides, content may overflow
+5. **HistoryPanel** – Delete button uses `group-hover:opacity-0/100` — touch devices can't hover, delete is inaccessible
+6. **Resume banner** – action buttons may overflow on narrow screens
 
-当前 `useAgentHistory` 使用 `localStorage` 存储（key: `evodao-history`），仅本设备可见。需迁移至 Supabase，实现同账号跨设备共享。
+## Files to Change
+- `src/components/agent/AgentHeader.tsx`
+- `src/components/agent/GoalInput.tsx`
+- `src/components/agent/HistoryPanel.tsx`
+- `src/pages/Index.tsx`
 
----
+## Specific Changes
 
-## 数据结构
+### 1. AgentHeader.tsx
+- Padding: `px-6` → `px-3 sm:px-6`
+- Gap: `gap-3` → `gap-2 sm:gap-3`
+- Logo subtitle: `hidden xs:block` → `hidden sm:block` (already has `p` below `h1`, wrap in `hidden sm:block`)
+- Status badge: on xs show only icon, hide text — add `hidden xs:inline sm:inline` to text span
+- Token badge: already `hidden sm:flex`, keep as is
+- User email: already `hidden sm:block`, keep as is
 
-`HistoryEntry` 接口（来自 `useEvodaoAgent.ts`）：
-```typescript
-{
-  id: string;                          // Date.now().toString()
-  goal: string;
-  tasks: Task[];
-  taskOutputs: Record<number, string>; // 可能很大
-  taskStatuses: Record<number, TaskStatus>;
-  completedAt: number;                 // epoch ms
-  outputMode?: OutputMode;
-  extractedFiles?: AgentFile[];        // 含文件内容，可能很大
-  evolutionRound?: number;
-}
-```
+### 2. GoalInput.tsx
+- **Top control row**: Change from `flex items-center justify-between mb-3` to `flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-3`
+- **Controls sub-row** (mode pills + model selector): `flex items-center gap-2 flex-wrap sm:flex-nowrap`
+- Mode pill buttons: `px-2 py-0.5 sm:px-2.5 sm:py-1` (slightly smaller on mobile)
+- **Suggestion chips row**: on mobile, limit horizontal scrolling: `flex items-center gap-1.5 flex-wrap mb-3 min-h-[26px] overflow-x-auto`
+- Bottom toolbar: already `flex items-center justify-between`, just ensure buttons don't overflow — `flex-wrap gap-2`
+- Optimize + Reset + Run buttons: add `flex-wrap` to container
 
----
+### 3. HistoryPanel.tsx
+- Delete button: change `opacity-0 group-hover:opacity-100` to `opacity-60 sm:opacity-0 sm:group-hover:opacity-100` so it's always visible on mobile/touch
 
-## 方案
+### 4. Index.tsx
+- Main content div: `px-6 py-8` → `px-4 sm:px-6 py-6 sm:py-8`
+- Footer: `px-6` → `px-4 sm:px-6`
+- Resume banner buttons: `flex-col sm:flex-row` gap for action buttons on xs
 
-### 1. DB 迁移
-
-新建 `agent_history` 表：
-
-```sql
-CREATE TABLE agent_history (
-  id           TEXT PRIMARY KEY,            -- HistoryEntry.id (Date.now())
-  user_id      UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
-  goal         TEXT NOT NULL,
-  tasks        JSONB NOT NULL DEFAULT '[]',
-  task_outputs JSONB NOT NULL DEFAULT '{}',
-  task_statuses JSONB NOT NULL DEFAULT '{}',
-  completed_at BIGINT NOT NULL,
-  output_mode  TEXT DEFAULT 'text',
-  extracted_files JSONB DEFAULT '[]',
-  evolution_round INTEGER DEFAULT 0,
-  created_at   TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-ALTER TABLE agent_history ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "own_history" ON agent_history FOR ALL USING (auth.uid() = user_id);
-```
-
-### 2. `useAgentHistory.ts` 完全重写
-
-- 引入 `useAuth` 获取 `profile.id`
-- `isLoading` 状态 — 首次加载时为 true
-- `fetchHistory()` — SELECT 前 20 条按 `completed_at DESC`，组装成 `HistoryEntry[]`
-- `addEntry(entry)` — INSERT（`taskOutputs` 每条截断为 6000 chars 防超限，`extractedFiles` 仅存 path+language+taskId 不存 content）
-- `removeEntry(id)` — DELETE by id
-- `clearHistory()` — DELETE WHERE user_id
-- **一次性 localStorage 迁移**：mount 时若 localStorage 有数据且 DB 为空 → 写入 DB → 清除 localStorage
-- 用户未登录时：降级为 localStorage 行为（兼容性）
-
-### 3. `HistoryPanel.tsx` 小改动
-
-- 接收 `isLoading?: boolean` prop
-- 列表为空且 `isLoading` 时显示 loading spinner 而非 "暂无历史" 空状态
-
-### 4. `Index.tsx` 小改动
-
-- 从 `useAgentHistory()` 取出 `isLoading`，传入 `<HistoryPanel>`
-
----
-
-## 关键决策
-
-| 决策 | 选择 | 原因 |
-|------|------|------|
-| `taskOutputs` 存储上限 | 每条 6000 chars | 防止单条记录过大；HistoryPanel 展示用量足够 |
-| `extractedFiles` 存储 | 仅存 metadata (path/lang/taskId)，不存 content | 文件内容可重新生成，减少 DB 负担 |
-| localStorage 向 DB 迁移 | 自动一次性迁移 | 用户无感知，历史不丢失 |
-| 未登录时降级 | 继续用 localStorage | 确保非登录状态也可用 |
-
----
-
-## 需要修改的文件
-
-1. `supabase/migrations/migration_...` — 建表 + RLS
-2. `src/hooks/useAgentHistory.ts` — 完全重写
-3. `src/components/agent/HistoryPanel.tsx` — 加 `isLoading` prop + loading UI
-4. `src/pages/Index.tsx` — 传 `isLoading` 到 HistoryPanel
-
-**不需要修改：**
-- `useEvodaoAgent.ts` — HistoryEntry 定义不变
-- `src/integrations/supabase/types.ts` — 使用 `any` 类型断言操作新表
-
----
-
-## 验证
-
-1. 同账号 A 设备运行一次 → 历史面板显示该条记录
-2. 同账号 B 设备登录 → 历史面板同样显示该条记录
-3. 删除/清空 → 两端同步消失
-4. 未登录时 → 历史仍可本地使用
+## Verification
+- Resize browser to 375px width — no horizontal scroll
+- Header: logo + status + user avatar visible, no overflow
+- GoalInput: mode pills stack below prompt label on xs, flow naturally
+- Suggestion chips wrap instead of overflow
+- History panel: delete button visible on mobile without hovering
+- Resume banner: buttons don't overflow
