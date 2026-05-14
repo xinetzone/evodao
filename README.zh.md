@@ -1,4 +1,4 @@
-# EvoDAO — 自主智能体平台
+# EVODAO — AI 多模态智能代理平台
 
 [![Built with enter.pro](https://img.shields.io/badge/Build%20with-Enter.pro-FC5776?style=for-the-badge&labelColor=1F1F1F)](https://enter.pro)
 ![React](https://img.shields.io/badge/React-18-61DAFB?style=flat-square&logo=react&logoColor=white&labelColor=1F1F1F)
@@ -6,6 +6,13 @@
 ![Tailwind CSS](https://img.shields.io/badge/Tailwind-CSS-06B6D4?style=flat-square&logo=tailwindcss&logoColor=white&labelColor=1F1F1F)
 
 [English README](./README.md) | **中文文档**
+
+### 项目文档
+
+| 文档 | 说明 |
+|------|------|
+| [`docs/project-report.md`](./docs/project-report.md) | 项目全面复盘报告（架构、功能、决策、路线图） |
+| [`docs/db-schema.md`](./docs/db-schema.md) | 数据库 Schema 完整参考 |
 
 ---
 

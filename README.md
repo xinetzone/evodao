@@ -1,20 +1,44 @@
-# Welcome to your Enter project
+# EVODAO — AI Multi-Modal Agent Platform
 
 [![Built with enter.pro](https://img.shields.io/badge/Build%20with-Enter.pro-FC5776?style=for-the-badge&labelColor=1F1F1F)](https://enter.pro)
 
 **English** | [中文文档](./README.zh.md)
 
-*Automatically synced with your [enter.pro](https://enter.pro) workspace* 
+*Automatically synced with your [enter.pro](https://enter.pro) workspace*
 
 ---
 
-## Overview
+## What is EVODAO?
 
-This repository is automatically linked to your app on [enter.pro](https://enter.pro).  
-Every change you make in Enter will be reflected here — and any updates you push to this repo will sync back seamlessly.  
+EVODAO is an AI agent platform that takes a natural language goal, automatically breaks it into parallel sub-tasks, executes them simultaneously, and can self-reflect and evolve its output over multiple rounds.
 
-Enter.pro helps you **build, edit, and deploy full-stack web apps by prompting**.  
-Just describe what you want — Enter turns ideas into production-ready code.
+### Core Features
+
+| Feature | Description |
+|---------|-------------|
+| **Parallel Task Execution** | AI decomposes goals into sub-tasks and executes them concurrently |
+| **Self-Evolution** | Agent reflects on results and iteratively improves them |
+| **4 Output Modes** | Text, Build (code + ZIP), Q&A chat, Image generation |
+| **Multi-Model** | GLM, Claude, GPT, Gemini, Doubao image models |
+| **Long-Term Memory** | Cross-session memory retrieval for better context |
+| **Usage Quotas** | Per-user run count + token consumption limits |
+| **Subscription Plans** | Basic / Pro plans with auto-applied quota presets |
+| **Admin Panel** | User management, memory viewer, quota & plan assignment |
+| **i18n** | Full Chinese / English bilingual support |
+
+### Tech Stack
+
+- **Frontend**: React 18 + Vite + TypeScript + Tailwind CSS + shadcn/ui
+- **Backend**: Supabase (PostgreSQL + Auth + Edge Functions)
+- **AI**: Enter AI All (multi-model proxy)
+- **i18n**: i18next
+
+### Documentation
+
+| Doc | Description |
+|-----|-------------|
+| [`docs/project-report.md`](./docs/project-report.md) | Full project retrospective & architecture |
+| [`docs/db-schema.md`](./docs/db-schema.md) | Database schema reference |
 
 ---
 
