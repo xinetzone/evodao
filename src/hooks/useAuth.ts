@@ -14,6 +14,9 @@ export interface Profile {
   monthly_token_limit: number | null;
   subscription_plan: "basic" | "pro" | null;
   subscription_status: "active" | "cancelled" | null;
+  agent_world_username: string | null;
+  agent_world_api_key: string | null;
+  agent_world_avatar_url: string | null;
 }
 
 export function useAuth() {
@@ -25,7 +28,7 @@ export function useAuth() {
   const fetchProfile = useCallback(async (uid: string) => {
     const { data } = await supabase
       .from("profiles")
-      .select("id, email, is_admin, created_at, daily_run_limit, daily_image_limit, monthly_run_limit, daily_token_limit, monthly_token_limit, subscription_plan, subscription_status")
+      .select("id, email, is_admin, created_at, daily_run_limit, daily_image_limit, monthly_run_limit, daily_token_limit, monthly_token_limit, subscription_plan, subscription_status, agent_world_username, agent_world_api_key, agent_world_avatar_url")
       .eq("id", uid)
       .maybeSingle();
     setProfile(data as Profile | null);
@@ -86,5 +89,6 @@ export function useAuth() {
     signIn,
     signUp,
     signOut,
+    refreshProfile: () => { if (user) fetchProfile(user.id); },
   };
 }

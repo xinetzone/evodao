@@ -3183,6 +3183,9 @@ export type Database = {
       }
       profiles: {
         Row: {
+          agent_world_api_key: string | null
+          agent_world_avatar_url: string | null
+          agent_world_username: string | null
           created_at: string | null
           daily_image_limit: number | null
           daily_run_limit: number | null
@@ -3196,6 +3199,9 @@ export type Database = {
           subscription_status: string | null
         }
         Insert: {
+          agent_world_api_key?: string | null
+          agent_world_avatar_url?: string | null
+          agent_world_username?: string | null
           created_at?: string | null
           daily_image_limit?: number | null
           daily_run_limit?: number | null
@@ -3209,6 +3215,9 @@ export type Database = {
           subscription_status?: string | null
         }
         Update: {
+          agent_world_api_key?: string | null
+          agent_world_avatar_url?: string | null
+          agent_world_username?: string | null
           created_at?: string | null
           daily_image_limit?: number | null
           daily_run_limit?: number | null

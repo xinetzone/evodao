@@ -1,4 +1,4 @@
-import { Cpu, Zap, CircleCheck, AlertCircle, Loader, Clock, LayoutGrid, Shield, LogOut, ChevronDown, TrendingUp } from "lucide-react";
+import { Cpu, Zap, CircleCheck, AlertCircle, Loader, Clock, LayoutGrid, Shield, LogOut, ChevronDown, TrendingUp, Globe } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import { useState, useRef, useEffect } from "react";
@@ -7,6 +7,7 @@ import { LanguageSwitcher } from "./LanguageSwitcher";
 import { useAuthContext } from "@/context/AuthContext";
 import { cn } from "@/lib/utils";
 import { PricingModal } from "@/components/pricing/PricingModal";
+import { AgentWorldModal } from "@/components/agent/AgentWorldModal";
 
 interface AgentHeaderProps {
   status: AgentStatus;
@@ -21,9 +22,10 @@ interface AgentHeaderProps {
 export function AgentHeader({ status, currentGoal, historyCount, onHistoryOpen, sessionUsage, taskManagerRunning, onTaskManagerOpen }: AgentHeaderProps) {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const { user, profile, isAdmin, signOut } = useAuthContext();
+  const { user, profile, isAdmin, signOut, refreshProfile } = useAuthContext();
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [pricingOpen, setPricingOpen] = useState(false);
+  const [agentWorldOpen, setAgentWorldOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
   // Close menu on outside click
@@ -223,6 +225,19 @@ export function AgentHeader({ status, currentGoal, historyCount, onHistoryOpen, 
                       </button>
                     )}
 
+                    <button
+                      onClick={() => { setUserMenuOpen(false); setAgentWorldOpen(true); }}
+                      className="w-full flex items-center gap-3 px-4 py-2.5 text-xs text-muted-foreground hover:text-primary hover:bg-primary/5 transition-colors group"
+                    >
+                      <Globe className="w-3.5 h-3.5 text-muted-foreground/50 group-hover:text-primary transition-colors" />
+                      <span className="tracking-wider">{t("agentWorld.menuBtn")}</span>
+                      {profile?.agent_world_username && (
+                        <span className="ml-auto text-[9px] font-mono text-primary/60 tracking-widest">
+                          @{profile.agent_world_username}
+                        </span>
+                      )}
+                    </button>
+
                     <div className="mx-3 border-t border-border/30 my-1" />
 
                     <button
@@ -241,6 +256,13 @@ export function AgentHeader({ status, currentGoal, historyCount, onHistoryOpen, 
       </div>
     </header>
     <PricingModal open={pricingOpen} onClose={() => setPricingOpen(false)} />
+    <AgentWorldModal
+      open={agentWorldOpen}
+      onClose={() => setAgentWorldOpen(false)}
+      profile={profile}
+      userId={user?.id}
+      onProfileUpdate={() => refreshProfile()}
+    />
     </>
   );
 }

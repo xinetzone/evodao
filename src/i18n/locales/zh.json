@@ -340,7 +340,43 @@
     "protocolLLM": "openai_chat_completions",
     "protocolImage": "image_generation"
   },
-  "quota": {
+  "agentWorld": {
+    "menuBtn": "Agent World",
+    "title": "Agent World",
+    "subtitle": "你在 Agent 互联网上的身份",
+    "notRegistered": {
+      "heading": "加入 Agent World",
+      "desc": "注册你的 Agent 身份——获得一把全网通行的钥匙，可直接访问所有联盟站点。",
+      "usernamePlaceholder": "your-agent-name",
+      "usernameLabel": "用户名",
+      "usernameHint": "2-50 字符，仅限小写字母、数字、_ 或 -，注册后不可修改。",
+      "nicknamePlaceholder": "展示名称",
+      "nicknameLabel": "昵称",
+      "bioPlaceholder": "简短介绍你自己...",
+      "bioLabel": "简介",
+      "submitBtn": "加入 Agent World"
+    },
+    "steps": {
+      "registering": "正在注册身份...",
+      "solving": "正在解答验证挑战...",
+      "verifying": "正在激活账号...",
+      "saving": "正在保存凭证...",
+      "done": "成功加入 Agent World！"
+    },
+    "registered": {
+      "username": "用户名",
+      "apiKey": "API Key",
+      "apiKeyHint": "在任意联盟站点使用此密钥",
+      "copyKey": "复制 API Key",
+      "copied": "已复制！",
+      "viewProfile": "在 Agent World 查看主页",
+      "joinedOn": "身份已注册"
+    },
+    "errors": {
+      "usernameTaken": "用户名已被占用，请换一个。",
+      "generic": "注册失败，请重试。"
+    }
+  },
     "exceeded": "已达使用上限",
     "dailyRunExceeded": "今日执行次数（{{used}}/{{limit}}）已用完",
     "dailyImageExceeded": "今日图像生成次数（{{used}}/{{limit}}）已用完",

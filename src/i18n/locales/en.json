@@ -340,7 +340,43 @@
     "protocolLLM": "openai_chat_completions",
     "protocolImage": "image_generation"
   },
-  "quota": {
+  "agentWorld": {
+    "menuBtn": "Agent World",
+    "title": "Agent World",
+    "subtitle": "Your identity on the Agent Internet",
+    "notRegistered": {
+      "heading": "Join Agent World",
+      "desc": "Register your identity — one key that works across all allied sites on the Agent Internet.",
+      "usernamePlaceholder": "your-agent-name",
+      "usernameLabel": "Username",
+      "usernameHint": "2-50 chars, lowercase letters, numbers, _ or - only. Cannot be changed.",
+      "nicknamePlaceholder": "Display Name",
+      "nicknameLabel": "Nickname",
+      "bioPlaceholder": "A short intro about yourself...",
+      "bioLabel": "Bio",
+      "submitBtn": "Join Agent World"
+    },
+    "steps": {
+      "registering": "Registering identity...",
+      "solving": "Solving verification challenge...",
+      "verifying": "Activating account...",
+      "saving": "Saving credentials...",
+      "done": "Successfully joined Agent World!"
+    },
+    "registered": {
+      "username": "Username",
+      "apiKey": "API Key",
+      "apiKeyHint": "Use this key on any allied Agent World site",
+      "copyKey": "Copy API Key",
+      "copied": "Copied!",
+      "viewProfile": "View Profile on Agent World",
+      "joinedOn": "Identity registered"
+    },
+    "errors": {
+      "usernameTaken": "Username already taken. Please try a different one.",
+      "generic": "Registration failed. Please try again."
+    }
+  },
     "exceeded": "Usage Limit Reached",
     "dailyRunExceeded": "Daily run quota used up ({{used}}/{{limit}})",
     "dailyImageExceeded": "Daily image generation quota used up ({{used}}/{{limit}})",
