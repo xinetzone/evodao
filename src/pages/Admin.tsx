@@ -66,7 +66,8 @@ export default function Admin() {
     const { data } = await (supabase as any)
       .from("usage_logs")
       .select("user_id, total_tokens")
-      .gte("created_at", monthStart);
+      .gte("created_at", monthStart)
+      .limit(5000); // safety cap to prevent full-table fetch
     if (data) {
       const counts: Record<string, number> = {};
       const tokens: Record<string, number> = {};
@@ -85,8 +86,9 @@ export default function Admin() {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     await (supabase as any).from("profiles").update({ [field]: numVal }).eq("id", userId);
     setEditingQuota(null);
-    await fetchUsers();
-  }, [fetchUsers]);
+    // Optimistic update — no re-fetch needed
+    setUsers((prev) => prev.map((u) => u.id === userId ? { ...u, [field]: numVal } : u));
+  }, []);
 
   const assignPlan = useCallback(async (userId: string, plan: "basic" | "pro" | null) => {
     if (plan === null) {
@@ -94,6 +96,10 @@ export default function Admin() {
       await (supabase as any).from("profiles")
         .update({ subscription_plan: null, subscription_status: null })
         .eq("id", userId);
+      // Optimistic update
+      setUsers((prev) => prev.map((u) => u.id === userId
+        ? { ...u, subscription_plan: null, subscription_status: null }
+        : u));
     } else {
       const preset = PLAN_CONFIGS.find((p) => p.id === plan);
       if (!preset) return;
@@ -107,9 +113,21 @@ export default function Admin() {
         daily_token_limit: preset.daily_token_limit,
         monthly_token_limit: preset.monthly_token_limit,
       }).eq("id", userId);
+      // Optimistic update
+      setUsers((prev) => prev.map((u) => u.id === userId
+        ? {
+            ...u,
+            subscription_plan: plan,
+            subscription_status: "active",
+            daily_run_limit: preset.daily_run_limit,
+            daily_image_limit: preset.daily_image_limit,
+            monthly_run_limit: preset.monthly_run_limit,
+            daily_token_limit: preset.daily_token_limit,
+            monthly_token_limit: preset.monthly_token_limit,
+          }
+        : u));
     }
-    await fetchUsers();
-  }, [fetchUsers]);
+  }, []);
 
   const fetchMemories = useCallback(async () => {
     setLoadingMemories(true);
@@ -122,9 +140,10 @@ export default function Admin() {
     setLoadingMemories(false);
   }, []);
 
-  useEffect(() => { fetchUsers(); }, [fetchUsers]);
+  // On mount: parallel fetch users + monthly usage
+  useEffect(() => { Promise.all([fetchUsers(), fetchMonthlyUsage()]); }, [fetchUsers, fetchMonthlyUsage]);
+  // Load memories only when that tab is first opened
   useEffect(() => { if (tab === "memories") fetchMemories(); }, [tab, fetchMemories]);
-  useEffect(() => { if (tab === "quotas") { fetchUsers(); fetchMonthlyUsage(); } }, [tab, fetchUsers, fetchMonthlyUsage]);
 
   const toggleAdmin = async (user: UserRow) => {
     if (user.id === profile?.id) return; // Can't demote yourself
@@ -133,7 +152,8 @@ export default function Admin() {
       .from("profiles")
       .update({ is_admin: !user.is_admin })
       .eq("id", user.id);
-    await fetchUsers();
+    // Optimistic update — no re-fetch needed
+    setUsers((prev) => prev.map((u) => u.id === user.id ? { ...u, is_admin: !u.is_admin } : u));
     setTogglingId(null);
   };
 
