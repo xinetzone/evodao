@@ -1,7 +1,10 @@
-import { Cpu, Zap, CircleCheck, AlertCircle, Loader, Clock, LayoutGrid } from "lucide-react";
+import { Cpu, Zap, CircleCheck, AlertCircle, Loader, Clock, LayoutGrid, Shield, LogOut, ChevronDown } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { useNavigate } from "react-router-dom";
+import { useState, useRef, useEffect } from "react";
 import { AgentStatus, TokenUsage } from "@/hooks/useEvodaoAgent";
 import { LanguageSwitcher } from "./LanguageSwitcher";
+import { useAuthContext } from "@/context/AuthContext";
 import { cn } from "@/lib/utils";
 
 interface AgentHeaderProps {
@@ -16,6 +19,23 @@ interface AgentHeaderProps {
 
 export function AgentHeader({ status, currentGoal, historyCount, onHistoryOpen, sessionUsage, taskManagerRunning, onTaskManagerOpen }: AgentHeaderProps) {
   const { t } = useTranslation();
+  const navigate = useNavigate();
+  const { user, profile, isAdmin, signOut } = useAuthContext();
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  // Close menu on outside click
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setUserMenuOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  const emailInitial = (user?.email || "U")[0].toUpperCase();
 
   const statusIconMap: Record<AgentStatus, React.ReactNode> = {
     idle: <span className="w-2 h-2 rounded-full bg-muted-foreground" />,
@@ -120,6 +140,57 @@ export function AgentHeader({ status, currentGoal, historyCount, onHistoryOpen, 
           </button>
 
           <LanguageSwitcher />
+
+          {/* User menu */}
+          {user && (
+            <div className="relative" ref={menuRef}>
+              <button
+                onClick={() => setUserMenuOpen(!userMenuOpen)}
+                className="flex items-center gap-1.5 px-2 py-1 rounded border border-border bg-card hover:border-primary/40 transition-all duration-200"
+              >
+                <div className="w-5 h-5 rounded-full bg-primary/20 border border-primary/40 flex items-center justify-center text-[9px] font-bold text-primary">
+                  {emailInitial}
+                </div>
+                <span className="hidden sm:block text-[10px] text-muted-foreground max-w-[100px] truncate font-mono">
+                  {user.email}
+                </span>
+                <ChevronDown className={cn("w-3 h-3 text-muted-foreground/60 transition-transform duration-200", userMenuOpen && "rotate-180")} />
+              </button>
+
+              {/* Dropdown */}
+              {userMenuOpen && (
+                <div className="absolute right-0 top-full mt-1 w-48 rounded border border-border bg-card shadow-lg z-50 overflow-hidden animate-fade-in">
+                  <div className="px-3 py-2 border-b border-border/50">
+                    <p className="text-[9px] text-muted-foreground/50 tracking-widest">{t("auth.loggedInAs")}</p>
+                    <p className="text-[10px] text-foreground/70 font-mono truncate mt-0.5">{user.email}</p>
+                    {isAdmin && (
+                      <span className="inline-block text-[8px] font-bold tracking-widest text-primary border border-primary/30 px-1.5 py-0.5 rounded mt-1">
+                        ADMIN
+                      </span>
+                    )}
+                  </div>
+
+                  {isAdmin && (
+                    <button
+                      onClick={() => { setUserMenuOpen(false); navigate("/admin"); }}
+                      className="w-full flex items-center gap-2 px-3 py-2.5 text-xs text-muted-foreground hover:text-foreground hover:bg-primary/5 transition-colors"
+                    >
+                      <Shield className="w-3.5 h-3.5 text-primary/60" />
+                      {t("admin.title")}
+                    </button>
+                  )}
+
+                  <button
+                    onClick={() => { setUserMenuOpen(false); signOut(); }}
+                    className="w-full flex items-center gap-2 px-3 py-2.5 text-xs text-muted-foreground hover:text-destructive hover:bg-destructive/5 transition-colors"
+                  >
+                    <LogOut className="w-3.5 h-3.5" />
+                    {t("auth.logout")}
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
     </header>
