@@ -1,152 +1,161 @@
-# 非管理员用户配额限制方案
+# Token 管理方案（非管理员用户）
 
 ## Context
-非管理员用户需要受到使用次数限制。管理员在后台可为每位用户独立设定配额；达到上限时弹出 Modal 提示。管理员账号不受任何限制。
+在现有的运行次数配额基础上，为非管理员用户增加 **Token 消耗追踪与限制**：
+- 每次 LLM 调用结束后将实际 token 数持久化到数据库
+- 管理员可在配额后台设置每日/每月 token 上限
+- 超出 token 配额时复用现有 `QuotaExceededModal`
+
+同时修复已有隐患：`useAuth.ts` 的 `fetchProfile` 只查了 `id, email, is_admin, created_at`，导致现有的运行次数配额字段（`daily_run_limit` 等）从未真正生效——需要同步补齐。
 
 ---
 
-## 1. 数据库层
+## 1. 数据库 Migration（合并执行）
 
-### Migration
-
-**`profiles` 表新增配额字段：**
 ```sql
+-- profiles 新增 token 配额字段
 ALTER TABLE profiles
-  ADD COLUMN daily_run_limit integer,      -- 每日任务/构建/问答 上限，NULL=无限制
-  ADD COLUMN daily_image_limit integer,    -- 每日图像生成上限，NULL=无限制
-  ADD COLUMN monthly_run_limit integer;    -- 每月全模式总上限，NULL=无限制
-```
+  ADD COLUMN IF NOT EXISTS daily_token_limit integer,    -- NULL = 无限制
+  ADD COLUMN IF NOT EXISTS monthly_token_limit integer;  -- NULL = 无限制
 
-**新建 `usage_logs` 表（记录每次调用）：**
-```sql
-CREATE TABLE usage_logs (
-  id         uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id    uuid NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
-  output_mode text NOT NULL,         -- 'text'|'agent'|'qa'|'image'
-  created_at timestamptz DEFAULT now()
-);
-ALTER TABLE usage_logs ENABLE ROW LEVEL SECURITY;
-
--- 用户只能读写自己的日志
-CREATE POLICY "own_logs" ON usage_logs
-  USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
-
--- 管理员可读全部
-CREATE POLICY "admin_read_all" ON usage_logs
-  FOR SELECT USING (is_admin_user());
+-- usage_logs 新增 token 实际用量字段
+ALTER TABLE usage_logs
+  ADD COLUMN IF NOT EXISTS prompt_tokens integer NOT NULL DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS completion_tokens integer NOT NULL DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS total_tokens integer NOT NULL DEFAULT 0;
 ```
 
 ---
 
-## 2. 新增文件
+## 2. 修改文件
+
+### `src/hooks/useAuth.ts`
+**重要 bug 修复**：`fetchProfile` 补全所有配额字段查询，否则 quota 检查永远不会生效（profile 对象缺少字段 → 值为 undefined → 松散比较 `undefined != null` 为 false → 跳过检查）。
+
+```diff
+- .select("id, email, is_admin, created_at")
++ .select("id, email, is_admin, created_at, daily_run_limit, daily_image_limit, monthly_run_limit, daily_token_limit, monthly_token_limit")
+```
+
+同时更新 `Profile` interface 新增字段。
+
+---
 
 ### `src/hooks/useUsageQuota.ts`
-负责配额检查与使用记录。
 
-```typescript
-interface QuotaCheckResult {
-  allowed: boolean;
-  reason?: "daily_run" | "daily_image" | "monthly";
-  used: number;
-  limit: number;
-}
+1. **`QuotaCheckResult.reason`** 扩展新类型：`"daily_token" | "monthly_token"`
 
-// 核心函数
-async function checkQuota(outputMode: OutputMode): Promise<QuotaCheckResult>
-async function recordUsage(outputMode: OutputMode): Promise<void>
-```
+2. **`checkQuota`** 增加两项 token 检查（在现有次数检查之后）：
+   ```typescript
+   // 今日 token 上限（仅 LLM 模式，image 无 token 计量）
+   if (outputMode !== "image" && p.daily_token_limit != null) {
+     const { data } = await supabase.from("usage_logs")
+       .select("total_tokens").eq("user_id", uid).gte("created_at", todayStart);
+     const used = data?.reduce((s, r) => s + r.total_tokens, 0) ?? 0;
+     if (used >= p.daily_token_limit) return { allowed: false, reason: "daily_token", used, limit: p.daily_token_limit };
+   }
+   // 本月 token 上限
+   if (p.monthly_token_limit != null) { /* 同上，改 monthStart */ }
+   ```
 
-逻辑：
-1. **管理员直接放行**（profile.is_admin === true）
-2. 查 `usage_logs`：
-   - 今日非 image 次数 vs `daily_run_limit`（outputMode !== "image" 时检查）
-   - 今日 image 次数 vs `daily_image_limit`（outputMode === "image" 时检查）
-   - 本月全模式总次数 vs `monthly_run_limit`（任何 mode 都检查）
-3. 任一超限返回 `allowed: false` + reason
+3. **`recordUsage`** 改为 **返回 `logId: string | null`**（insert 后返回新行 id）：
+   ```typescript
+   const { data } = await supabase.from("usage_logs")
+     .insert({ user_id, output_mode }).select("id").single();
+   return data?.id ?? null;
+   ```
 
-### `src/components/quota/QuotaExceededModal.tsx`
-当配额超限时显示的提示 Modal。
-
-内容：
-- 标题：已达使用上限
-- 说明：今日/本月已用 N 次，上限为 M 次
-- 区分原因（daily_run / daily_image / monthly）
-- 提示联系管理员
-- 关闭按钮
+4. **新函数 `finalizeUsage(logId, tokens)`**：运行结束后更新 token 数：
+   ```typescript
+   await supabase.from("usage_logs").update({
+     prompt_tokens, completion_tokens, total_tokens
+   }).eq("id", logId);
+   ```
 
 ---
-
-## 3. 修改文件
 
 ### `src/pages/Index.tsx`
-在 `onRun` 回调中添加配额检查，run 成功后记录用量：
 
+1. 新增 state：`const [pendingLogId, setPendingLogId] = useState<string | null>(null)`
+
+2. `onRun` 中保存 logId：
+   ```typescript
+   const logId = await recordUsage(mode);
+   setPendingLogId(logId);
+   ```
+
+3. `handleComplete` 中写入 token（复用已有的 `sessionUsage`）：
+   ```typescript
+   if (pendingLogId && sessionUsage.totalTokens > 0) {
+     await finalizeUsage(pendingLogId, sessionUsage);
+     setPendingLogId(null);
+   }
+   ```
+   > `handleComplete` 需改为 `async` 函数或在 callback 内 fire-and-forget。
+
+---
+
+### `src/components/quota/QuotaExceededModal.tsx`
+新增两个 reason 的文案映射：
 ```typescript
-// onRun 前
-const result = await checkQuota(mode);
-if (!result.allowed) {
-  setQuotaExceeded(result);   // 触发 Modal
-  return;
-}
-
-// run 后（agent/image 均调用）
-await recordUsage(mode);
+"daily_token"   → t("quota.dailyTokenExceeded", { used, limit })
+"monthly_token" → t("quota.monthlyTokenExceeded", { used, limit })
 ```
+进度条单位改为 `K tokens`（除以 1000）。
 
-引入 `<QuotaExceededModal>` 组件。
+---
 
-### `src/pages/Admin.tsx`
-新增 **"配额管理"** Tab（第三个 Tab），包含：
+### `src/pages/Admin.tsx`（配额管理 Tab）
 
-- 复用现有 users 列表
-- 每行显示：邮箱 / 注册时间 / `daily_run_limit` / `daily_image_limit` / `monthly_run_limit`
-- 点击数字直接 inline 编辑，失焦保存
-- NULL 值显示为 `∞`（无限制）
-- 本月用量显示在配额旁（只读统计）
+1. `UserRow` interface 新增：`daily_token_limit`, `monthly_token_limit`
+2. `QuotaField` 类型扩展这两个字段
+3. 表头新增两列：**每日 Token** / **每月 Token**（与现有格子同样可 inline 编辑）
+4. `fetchMonthlyUsage` 改为同时汇总 token 总量：
+   ```typescript
+   const tokenCounts: Record<string, number> = {};
+   for (const row of data) {
+     tokenCounts[row.user_id] = (tokenCounts[row.user_id] ?? 0) + row.total_tokens;
+   }
+   setMonthlyTokenUsage(tokenCounts);
+   ```
+5. "本月已用" 列显示：`{runs} 次 / {tokens}K tokens`
 
-新增图标：`Gauge` from lucide-react
+---
 
-### `src/i18n/locales/zh.json` & `en.json`
-新增 `quota` 命名空间：
+### i18n（`zh.json` + `en.json`）
 
 ```json
-"quota": {
-  "exceeded": "已达使用上限",
-  "dailyRunExceeded": "今日执行次数（{{used}}/{{limit}}）已用完",
-  "dailyImageExceeded": "今日图像生成次数（{{used}}/{{limit}}）已用完",
-  "monthlyExceeded": "本月使用次数（{{used}}/{{limit}}）已用完",
-  "contactAdmin": "请联系管理员调整配额",
-  "close": "知道了",
-  "tab": "配额管理",
-  "dailyRun": "每日执行",
-  "dailyImage": "每日图像",
-  "monthly": "每月总量",
-  "unlimited": "∞",
-  "thisMonthUsed": "本月已用"
-}
+// quota 命名空间补充
+"dailyTokenExceeded": "今日 Token 用量（{{used}}/{{limit}}）已超限",
+"monthlyTokenExceeded": "本月 Token 用量（{{used}}/{{limit}}）已超限",
+
+// admin 命名空间补充
+"dailyToken": "每日Token",
+"monthlyToken": "每月Token",
+"totalTokensMonth": "本月Token"
 ```
 
 ---
 
-## 4. 关键文件路径
+## 3. 关键文件路径
 
 | 操作 | 文件 |
 |---|---|
-| 新建 | `supabase/migrations/migration_quota_*` |
-| 新建 | `src/hooks/useUsageQuota.ts` |
-| 新建 | `src/components/quota/QuotaExceededModal.tsx` |
+| 新建 Migration | `supabase/migrations/migration_token_*` |
+| 修改 | `src/hooks/useAuth.ts` |
+| 修改 | `src/hooks/useUsageQuota.ts` |
+| 修改 | `src/components/quota/QuotaExceededModal.tsx` |
 | 修改 | `src/pages/Index.tsx` |
 | 修改 | `src/pages/Admin.tsx` |
-| 修改 | `src/i18n/locales/zh.json` |
-| 修改 | `src/i18n/locales/en.json` |
+| 修改 | `src/i18n/locales/zh.json` + `en.json` |
 
 ---
 
-## 5. 验证
+## 4. 验证
 
-1. 以管理员设置某用户 `daily_run_limit = 1`
-2. 用该用户执行一次任务 → 成功
-3. 再次执行 → Modal 弹出，显示已用 1/1
-4. 管理员账号执行 → 直接通过，无 Modal
-5. 管理员后台配额 Tab → 能 inline 编辑数值并保存
-6. NULL 值（无限制）用户 → 永远不弹 Modal
+1. 管理员在配额后台设置某用户 `daily_token_limit = 1000`
+2. 用户运行一次较大任务（输出 > 1000 tokens）
+3. 再次运行 → Modal 显示 Token 超限
+4. 检查 `usage_logs` 表 → `total_tokens` 已写入
+5. 配额管理 Tab → "本月Token" 列显示正确累计值
+6. `daily_run_limit` 等旧配额字段也能正常生效（bug 修复验证）
