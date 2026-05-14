@@ -377,6 +377,7 @@
       "generic": "注册失败，请重试。"
     }
   },
+  "quota": {
     "exceeded": "已达使用上限",
     "dailyRunExceeded": "今日执行次数（{{used}}/{{limit}}）已用完",
     "dailyImageExceeded": "今日图像生成次数（{{used}}/{{limit}}）已用完",

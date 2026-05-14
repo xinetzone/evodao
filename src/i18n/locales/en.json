@@ -377,6 +377,7 @@
       "generic": "Registration failed. Please try again."
     }
   },
+  "quota": {
     "exceeded": "Usage Limit Reached",
     "dailyRunExceeded": "Daily run quota used up ({{used}}/{{limit}})",
     "dailyImageExceeded": "Daily image generation quota used up ({{used}}/{{limit}})",
