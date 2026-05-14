@@ -43,6 +43,7 @@ const Index = () => {
   const [suggestionsLoading, setSuggestionsLoading] = useState(false);
   const [suggestionsAI, setSuggestionsAI] = useState(false);
   const prevQACountRef = useRef(0);
+  const latestMemoryIdRef = useRef<string | null>(null);
   const {
     status,
     tasks,
@@ -166,6 +167,8 @@ const Index = () => {
       outputMode: entry.outputMode || "text",
       taskSummaries,
       evolutionRound: entry.evolutionRound ?? 0,
+    }).then((id) => {
+      latestMemoryIdRef.current = id;
     });
   }, [history, memory]);
 
@@ -178,6 +181,13 @@ const Index = () => {
     }
     prevStatusRef.current = status;
   }, [status, pendingLogId, sessionUsage, finalizeUsage]);
+
+  // Back-fill quality_score into long-term memory after QA evaluation (Agent 自我进化)
+  useEffect(() => {
+    if (reflection && latestMemoryIdRef.current) {
+      memory.updateMemoryScore(latestMemoryIdRef.current, reflection.qualityScore);
+    }
+  }, [reflection, memory]);
 
   return (
     <div className="w-full h-full flex flex-col bg-background overflow-hidden">
