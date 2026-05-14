@@ -5,6 +5,9 @@ settings:
   excludeLinksFromLockfile: false
 
 dependencies:
+  '@enter-pro/analytics-sdk':
+    specifier: ^0.0.10
+    version: 0.0.10
   '@hookform/resolvers':
     specifier: ^5.2.1
     version: 5.2.1(react-hook-form@7.62.0)
@@ -511,6 +514,15 @@ packages:
 
   /@date-fns/tz@1.4.1:
     resolution: {integrity: sha512-P5LUNhtbj6YfI3iJjw5EL9eUAG6OitD0W3fWQcpQjDRc/QIsL0tRNuO1PcDvPccWL1fSTXXdE1ds+l95DV/OFA==}
+    dev: false
+
+  /@enter-pro/analytics-sdk@0.0.10:
+    resolution: {integrity: sha512-QyvhrTUAscNovULDo+CosNwJ0SQS7so0rYRWiZcsGtLrKGVXXzbbI0zCnswWbsDpWT2ZLf/jZa+ke4L7PBEFjQ==}
+    peerDependencies:
+      web-vitals: ^4.2.4
+    peerDependenciesMeta:
+      web-vitals:
+        optional: true
     dev: false
 
   /@esbuild/aix-ppc64@0.25.12:
