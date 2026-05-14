@@ -1,50 +1,75 @@
-# Mobile UI Optimization Plan
+# Attachment Upload for GoalInput
 
 ## Context
-The app is a desktop-first AI agent interface. On mobile (≤375px), several areas overflow or are hard to use:
-1. **AgentHeader** – `px-6` too wide, right-side has 5+ buttons crammed together
-2. **GoalInput** – Top control row: 4 mode pills + model selector + intent button doesn't fit on one line on small screens (~480px+ needed)
-3. **Index.tsx** – main `px-6 py-8` not reduced for mobile
-4. **Footer** – `px-6` both sides, content may overflow
-5. **HistoryPanel** – Delete button uses `group-hover:opacity-0/100` — touch devices can't hover, delete is inaccessible
-6. **Resume banner** – action buttons may overflow on narrow screens
+User wants to attach files (images + documents) to the input dialog. All attachments are **injected as text context** into the Agent. Images are also passed as multimodal content (base64) to vision-capable models in QA mode.
 
-## Files to Change
-- `src/components/agent/AgentHeader.tsx`
-- `src/components/agent/GoalInput.tsx`
-- `src/components/agent/HistoryPanel.tsx`
-- `src/pages/Index.tsx`
+## Supported File Types
+| Type | Extension | Processing |
+|------|-----------|-----------|
+| Image | jpg/jpeg/png/gif/webp | Browser FileReader - base64 data URL; preview thumbnail |
+| Text doc | txt/md/json/csv | FileReader.readAsText - raw text content |
+| PDF | .pdf | pdfjs-dist (dynamic import) - extracted text |
 
-## Specific Changes
+Max size: 10 MB per file.
 
-### 1. AgentHeader.tsx
-- Padding: `px-6` → `px-3 sm:px-6`
-- Gap: `gap-3` → `gap-2 sm:gap-3`
-- Logo subtitle: `hidden xs:block` → `hidden sm:block` (already has `p` below `h1`, wrap in `hidden sm:block`)
-- Status badge: on xs show only icon, hide text — add `hidden xs:inline sm:inline` to text span
-- Token badge: already `hidden sm:flex`, keep as is
-- User email: already `hidden sm:block`, keep as is
+## Architecture: All Client-Side, No New Edge Function
 
-### 2. GoalInput.tsx
-- **Top control row**: Change from `flex items-center justify-between mb-3` to `flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-3`
-- **Controls sub-row** (mode pills + model selector): `flex items-center gap-2 flex-wrap sm:flex-nowrap`
-- Mode pill buttons: `px-2 py-0.5 sm:px-2.5 sm:py-1` (slightly smaller on mobile)
-- **Suggestion chips row**: on mobile, limit horizontal scrolling: `flex items-center gap-1.5 flex-wrap mb-3 min-h-[26px] overflow-x-auto`
-- Bottom toolbar: already `flex items-center justify-between`, just ensure buttons don't overflow — `flex-wrap gap-2`
-- Optimize + Reset + Run buttons: add `flex-wrap` to container
+Data flow:
+1. User clicks Paperclip icon - file picker opens
+2. Files processed client-side - Attachment[] state
+3. On Run - attachments passed to startAgent(goal, mode, model, attachments)
+4. useEvodaoAgent builds attachmentContext string from text/doc attachments + collects image data URLs
+5. For plan / execute modes: enrichedGoal = goal + "\n\n" + attachmentContext
+6. For chat (QA) mode: first user message uses multimodal content array with image_url items
+7. harness-agent edge function receives enriched goal/messages - supports imageDataUrls
 
-### 3. HistoryPanel.tsx
-- Delete button: change `opacity-0 group-hover:opacity-100` to `opacity-60 sm:opacity-0 sm:group-hover:opacity-100` so it's always visible on mobile/touch
+## Files to Create / Modify
 
-### 4. Index.tsx
-- Main content div: `px-6 py-8` → `px-4 sm:px-6 py-6 sm:py-8`
-- Footer: `px-6` → `px-4 sm:px-6`
-- Resume banner buttons: `flex-col sm:flex-row` gap for action buttons on xs
+### 1. NEW: src/hooks/useAttachments.ts
+- addFiles(files: File[]) - validates, processes each file asynchronously
+- Image: FileReader.readAsDataURL -> dataUrl; URL.createObjectURL -> previewUrl
+- Text (txt/md/json/csv): FileReader.readAsText -> textContent
+- PDF: dynamic import('pdfjs-dist') -> extract text pages -> textContent
+- removeAttachment(id: string)
+- clearAttachments()
+- PDF worker URL: https://unpkg.com/pdfjs-dist@4.4.168/build/pdf.worker.min.mjs
+- Max size: 10 MB; show error on file if exceeded
+
+### 2. MODIFIED: src/components/agent/GoalInput.tsx
+- Add Paperclip icon button in bottom toolbar (left side, next to char count)
+- Hidden <input type="file"> accepts image/*,.txt,.md,.csv,.json,.pdf
+- Attachment preview strip between suggestion chips and input box:
+  - Each chip: thumbnail (images) or FileText icon (documents) + filename + loading spinner/X
+  - Horizontal scroll when overflow
+- onRun signature: add attachments: Attachment[] 4th param
+- Disable run button while any attachment isLoading === true
+
+### 3. MODIFIED: src/pages/Index.tsx
+- GoalInput.onRun now receives attachments
+- Pass attachments to agent.startAgent(goal, mode, model, attachments)
+
+### 4. MODIFIED: src/hooks/useEvodaoAgent.ts
+- startAgent(goal, outputMode, model, attachments?: Attachment[]) new param
+- Build textContext from docs, enrichedGoal for plan+execute
+- For chat mode: build multimodal userContent when imageDataUrls present
+- Pass enrichedGoal to planTasks and executeTask
+
+### 5. MODIFIED: supabase/functions/harness-agent/index.ts
+- In chat mode: accept imageDataUrls?: string[] in request body
+- Build first user message with multimodal content array when images present
+
+## buildTextContext Helper
+Formats doc/text attachments into a context block prepended to the goal.
+Each attachment: "[附件: filename]\n{content.slice(0, 8000)}"
+Wrapped in "--- 附件内容 ---" / "--- 附件内容结束 ---"
+
+## Dependency to Add
+- pdfjs-dist@4.4.168 (dynamic import for lazy loading)
 
 ## Verification
-- Resize browser to 375px width — no horizontal scroll
-- Header: logo + status + user avatar visible, no overflow
-- GoalInput: mode pills stack below prompt label on xs, flow naturally
-- Suggestion chips wrap instead of overflow
-- History panel: delete button visible on mobile without hovering
-- Resume banner: buttons don't overflow
+1. Upload .txt -> text injected into agent context
+2. Upload PDF -> text extracted and injected
+3. Upload image -> thumbnail shown; QA mode AI can analyze it
+4. X button removes attachment
+5. Run disabled while file loading
+6. 10MB+ file shows per-attachment error
