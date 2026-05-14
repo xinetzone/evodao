@@ -1,18 +1,21 @@
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { Shield, Users, Brain, Trash2, ChevronLeft, Loader, RefreshCw, ToggleLeft, ToggleRight } from "lucide-react";
+import { Shield, Users, Brain, Trash2, ChevronLeft, Loader, RefreshCw, ToggleLeft, ToggleRight, Gauge } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuthContext } from "@/context/AuthContext";
 import { cn } from "@/lib/utils";
 
-type AdminTab = "users" | "memories";
+type AdminTab = "users" | "memories" | "quotas";
 
 interface UserRow {
   id: string;
   email: string | null;
   is_admin: boolean;
   created_at: string;
+  daily_run_limit: number | null;
+  daily_image_limit: number | null;
+  monthly_run_limit: number | null;
 }
 
 interface MemoryRow {
@@ -37,16 +40,42 @@ export default function Admin() {
   const [loadingMemories, setLoadingMemories] = useState(false);
   const [togglingId, setTogglingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [monthlyUsage, setMonthlyUsage] = useState<Record<string, number>>({});
+  type QuotaField = "daily_run_limit" | "daily_image_limit" | "monthly_run_limit";
+  const [editingQuota, setEditingQuota] = useState<{ userId: string; field: QuotaField; value: string } | null>(null);
 
   const fetchUsers = useCallback(async () => {
     setLoadingUsers(true);
     const { data } = await supabase
       .from("profiles")
-      .select("id, email, is_admin, created_at")
+      .select("id, email, is_admin, created_at, daily_run_limit, daily_image_limit, monthly_run_limit")
       .order("created_at", { ascending: false });
     setUsers((data as UserRow[]) || []);
     setLoadingUsers(false);
   }, []);
+
+  const fetchMonthlyUsage = useCallback(async () => {
+    const monthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data } = await (supabase as any)
+      .from("usage_logs")
+      .select("user_id")
+      .gte("created_at", monthStart);
+    if (data) {
+      const counts: Record<string, number> = {};
+      for (const row of data) { counts[row.user_id] = (counts[row.user_id] ?? 0) + 1; }
+      setMonthlyUsage(counts);
+    }
+  }, []);
+
+  const saveQuota = useCallback(async (userId: string, field: QuotaField, value: string) => {
+    const numVal = value.trim() === "" ? null : parseInt(value);
+    if (value.trim() !== "" && (isNaN(numVal as number) || (numVal as number) < 0)) return;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await (supabase as any).from("profiles").update({ [field]: numVal }).eq("id", userId);
+    setEditingQuota(null);
+    await fetchUsers();
+  }, [fetchUsers]);
 
   const fetchMemories = useCallback(async () => {
     setLoadingMemories(true);
@@ -61,6 +90,7 @@ export default function Admin() {
 
   useEffect(() => { fetchUsers(); }, [fetchUsers]);
   useEffect(() => { if (tab === "memories") fetchMemories(); }, [tab, fetchMemories]);
+  useEffect(() => { if (tab === "quotas") { fetchUsers(); fetchMonthlyUsage(); } }, [tab, fetchUsers, fetchMonthlyUsage]);
 
   const toggleAdmin = async (user: UserRow) => {
     if (user.id === profile?.id) return; // Can't demote yourself
@@ -136,6 +166,18 @@ export default function Admin() {
           >
             <Brain className="w-3.5 h-3.5" />
             {t("admin.memories")}
+          </button>
+          <button
+            onClick={() => setTab("quotas")}
+            className={cn(
+              "flex items-center gap-2 px-4 py-2 text-xs font-bold tracking-widest rounded transition-all duration-150",
+              tab === "quotas"
+                ? "bg-primary text-primary-foreground"
+                : "text-muted-foreground hover:text-foreground"
+            )}
+          >
+            <Gauge className="w-3.5 h-3.5" />
+            {t("admin.quotas")}
           </button>
         </div>
 
@@ -312,6 +354,106 @@ export default function Admin() {
                     </div>
                   </div>
                 ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Quotas Tab */}
+        {tab === "quotas" && (
+          <div>
+            <div className="flex items-center justify-between mb-4">
+              <p className="text-xs text-muted-foreground tracking-widest">
+                {t("admin.totalUsers", { count: users.length })}
+              </p>
+              <p className="text-[10px] text-muted-foreground/40 tracking-wider">{t("admin.setUnlimited")}</p>
+            </div>
+
+            {loadingUsers ? (
+              <div className="flex items-center justify-center py-16">
+                <Loader className="w-5 h-5 text-primary animate-spin" />
+              </div>
+            ) : users.length === 0 ? (
+              <p className="text-center text-muted-foreground/50 text-xs py-16 tracking-widest">
+                {t("admin.noQuotas")}
+              </p>
+            ) : (
+              <div className="rounded border border-border overflow-hidden">
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="border-b border-border bg-card/50">
+                      <th className="text-left px-4 py-3 text-[10px] tracking-widest text-muted-foreground font-semibold">
+                        {t("admin.email")}
+                      </th>
+                      <th className="text-center px-3 py-3 text-[10px] tracking-widest text-muted-foreground font-semibold">
+                        {t("admin.dailyRun")}
+                      </th>
+                      <th className="text-center px-3 py-3 text-[10px] tracking-widest text-muted-foreground font-semibold">
+                        {t("admin.dailyImage")}
+                      </th>
+                      <th className="text-center px-3 py-3 text-[10px] tracking-widest text-muted-foreground font-semibold">
+                        {t("admin.monthly")}
+                      </th>
+                      <th className="text-center px-3 py-3 text-[10px] tracking-widest text-muted-foreground font-semibold">
+                        {t("admin.thisMonthUsed")}
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {users.map((u, i) => (
+                      <tr
+                        key={u.id}
+                        className={cn(
+                          "border-b border-border/50 hover:bg-card/20 transition-colors",
+                          i === users.length - 1 && "border-b-0"
+                        )}
+                      >
+                        <td className="px-4 py-3 text-foreground/70 font-mono text-[10px]">
+                          {u.email || "—"}
+                          {u.is_admin && (
+                            <span className="ml-2 text-[8px] text-primary/60 border border-primary/20 px-1 rounded">ADMIN</span>
+                          )}
+                        </td>
+                        {(["daily_run_limit", "daily_image_limit", "monthly_run_limit"] as QuotaField[]).map((field) => (
+                          <td key={field} className="px-3 py-3 text-center">
+                            {editingQuota?.userId === u.id && editingQuota?.field === field ? (
+                              <input
+                                type="number"
+                                min="0"
+                                className="w-16 text-center text-[10px] font-mono bg-background border border-primary/40 rounded px-1 py-0.5 outline-none focus:border-primary"
+                                value={editingQuota.value}
+                                autoFocus
+                                onChange={(e) => setEditingQuota({ ...editingQuota, value: e.target.value })}
+                                onBlur={() => saveQuota(u.id, field, editingQuota.value)}
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter") saveQuota(u.id, field, editingQuota.value);
+                                  if (e.key === "Escape") setEditingQuota(null);
+                                }}
+                              />
+                            ) : (
+                              <button
+                                onClick={() => setEditingQuota({ userId: u.id, field, value: u[field]?.toString() ?? "" })}
+                                className={cn(
+                                  "text-[10px] font-mono px-2 py-0.5 rounded border transition-colors hover:border-primary/40 hover:text-primary",
+                                  u[field] == null
+                                    ? "text-muted-foreground/40 border-transparent"
+                                    : "text-foreground/70 border-border/50"
+                                )}
+                              >
+                                {u[field] == null ? t("admin.unlimited") : u[field]}
+                              </button>
+                            )}
+                          </td>
+                        ))}
+                        <td className="px-3 py-3 text-center">
+                          <span className="text-[10px] font-mono text-muted-foreground/60">
+                            {monthlyUsage[u.id] ?? 0}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             )}
           </div>

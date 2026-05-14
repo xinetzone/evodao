@@ -175,14 +175,38 @@
         "name": "Claude Opus 4.6",
         "desc": "强大推理与指令遵循"
       },
-      "deepseek/deepseek-v4-pro": { "name": "DeepSeek V4 Pro", "desc": "编码、数学与深度推理" },
-      "z-ai/glm-5.1": { "name": "GLM 5.1", "desc": "长程智能体任务" },
-      "z-ai/glm-5": { "name": "GLM 5", "desc": "复杂系统设计" },
-      "moonshotai/kimi-k2.6": { "name": "Kimi K2.6", "desc": "多模态与工具调用" },
-      "minimax/minimax-m2.7": { "name": "MiniMax M2.7", "desc": "编码与工作流" },
-      "openai/gpt-image-2": { "name": "GPT Image 2", "desc": "高质量文生图，创意图像生成" },
-      "google/gemini-3.1-flash-image-preview": { "name": "Nano Banana 2", "desc": "文生图与图生图，速度与质量均衡" },
-      "doubao/seedream-4.5": { "name": "Seedream 4.5", "desc": "高美感图像生成，支持中文提示词" }
+      "deepseek/deepseek-v4-pro": {
+        "name": "DeepSeek V4 Pro",
+        "desc": "编码、数学与深度推理"
+      },
+      "z-ai/glm-5.1": {
+        "name": "GLM 5.1",
+        "desc": "长程智能体任务"
+      },
+      "z-ai/glm-5": {
+        "name": "GLM 5",
+        "desc": "复杂系统设计"
+      },
+      "moonshotai/kimi-k2.6": {
+        "name": "Kimi K2.6",
+        "desc": "多模态与工具调用"
+      },
+      "minimax/minimax-m2.7": {
+        "name": "MiniMax M2.7",
+        "desc": "编码与工作流"
+      },
+      "openai/gpt-image-2": {
+        "name": "GPT Image 2",
+        "desc": "高质量文生图，创意图像生成"
+      },
+      "google/gemini-3.1-flash-image-preview": {
+        "name": "Nano Banana 2",
+        "desc": "文生图与图生图，速度与质量均衡"
+      },
+      "doubao/seedream-4.5": {
+        "name": "Seedream 4.5",
+        "desc": "高美感图像生成，支持中文提示词"
+      }
     }
   },
   "qaOutput": {
@@ -240,7 +264,15 @@
     "noUsers": "暂无用户数据",
     "noMemories": "暂无记忆记录",
     "totalUsers": "共 {{count}} 位用户",
-    "totalMemories": "共 {{count}} 条记忆记录"
+    "totalMemories": "共 {{count}} 条记忆记录",
+    "quotas": "配额管理",
+    "dailyRun": "每日执行",
+    "dailyImage": "每日图像",
+    "monthly": "每月总量",
+    "unlimited": "∞",
+    "thisMonthUsed": "本月已用",
+    "setUnlimited": "留空为无限制",
+    "noQuotas": "暂无配额数据"
   },
   "memory": {
     "label": "长期记忆",
@@ -283,12 +315,29 @@
     "standby": "代理待机",
     "standbyDesc": "在上方输入任何目标，代理将自动将其分解为可操作的子任务并并行执行。",
     "steps": [
-      { "label": "定义目标", "desc": "用自然语言描述任何目标或任务" },
-      { "label": "自动规划", "desc": "代理将目标分解为具体的子任务" },
-      { "label": "并行执行", "desc": "所有子任务同时并行执行，显示实时输出" }
+      {
+        "label": "定义目标",
+        "desc": "用自然语言描述任何目标或任务"
+      },
+      {
+        "label": "自动规划",
+        "desc": "代理将目标分解为具体的子任务"
+      },
+      {
+        "label": "并行执行",
+        "desc": "所有子任务同时并行执行，显示实时输出"
+      }
     ],
     "footer": "EVODAO © 2026",
     "protocolLLM": "openai_chat_completions",
     "protocolImage": "image_generation"
+  },
+  "quota": {
+    "exceeded": "已达使用上限",
+    "dailyRunExceeded": "今日执行次数（{{used}}/{{limit}}）已用完",
+    "dailyImageExceeded": "今日图像生成次数（{{used}}/{{limit}}）已用完",
+    "monthlyExceeded": "本月总使用次数（{{used}}/{{limit}}）已用完",
+    "contactAdmin": "请联系管理员调整您的配额",
+    "close": "知道了"
   }
 }

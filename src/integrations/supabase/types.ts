@@ -3142,23 +3142,60 @@ export type Database = {
       profiles: {
         Row: {
           created_at: string | null
+          daily_image_limit: number | null
+          daily_run_limit: number | null
           email: string | null
           id: string
           is_admin: boolean | null
+          monthly_run_limit: number | null
         }
         Insert: {
           created_at?: string | null
+          daily_image_limit?: number | null
+          daily_run_limit?: number | null
           email?: string | null
           id: string
           is_admin?: boolean | null
+          monthly_run_limit?: number | null
         }
         Update: {
           created_at?: string | null
+          daily_image_limit?: number | null
+          daily_run_limit?: number | null
           email?: string | null
           id?: string
           is_admin?: boolean | null
+          monthly_run_limit?: number | null
         }
         Relationships: []
+      }
+      usage_logs: {
+        Row: {
+          created_at: string | null
+          id: string
+          output_mode: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          output_mode: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          output_mode?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "usage_logs_user_id_fkey"
+            columns: ["user_id"]
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {

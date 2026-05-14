@@ -5,6 +5,7 @@ import { useAgentHistory } from "@/hooks/useAgentHistory";
 import { useTaskManager } from "@/hooks/useTaskManager";
 import { useAIImage } from "@/hooks/useAIImage";
 import { useMemory } from "@/hooks/useMemory";
+import { useUsageQuota, QuotaCheckResult } from "@/hooks/useUsageQuota";
 import { AgentHeader } from "@/components/agent/AgentHeader";
 import { GoalInput } from "@/components/agent/GoalInput";
 import { TaskList } from "@/components/agent/TaskList";
@@ -17,6 +18,7 @@ import { EvolutionPanel } from "@/components/agent/EvolutionPanel";
 import { QAOutput } from "@/components/agent/QAOutput";
 import { ImageOutput } from "@/components/agent/ImageOutput";
 import { MemoryContext } from "@/components/agent/MemoryContext";
+import { QuotaExceededModal } from "@/components/quota/QuotaExceededModal";
 import { AlertCircle, Trophy, RotateCcw, X } from "lucide-react";
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from "@/lib/config";
 
@@ -26,6 +28,8 @@ const Index = () => {
   const taskManager = useTaskManager();
   const aiImage = useAIImage();
   const memory = useMemory();
+  const { checkQuota, recordUsage } = useUsageQuota();
+  const [quotaExceeded, setQuotaExceeded] = useState<QuotaCheckResult | null>(null);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [taskManagerOpen, setTaskManagerOpen] = useState(false);
   const [activeModel, setActiveModel] = useState("GLM 5.1");
@@ -190,6 +194,15 @@ const Index = () => {
           <GoalInput
             status={status}
             onRun={async (goal, mode, model) => {
+              // Quota check — block non-admin users who exceed their limit
+              const quotaResult = await checkQuota(mode);
+              if (!quotaResult.allowed) {
+                setQuotaExceeded(quotaResult);
+                return;
+              }
+              // Record usage before running
+              await recordUsage(mode);
+
               setLastRunMode(mode);
               if (mode === "image") {
                 setActiveImageModelId(model);
@@ -440,6 +453,11 @@ const Index = () => {
         removeSession={taskManager.removeSession}
         clearCompleted={taskManager.clearCompleted}
         runningCount={taskManager.runningCount}
+      />
+
+      <QuotaExceededModal
+        result={quotaExceeded}
+        onClose={() => setQuotaExceeded(null)}
       />
     </div>
   );

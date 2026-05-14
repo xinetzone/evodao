@@ -175,14 +175,38 @@
         "name": "Claude Opus 4.6",
         "desc": "Powerful reasoning & instruction following"
       },
-      "deepseek/deepseek-v4-pro": { "name": "DeepSeek V4 Pro", "desc": "Coding, math & deep reasoning" },
-      "z-ai/glm-5.1": { "name": "GLM 5.1", "desc": "Long-horizon agent tasks" },
-      "z-ai/glm-5": { "name": "GLM 5", "desc": "Complex system design" },
-      "moonshotai/kimi-k2.6": { "name": "Kimi K2.6", "desc": "Multimodal & tool use" },
-      "minimax/minimax-m2.7": { "name": "MiniMax M2.7", "desc": "Coding & workflows" },
-      "openai/gpt-image-2": { "name": "GPT Image 2", "desc": "High-quality text-to-image generation" },
-      "google/gemini-3.1-flash-image-preview": { "name": "Nano Banana 2", "desc": "Text-to-image & image-to-image, balanced speed and quality" },
-      "doubao/seedream-4.5": { "name": "Seedream 4.5", "desc": "High-aesthetics image generation, supports Chinese prompts" }
+      "deepseek/deepseek-v4-pro": {
+        "name": "DeepSeek V4 Pro",
+        "desc": "Coding, math & deep reasoning"
+      },
+      "z-ai/glm-5.1": {
+        "name": "GLM 5.1",
+        "desc": "Long-horizon agent tasks"
+      },
+      "z-ai/glm-5": {
+        "name": "GLM 5",
+        "desc": "Complex system design"
+      },
+      "moonshotai/kimi-k2.6": {
+        "name": "Kimi K2.6",
+        "desc": "Multimodal & tool use"
+      },
+      "minimax/minimax-m2.7": {
+        "name": "MiniMax M2.7",
+        "desc": "Coding & workflows"
+      },
+      "openai/gpt-image-2": {
+        "name": "GPT Image 2",
+        "desc": "High-quality text-to-image generation"
+      },
+      "google/gemini-3.1-flash-image-preview": {
+        "name": "Nano Banana 2",
+        "desc": "Text-to-image & image-to-image, balanced speed and quality"
+      },
+      "doubao/seedream-4.5": {
+        "name": "Seedream 4.5",
+        "desc": "High-aesthetics image generation, supports Chinese prompts"
+      }
     }
   },
   "qaOutput": {
@@ -240,7 +264,15 @@
     "noUsers": "No users found",
     "noMemories": "No memory records found",
     "totalUsers": "{{count}} users total",
-    "totalMemories": "{{count}} memory records"
+    "totalMemories": "{{count}} memory records",
+    "quotas": "QUOTAS",
+    "dailyRun": "Daily Runs",
+    "dailyImage": "Daily Images",
+    "monthly": "Monthly Total",
+    "unlimited": "∞",
+    "thisMonthUsed": "This Month",
+    "setUnlimited": "Leave blank for unlimited",
+    "noQuotas": "No quota data"
   },
   "memory": {
     "label": "LONG-TERM MEMORY",
@@ -283,12 +315,29 @@
     "standby": "AGENT STANDBY",
     "standbyDesc": "Enter any goal or objective above. The agent will automatically decompose it into actionable sub-tasks and execute all of them in parallel.",
     "steps": [
-      { "label": "DEFINE GOAL", "desc": "Describe any objective or task in natural language" },
-      { "label": "AUTO PLAN",   "desc": "Agent decomposes your goal into concrete sub-tasks" },
-      { "label": "PARALLEL EXEC", "desc": "All sub-tasks execute in parallel with live output" }
+      {
+        "label": "DEFINE GOAL",
+        "desc": "Describe any objective or task in natural language"
+      },
+      {
+        "label": "AUTO PLAN",
+        "desc": "Agent decomposes your goal into concrete sub-tasks"
+      },
+      {
+        "label": "PARALLEL EXEC",
+        "desc": "All sub-tasks execute in parallel with live output"
+      }
     ],
     "footer": "EVODAO © 2026",
     "protocolLLM": "openai_chat_completions",
     "protocolImage": "image_generation"
+  },
+  "quota": {
+    "exceeded": "Usage Limit Reached",
+    "dailyRunExceeded": "Daily run quota used up ({{used}}/{{limit}})",
+    "dailyImageExceeded": "Daily image generation quota used up ({{used}}/{{limit}})",
+    "monthlyExceeded": "Monthly total quota used up ({{used}}/{{limit}})",
+    "contactAdmin": "Please contact an admin to adjust your quota.",
+    "close": "Got it"
   }
 }
