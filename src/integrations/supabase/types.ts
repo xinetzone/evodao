@@ -3109,6 +3109,48 @@ export type Database = {
   }
   public: {
     Tables: {
+      agent_history: {
+        Row: {
+          completed_at: number
+          created_at: string
+          evolution_round: number | null
+          extracted_files: Json | null
+          goal: string
+          id: string
+          output_mode: string | null
+          task_outputs: Json
+          task_statuses: Json
+          tasks: Json
+          user_id: string
+        }
+        Insert: {
+          completed_at: number
+          created_at?: string
+          evolution_round?: number | null
+          extracted_files?: Json | null
+          goal: string
+          id: string
+          output_mode?: string | null
+          task_outputs?: Json
+          task_statuses?: Json
+          tasks?: Json
+          user_id: string
+        }
+        Update: {
+          completed_at?: number
+          created_at?: string
+          evolution_round?: number | null
+          extracted_files?: Json | null
+          goal?: string
+          id?: string
+          output_mode?: string | null
+          task_outputs?: Json
+          task_statuses?: Json
+          tasks?: Json
+          user_id?: string
+        }
+        Relationships: []
+      }
       agent_memory: {
         Row: {
           created_at: string | null

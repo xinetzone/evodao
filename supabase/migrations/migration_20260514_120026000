@@ -1,0 +1,21 @@
+CREATE TABLE IF NOT EXISTS agent_history (
+  id              TEXT PRIMARY KEY,
+  user_id         UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  goal            TEXT NOT NULL,
+  tasks           JSONB NOT NULL DEFAULT '[]',
+  task_outputs    JSONB NOT NULL DEFAULT '{}',
+  task_statuses   JSONB NOT NULL DEFAULT '{}',
+  completed_at    BIGINT NOT NULL,
+  output_mode     TEXT DEFAULT 'text',
+  extracted_files JSONB DEFAULT '[]',
+  evolution_round INTEGER DEFAULT 0,
+  created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+ALTER TABLE agent_history ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "own_history" ON agent_history
+  FOR ALL USING (auth.uid() = user_id);
+
+CREATE INDEX IF NOT EXISTS agent_history_user_completed
+  ON agent_history (user_id, completed_at DESC);

@@ -456,6 +456,7 @@ const Index = () => {
         entries={history.entries}
         onRemove={history.removeEntry}
         onClear={history.clearHistory}
+        isLoading={history.isLoading}
       />
 
       <TaskManagerPanel

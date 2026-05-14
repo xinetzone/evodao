@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { X, Trash2, ArrowLeft, Clock, CheckCircle, AlertCircle, ChevronRight } from "lucide-react";
+import { X, Trash2, ArrowLeft, Clock, CheckCircle, AlertCircle, ChevronRight, Loader2 } from "lucide-react";
 import { HistoryEntry } from "@/hooks/useAgentHistory";
 import { ExportActions } from "./ExportActions";
 import { cn } from "@/lib/utils";
@@ -25,9 +25,10 @@ interface HistoryPanelProps {
   entries: HistoryEntry[];
   onRemove: (id: string) => void;
   onClear: () => void;
+  isLoading?: boolean;
 }
 
-export function HistoryPanel({ open, onClose, entries, onRemove, onClear }: HistoryPanelProps) {
+export function HistoryPanel({ open, onClose, entries, onRemove, onClear, isLoading }: HistoryPanelProps) {
   const { t, i18n } = useTranslation();
   const lang = i18n.language;
 
@@ -136,10 +137,19 @@ export function HistoryPanel({ open, onClose, entries, onRemove, onClear }: Hist
             /* ── List view ── */
             entries.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-full gap-3 text-center px-8">
-                <div className="w-12 h-12 rounded-full border border-border flex items-center justify-center">
-                  <Clock className="w-5 h-5 text-muted-foreground" />
-                </div>
-                <p className="text-xs text-muted-foreground">{t("history.empty")}</p>
+                {isLoading ? (
+                  <>
+                    <Loader2 className="w-5 h-5 text-primary animate-spin" />
+                    <p className="text-xs text-muted-foreground">Loading history…</p>
+                  </>
+                ) : (
+                  <>
+                    <div className="w-12 h-12 rounded-full border border-border flex items-center justify-center">
+                      <Clock className="w-5 h-5 text-muted-foreground" />
+                    </div>
+                    <p className="text-xs text-muted-foreground">{t("history.empty")}</p>
+                  </>
+                )}
               </div>
             ) : (
               <ul className="divide-y divide-border">
