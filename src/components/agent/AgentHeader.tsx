@@ -146,47 +146,75 @@ export function AgentHeader({ status, currentGoal, historyCount, onHistoryOpen, 
             <div className="relative" ref={menuRef}>
               <button
                 onClick={() => setUserMenuOpen(!userMenuOpen)}
-                className="flex items-center gap-1.5 px-2 py-1 rounded border border-border bg-card hover:border-primary/40 transition-all duration-200"
+                className={cn(
+                  "flex items-center gap-1.5 pl-1.5 pr-2.5 py-1 rounded border transition-all duration-200",
+                  isAdmin
+                    ? "border-primary/40 bg-primary/5 hover:border-primary/70 hover:bg-primary/10 terminal-glow"
+                    : "border-border bg-card hover:border-primary/40"
+                )}
               >
-                <div className="w-5 h-5 rounded-full bg-primary/20 border border-primary/40 flex items-center justify-center text-[9px] font-bold text-primary">
+                <div className={cn(
+                  "w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0",
+                  isAdmin
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-primary/20 border border-primary/40 text-primary"
+                )}>
                   {emailInitial}
                 </div>
-                <span className="hidden sm:block text-[10px] text-muted-foreground max-w-[100px] truncate font-mono">
+                <span className="hidden sm:block text-[10px] text-muted-foreground max-w-[90px] truncate font-mono">
                   {user.email}
                 </span>
-                <ChevronDown className={cn("w-3 h-3 text-muted-foreground/60 transition-transform duration-200", userMenuOpen && "rotate-180")} />
+                <ChevronDown className={cn("w-3 h-3 text-muted-foreground/60 transition-transform duration-200 shrink-0", userMenuOpen && "rotate-180")} />
               </button>
 
               {/* Dropdown */}
               {userMenuOpen && (
-                <div className="absolute right-0 top-full mt-1 w-48 rounded border border-border bg-card shadow-lg z-50 overflow-hidden animate-fade-in">
-                  <div className="px-3 py-2 border-b border-border/50">
-                    <p className="text-[9px] text-muted-foreground/50 tracking-widest">{t("auth.loggedInAs")}</p>
-                    <p className="text-[10px] text-foreground/70 font-mono truncate mt-0.5">{user.email}</p>
-                    {isAdmin && (
-                      <span className="inline-block text-[8px] font-bold tracking-widest text-primary border border-primary/30 px-1.5 py-0.5 rounded mt-1">
-                        ADMIN
-                      </span>
-                    )}
+                <div className="absolute right-0 top-full mt-1.5 w-60 rounded border border-border/80 bg-card shadow-xl z-50 overflow-hidden animate-fade-in">
+                  {/* Profile header */}
+                  <div className="px-4 py-3 border-b border-border/50 bg-muted/20">
+                    <div className="flex items-center gap-2.5">
+                      <div className={cn(
+                        "w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold shrink-0",
+                        isAdmin ? "bg-primary text-primary-foreground" : "bg-primary/20 border border-primary/40 text-primary"
+                      )}>
+                        {emailInitial}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-[11px] text-foreground/80 font-medium truncate">{user.email}</p>
+                        {isAdmin ? (
+                          <span className="inline-flex items-center gap-1 text-[9px] font-bold tracking-widest text-primary-foreground bg-primary px-1.5 py-0.5 rounded mt-0.5">
+                            <Shield className="w-2.5 h-2.5" />
+                            ADMIN
+                          </span>
+                        ) : (
+                          <p className="text-[9px] text-muted-foreground/50 tracking-widest mt-0.5">USER</p>
+                        )}
+                      </div>
+                    </div>
                   </div>
 
-                  {isAdmin && (
-                    <button
-                      onClick={() => { setUserMenuOpen(false); navigate("/admin"); }}
-                      className="w-full flex items-center gap-2 px-3 py-2.5 text-xs text-muted-foreground hover:text-foreground hover:bg-primary/5 transition-colors"
-                    >
-                      <Shield className="w-3.5 h-3.5 text-primary/60" />
-                      {t("admin.title")}
-                    </button>
-                  )}
+                  {/* Menu items */}
+                  <div className="py-1">
+                    {isAdmin && (
+                      <button
+                        onClick={() => { setUserMenuOpen(false); navigate("/admin"); }}
+                        className="w-full flex items-center gap-3 px-4 py-2.5 text-xs text-muted-foreground hover:text-primary hover:bg-primary/5 transition-colors group"
+                      >
+                        <Shield className="w-3.5 h-3.5 text-primary/50 group-hover:text-primary transition-colors" />
+                        <span className="tracking-wider">{t("admin.title")}</span>
+                      </button>
+                    )}
 
-                  <button
-                    onClick={() => { setUserMenuOpen(false); signOut(); }}
-                    className="w-full flex items-center gap-2 px-3 py-2.5 text-xs text-muted-foreground hover:text-destructive hover:bg-destructive/5 transition-colors"
-                  >
-                    <LogOut className="w-3.5 h-3.5" />
-                    {t("auth.logout")}
-                  </button>
+                    <div className="mx-3 border-t border-border/30 my-1" />
+
+                    <button
+                      onClick={() => { setUserMenuOpen(false); signOut(); }}
+                      className="w-full flex items-center gap-3 px-4 py-2.5 text-xs text-muted-foreground hover:text-destructive hover:bg-destructive/5 transition-colors group"
+                    >
+                      <LogOut className="w-3.5 h-3.5 group-hover:text-destructive transition-colors" />
+                      <span className="tracking-wider">{t("auth.logout")}</span>
+                    </button>
+                  </div>
                 </div>
               )}
             </div>

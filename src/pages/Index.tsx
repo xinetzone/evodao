@@ -360,34 +360,42 @@ const Index = () => {
 
           {/* Idle hero — hide when QA mode has messages */}
           {status === "idle" && !(outputMode === "qa" && qaMessages.length > 0) && (
-            <div className="animate-fade-in text-center py-16">
-              <div className="relative inline-block mb-6">
-                <div className="w-16 h-16 rounded-full border border-primary/30 flex items-center justify-center mx-auto terminal-glow">
-                  <div className="w-10 h-10 rounded-full border border-primary/60 flex items-center justify-center">
-                    <div className="w-3 h-3 rounded-full bg-primary animate-pulse" />
+            <div className="animate-fade-in flex flex-col items-center justify-center min-h-[320px] py-10 px-4">
+              {/* Animated rings */}
+              <div className="relative mb-8">
+                <div className="w-20 h-20 rounded-full border border-primary/10 flex items-center justify-center mx-auto">
+                  <div className="w-14 h-14 rounded-full border border-primary/25 flex items-center justify-center">
+                    <div className="w-9 h-9 rounded-full border border-primary/50 flex items-center justify-center terminal-glow">
+                      <div className="w-3 h-3 rounded-full bg-primary animate-pulse" />
+                    </div>
                   </div>
                 </div>
+                {/* Orbiting dot */}
+                <div className="absolute inset-0 animate-spin" style={{ animationDuration: "8s" }}>
+                  <div className="w-2 h-2 rounded-full bg-primary/40 absolute -top-1 left-1/2 -translate-x-1/2" />
+                </div>
               </div>
-              <h2 className="text-lg font-bold text-foreground/80 tracking-widest mb-2">
+
+              <h2 className="text-base font-bold text-foreground/70 tracking-[0.25em] mb-2">
                 {t("index.standby")}
               </h2>
-              <p className="text-sm text-muted-foreground max-w-md mx-auto leading-relaxed">
+              <p className="text-xs text-muted-foreground/60 max-w-sm mx-auto leading-relaxed text-center mb-8">
                 {t("index.standbyDesc")}
               </p>
 
-              <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-4 max-w-2xl mx-auto text-left">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 w-full max-w-2xl text-left">
                 {steps.map((item, i) => (
                   <div
                     key={i}
-                    className="rounded border border-border bg-card/50 p-3 hover:border-primary/30 transition-colors"
+                    className="rounded border border-border/50 bg-card/30 p-3.5 hover:border-primary/30 hover:bg-card/60 transition-all duration-200"
                   >
-                    <div className="text-[10px] text-primary/60 tracking-widest font-bold mb-1">
+                    <div className="text-[9px] text-primary/50 tracking-widest font-bold mb-1.5 font-mono">
                       STEP {String(i + 1).padStart(2, "0")}
                     </div>
-                    <div className="text-xs font-semibold text-foreground/80 tracking-wider mb-1">
+                    <div className="text-xs font-semibold text-foreground/70 tracking-wider mb-1">
                       {item.label}
                     </div>
-                    <div className="text-[11px] text-muted-foreground leading-relaxed">
+                    <div className="text-[10px] text-muted-foreground/60 leading-relaxed">
                       {item.desc}
                     </div>
                   </div>
