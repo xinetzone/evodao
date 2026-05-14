@@ -623,6 +623,23 @@ export function useEvodaoAgent() {
 
             async onopen(response) {
               if (!response.ok) {
+                const contentType = response.headers.get("content-type");
+                if (contentType?.includes("text/event-stream")) {
+                  const text = await response.text();
+                  const dataMatch = text.match(/data: (.+)/);
+                  if (dataMatch) {
+                    try {
+                      const errorData = JSON.parse(dataMatch[1]);
+                      const msg = errorData.error?.message;
+                      if (msg) {
+                        settle(() => reject(new Error(msg)));
+                        throw new Error(msg);
+                      }
+                    } catch (e) {
+                      if (e instanceof Error && !e.message.includes("Unexpected token")) throw e;
+                    }
+                  }
+                }
                 const err = new Error(`Request failed: ${response.status}`);
                 settle(() => reject(err));
                 throw err;

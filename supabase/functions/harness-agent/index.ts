@@ -16,11 +16,6 @@ function isClaudeModel(model: string): boolean {
   return model.startsWith("anthropic/");
 }
 
-// Claude Opus 4.x models require extended thinking (budget_tokens must be set)
-function isOpus4Model(model: string): boolean {
-  return model.includes("claude-opus-4");
-}
-
 interface EvolutionContext {
   round: number;
   qualityScore: number;
@@ -104,12 +99,9 @@ Rules:
 
 /**
  * Translates Anthropic SSE stream to OpenAI-compatible SSE format.
- * The frontend expects OpenAI format (choices[0].delta.content etc.),
- * so we normalise here and keep the frontend parser unchanged.
  */
 function translateAnthropicToOpenAI(anthropicStream: ReadableStream<Uint8Array>): ReadableStream<Uint8Array> {
   const encoder = new TextEncoder();
-  // Shared decoder preserves state for multi-byte UTF-8 sequences split across chunks
   const decoder = new TextDecoder();
   let buffer = "";
   let doneEmitted = false;
@@ -137,7 +129,6 @@ function translateAnthropicToOpenAI(anthropicStream: ReadableStream<Uint8Array>)
         const oaiChunk = { choices: [{ delta: { content: delta.text }, finish_reason: null }] };
         controller.enqueue(encoder.encode(`data: ${JSON.stringify(oaiChunk)}\n\n`));
       }
-      // thinking_delta is silently skipped — thinking content is internal reasoning
     } else if (eventType === "message_stop") {
       emitDone(controller);
     } else if (eventType === "message_delta") {
@@ -157,7 +148,6 @@ function translateAnthropicToOpenAI(anthropicStream: ReadableStream<Uint8Array>)
       const errChunk = { error: { message: err?.message ?? "Claude error", type: err?.type ?? "api_error" } };
       controller.enqueue(encoder.encode(`data: ${JSON.stringify(errChunk)}\n\n`));
     }
-    // Silently skip: message_start, content_block_start, content_block_stop, ping
   }
 
   const transform = new TransformStream<Uint8Array, Uint8Array>({
@@ -168,33 +158,21 @@ function translateAnthropicToOpenAI(anthropicStream: ReadableStream<Uint8Array>)
       for (const line of lines) processLine(line, controller);
     },
     flush(controller) {
-      // Flush any remaining bytes in the TextDecoder
       const tail = decoder.decode();
       if (tail) buffer += tail;
-
-      // Process any remaining buffered lines
       if (buffer.trim()) {
         for (const line of buffer.split("\n")) processLine(line, controller);
       }
-
-      // Safety net: if Anthropic never sent message_stop (e.g. error/truncation),
-      // always emit [DONE] so the client SSE parser doesn't hang waiting.
       emitDone(controller);
     }
   });
 
-  // Pipe async; errors are propagated to transform.readable automatically
-  anthropicStream.pipeTo(transform.writable).catch(() => {
-    // pipeTo errors close transform.writable, which triggers flush and closes
-    // transform.readable — the client will see stream end and onclose fires.
-  });
+  anthropicStream.pipeTo(transform.writable).catch(() => {});
   return transform.readable;
 }
 
 /**
  * Non-streaming call — returns the assistant text content.
- * Handles both OpenAI (choices[0].message.content) and
- * Anthropic (content[].text) response shapes.
  */
 async function callLLMNonStream(
   token: string,
@@ -203,29 +181,23 @@ async function callLLMNonStream(
   userContent: string,
 ): Promise<string> {
   if (isClaudeModel(model)) {
-    const opus4 = isOpus4Model(model);
-    const requestBody: Record<string, unknown> = {
-      model,
-      system: systemPrompt,
-      messages: [{ role: "user", content: userContent }],
-      stream: false,
-      max_tokens: opus4 ? 16000 : 8192,
-    };
-    // Opus 4.x requires extended thinking; budget_tokens must be < max_tokens
-    if (opus4) {
-      requestBody.thinking = { type: "enabled", budget_tokens: 8000 };
-    }
     const res = await fetch(API_BASE_MESSAGES, {
       method: "POST",
       headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-      body: JSON.stringify(requestBody),
+      body: JSON.stringify({
+        model,
+        system: systemPrompt,
+        messages: [{ role: "user", content: userContent }],
+        stream: false,
+        max_tokens: 8192,
+      }),
     });
     if (!res.ok) {
       const txt = await res.text();
       throw new Error(`Planning LLM error (Claude): ${txt}`);
     }
     const data = await res.json();
-    // Anthropic: { content: [{type:"thinking",...},{type:"text",text:"..."}] }
+    // Anthropic non-stream: { content: [{type:"text",text:"..."}] }
     const block = (data.content as Array<{ type: string; text?: string }>)
       ?.find((b) => b.type === "text");
     return block?.text ?? "[]";
@@ -253,7 +225,6 @@ async function callLLMNonStream(
 
 /**
  * Streaming call — returns { response, isAnthropic }.
- * Caller is responsible for translating the stream if isAnthropic === true.
  */
 async function callLLMStream(
   token: string,
@@ -262,22 +233,16 @@ async function callLLMStream(
   userMessages: Array<{ role: string; content: unknown }>,
 ): Promise<{ response: Response; isAnthropic: boolean }> {
   if (isClaudeModel(model)) {
-    const opus4 = isOpus4Model(model);
-    const requestBody: Record<string, unknown> = {
-      model,
-      system: systemPrompt,
-      messages: userMessages.filter((m) => m.role !== "system"),
-      stream: true,
-      max_tokens: opus4 ? 16000 : 8192,
-    };
-    // Opus 4.x requires extended thinking; budget_tokens must be < max_tokens
-    if (opus4) {
-      requestBody.thinking = { type: "enabled", budget_tokens: 8000 };
-    }
     const res = await fetch(API_BASE_MESSAGES, {
       method: "POST",
       headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-      body: JSON.stringify(requestBody),
+      body: JSON.stringify({
+        model,
+        system: systemPrompt,
+        messages: userMessages.filter((m) => m.role !== "system"),
+        stream: true,
+        max_tokens: 8192,
+      }),
     });
     return { response: res, isAnthropic: true };
   } else {
@@ -321,11 +286,9 @@ Deno.serve(async (req) => {
       messages,
       outputMode = "text",
       evolutionContext,
-      // model param — caller supplies the selected model; defaults to GLM 5.1
       model: requestedModel,
     } = body;
 
-    // Resolved model for primary (plan / execute / chat) calls
     const primaryModel: string = requestedModel || "z-ai/glm-5.1";
 
     // ── INTENT DETECTION ─────────────────────────────────────────────────────
@@ -370,9 +333,7 @@ Return ONLY valid JSON, no markdown fences:
     // ── SUGGEST ───────────────────────────────────────────────────────────────
     } else if (mode === "suggest") {
       const { taskSummary, lastQA } = body;
-
       const modeLabel = outputMode === "agent" ? "software agent build" : outputMode === "qa" ? "Q&A exploration" : "autonomous task execution";
-
       let contextInfo = `Goal: ${goal}\nMode: ${modeLabel}`;
       if (taskSummary) contextInfo += `\n\nCompleted work summary:\n${taskSummary}`;
       if (lastQA) contextInfo += `\n\nLast Q&A exchange:\n${lastQA}`;
@@ -547,7 +508,19 @@ Return ONLY the summary as a plain string.`;
 
       if (!response.ok) {
         const text = await response.text();
-        throw new Error(`Chat LLM error: ${text}`);
+        let errorMessage = "AI service error";
+        const dataMatch = text.match(/data: (.+)/);
+        if (dataMatch) {
+          try {
+            const errorData = JSON.parse(dataMatch[1]);
+            errorMessage = errorData.error?.message || errorMessage;
+          } catch { /* keep default */ }
+        }
+        const errorSSE = `event: error\ndata: ${JSON.stringify({ error: { message: errorMessage, type: "api_error" } })}\n\n`;
+        return new Response(errorSSE, {
+          status: response.status,
+          headers: { ...corsHeaders, "Content-Type": "text/event-stream", "Cache-Control": "no-cache" },
+        });
       }
 
       const responseBody = isAnthropic
