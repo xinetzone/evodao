@@ -1,117 +1,91 @@
-# 全面复盘：逻辑一致性修复 + 所有模型可用
+# 修复模型下拉显示 / 无法选中 Gemini 问题
 
-## 问题清单
+## 根因
 
-经过全代码审查，发现 4 个逻辑不一致问题：
-
----
-
-### Bug 1 (严重) — `applyEvolution` 丢失用户选择的模型
-**位置**: `src/hooks/useEvodaoAgent.ts` → `applyEvolution`
-
-用户选了 Claude Opus，执行完毕后点「进化」，点「应用进化」时调用：
-```typescript
-await runAgent(r.evolvedGoal, outputModeRef.current, onComplete, evolutionCtx);
-// 没传 model！
+`src/i18n/index.ts` 使用 i18next 默认 keySeparator = `.`。  
+模型 ID 含 `.`（如 `gemini-3.1-pro-preview`），导致 `t("modelSelector.models.google/gemini-3.1-pro-preview.name")` 被拆成：
 ```
-→ 进化轮次永远退回 GLM 5.1 (UTILITY_MODEL)，完全忽略用户选择。
+["modelSelector", "models", "google/gemini-3", "1-pro-preview", "name"]
+```
+查不到 → 返回 defaultValue（原始 slug）→ 触发按钮显示混乱，用户以为"选不了"。
 
-**修复**: 在 `runAgent` 里把 model 写入 `currentModelRef`，`applyEvolution` 里用 `currentModelRef.current` 传给 `runAgent`。同时暴露 `currentModel` state 供 UI 使用。
+受影响的模型（含 `.` 的 ID）：除 `deepseek/deepseek-v4-pro` 外全部都有此问题。
 
----
+## 修复方案
 
-### Bug 2 (中) — QA 模式 `finalizeUsage` 永远不触发
-**位置**: `src/pages/Index.tsx` 的 `useEffect` 监听 `status === "done"`
-
-QA 执行完后 status 变化链：`idle → executing → idle`，从不经过 "done"。
-→ QA 的 `usage_logs` 行只有初始记录，token 数永远为 0。
-
-**修复**: 在 finalize useEffect 里增加 QA 条件：
-`prevStatus === "executing" && status === "idle" && outputMode === "qa"`
+将模型展示名 / 描述直接存入 `src/lib/models.ts`，完全绕开 i18n key 解析。
 
 ---
 
-### Bug 3 (轻) — 页脚模型名显示不一致
-**位置**: `src/pages/Index.tsx` 中的 `setActiveModel` 调用
+## 具体改动
 
-- 图像模式: `t(`modelSelector.models.${model}.name`)` → 用 i18n 名称 ✓  
-- LLM 模式: `model.split("/")[1]` → 原始 slug (如 "glm-5.1", "gpt-5.4")  
-  进化执行后 `activeModel` 完全不更新
+### 1. `src/lib/models.ts`
+新增两个 display record：
 
-**修复**: 移除 `activeModel` 本地 state，改为从 `currentModel` + i18n 派生显示名称。
+```typescript
+export const MODEL_DISPLAY: Record<ModelId, { name: string; desc: string; descZh: string }> = {
+  "anthropic/claude-opus-4.7":       { name: "Claude Opus 4.7",   desc: "Most capable Claude model",              descZh: "最强 Claude 模型" },
+  "anthropic/claude-sonnet-4.5":     { name: "Claude Sonnet 4.5", desc: "Balanced performance & speed",            descZh: "均衡性能与速度" },
+  "openai/gpt-5.4":                  { name: "GPT-5.4",           desc: "OpenAI latest GPT model",                 descZh: "OpenAI 最新 GPT 模型" },
+  "deepseek/deepseek-v4-pro":        { name: "DeepSeek V4 Pro",   desc: "Coding, math & deep reasoning",           descZh: "编码、数学与深度推理" },
+  "google/gemini-3.1-pro-preview":   { name: "Gemini 3.1 Pro",    desc: "Google's frontier reasoning model",       descZh: "Google 前沿推理模型" },
+  "moonshotai/kimi-k2.6":            { name: "Kimi K2.6",         desc: "Moonshot AI creative model",              descZh: "Moonshot 创意模型" },
+  "z-ai/glm-5.1":                    { name: "GLM 5.1",           desc: "ZhipuAI fast & cost-effective",           descZh: "智谱 AI 快速低成本" },
+  "minimax/minimax-m2.7":            { name: "MiniMax M2.7",      desc: "MiniMax general purpose",                 descZh: "MiniMax 通用模型" },
+  "alibaba/qwen-3.6-plus":           { name: "Qwen 3.6 Plus",     desc: "Alibaba advanced language model",         descZh: "阿里巴巴高级语言模型" },
+};
 
----
+export const IMAGE_MODEL_DISPLAY: Record<ImageModelId, { name: string; desc: string; descZh: string }> = {
+  "openai/gpt-image-2":                    { name: "GPT Image 2",       desc: "DALL-E based image generation",   descZh: "DALL-E 图像生成" },
+  "google/gemini-3.1-flash-image-preview": { name: "Gemini Flash Image", desc: "Balanced speed and quality",      descZh: "速度与质量均衡" },
+  "doubao/seedream-4.5":                   { name: "Seedream 4.5",      desc: "ByteDance creative image model",  descZh: "字节跳动创意图像" },
+};
+```
 
-### Bug 4 (轻) — 图像模型翻译名称错误
-**位置**: `src/i18n/locales/en.json` 和 `zh.json`
-
-`google/gemini-3.1-flash-image-preview` 的 name 是 "Nano Banana 2"（占位符/残留错误）。  
-
-**修复**: 改为 "Gemini Flash Image" / "Gemini Flash 图像"。
-
----
-
-## 修改文件
-
-### 1. `src/hooks/useEvodaoAgent.ts`
-
-**变更**:
-- 导入 `getAutoModel` from `@/lib/models`
-- 新增 `const [currentModel, setCurrentModel] = useState<string>(UTILITY_MODEL)`
-- 新增 `const currentModelRef = useRef<string>(UTILITY_MODEL)` + 同步 useEffect
-- `runAgent` 函数开头：设置 `currentModelRef.current` 和 `setCurrentModel`
-- `applyEvolution`：改为 `await runAgent(..., currentModelRef.current)`
-- 暴露 `currentModel` 在 return 对象里
-
-### 2. `src/pages/Index.tsx`
-
-**变更**:
-- 从 `useEvodaoAgent` 解构中增加 `currentModel`
-- 删除 `const [activeModel, setActiveModel] = useState("GLM 5.1")`
-- 删除 `const [activeImageModelId, ...]` 中对应的 `setActiveModel(...)` 调用（两处 setActiveModel 调用）
-- 删除 `activeImageModelId` 的 setActiveModel 调用 → 只保留 `setActiveImageModelId`
-- 新增计算：
+### 2. `src/components/agent/ModelSelector.tsx`
+- 导入 `MODEL_DISPLAY`
+- 导入 `{ i18n }` from `react-i18next`（用 `i18n.language` 判断语言）
+- 替换 `modelName()` 和 `modelDesc()` 函数：
   ```typescript
-  const activeModelDisplay = lastRunMode === "image"
-    ? t(`modelSelector.models.${activeImageModelId}.name`, { defaultValue: activeImageModelId.split("/")[1] })
-    : t(`modelSelector.models.${currentModel}.name`, { defaultValue: currentModel.split("/")[1] });
+  const { i18n } = useTranslation();
+  const modelName = (id: ModelId) => MODEL_DISPLAY[id]?.name ?? id.split("/")[1];
+  const modelDesc = (id: ModelId) =>
+    i18n.language === "zh" ? (MODEL_DISPLAY[id]?.descZh ?? "") : (MODEL_DISPLAY[id]?.desc ?? "");
   ```
-- JSX 里把所有 `{activeModel}` 改为 `{activeModelDisplay}`
-- 修复 QA finalize useEffect，增加 QA 完成判断
 
-### 3. `src/i18n/locales/en.json`
-- `google/gemini-3.1-flash-image-preview` name: `"Nano Banana 2"` → `"Gemini Flash Image"`
+### 3. `src/components/agent/GoalInput.tsx`
+- 导入 `IMAGE_MODEL_DISPLAY`
+- 替换图像模型名显示（2处 `t(`modelSelector.models.${imageModel}.name`)` 和 `t(`modelSelector.models.${m}.name`)`）：
+  ```typescript
+  IMAGE_MODEL_DISPLAY[imageModel]?.name ?? imageModel.split("/")[1]
+  IMAGE_MODEL_DISPLAY[m]?.name ?? m.split("/")[1]
+  ```
 
-### 4. `src/i18n/locales/zh.json`
-- `google/gemini-3.1-flash-image-preview` name: `"Nano Banana 2"` → `"Gemini Flash 图像"`
+### 4. `src/pages/Index.tsx`
+- 导入 `MODEL_DISPLAY, IMAGE_MODEL_DISPLAY`
+- 替换页脚 `t(`modelSelector.models.${modelId}.name`)` 调用：
+  ```typescript
+  const modelId = ...;
+  const isImage = lastRunMode === "image";
+  return isImage
+    ? (IMAGE_MODEL_DISPLAY[modelId as ImageModelId]?.name ?? modelId.split("/")[1])
+    : (MODEL_DISPLAY[modelId as ModelId]?.name ?? modelId.split("/")[1]);
+  ```
+- 替换 `ImageOutput` 的 `modelName` prop 使用 `IMAGE_MODEL_DISPLAY`
 
 ---
 
-## 模型路径验证
+## 不改动的文件
 
-所有 9 个 LLM 模型在 harness-agent edge function 中的处理路径：
-
-| 模型 | isClaudeModel | 协议 | 流式端点 | 非流式端点 |
-|------|--------------|------|---------|---------|
-| anthropic/claude-opus-4.7 | ✓ | Anthropic Messages | API_BASE_MESSAGES | API_BASE_MESSAGES |
-| anthropic/claude-sonnet-4.5 | ✓ | Anthropic Messages | API_BASE_MESSAGES | API_BASE_MESSAGES |
-| openai/gpt-5.4 | ✗ | OpenAI Chat | API_BASE | API_BASE |
-| deepseek/deepseek-v4-pro | ✗ | OpenAI Chat | API_BASE | API_BASE |
-| google/gemini-3.1-pro-preview | ✗ | OpenAI Chat | API_BASE | API_BASE |
-| moonshotai/kimi-k2.6 | ✗ | OpenAI Chat | API_BASE | API_BASE |
-| z-ai/glm-5.1 | ✗ | OpenAI Chat | API_BASE | API_BASE |
-| minimax/minimax-m2.7 | ✗ | OpenAI Chat | API_BASE | API_BASE |
-| alibaba/qwen-3.6-plus | ✗ | OpenAI Chat | API_BASE | API_BASE |
-
-3 个图像模型走独立的 `ai-image-submit` edge function，不受以上影响。
-
-Edge function 本身逻辑完整，无需改动。
+- `src/i18n/locales/en.json` / `zh.json` — 保留 modelSelector.models 下的 keys（虽然已不再被组件使用，但避免 JSON 结构变化引发其他问题）
+- `src/i18n/index.ts` — 不修改 keySeparator（全局修改风险太大）
 
 ---
 
 ## 验证
 
-1. 选 Claude Opus → 运行 → Evolve → Apply → 确认进化轮依然用 Claude（页脚显示 "Claude Opus 4.7"）
-2. QA 模式对话后，检查 Supabase usage_logs 表，total_tokens 应有实际值
-3. 页脚模型名显示"Claude Opus 4.7"而非"claude-opus-4.7"
-4. 图像模式选 Gemini Flash 显示"Gemini Flash Image"而非"Nano Banana 2"
+1. 打开模型下拉 → 所有 9 个模型名称正确显示（"Claude Opus 4.7", "Gemini 3.1 Pro" 等）
+2. 点击 Gemini 3.1 Pro → 触发按钮文字变为 "Gemini 3.1 Pro"，页脚随之更新
+3. 切换语言到 EN → 描述切换为英文
+4. 切换语言到 ZH → 描述切换为中文
+5. 图像模式下图像模型名称正确（"GPT Image 2", "Gemini Flash Image", "Seedream 4.5"）
