@@ -1,4 +1,4 @@
-import { Check, Loader, AlertCircle, Clock } from "lucide-react";
+import { Check, Loader, AlertCircle, Clock, Lock } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Task, TaskStatus } from "@/hooks/useEvodaoAgent";
 import { cn } from "@/lib/utils";
@@ -46,6 +46,13 @@ const statusStyleMap: Record<
     titleClass: "text-destructive",
     numberClass: "text-destructive-foreground bg-destructive",
     dotClass: "bg-destructive",
+  },
+  blocked: {
+    icon: <Lock className="w-3 h-3 text-muted-foreground/50" />,
+    cardClass: "border-border/40 bg-card/30",
+    titleClass: "text-muted-foreground/60",
+    numberClass: "text-muted-foreground/30 bg-muted/40",
+    dotClass: "bg-muted-foreground/20",
   },
 };
 
@@ -121,6 +128,14 @@ export function TaskList({ tasks, taskStatuses, activeTaskIds }: TaskListProps) 
                   <p className="text-[10px] text-muted-foreground leading-relaxed line-clamp-2">
                     {task.description}
                   </p>
+                  {task.dependsOn && task.dependsOn.length > 0 && (
+                    <div className="flex items-center gap-1 mt-1.5">
+                      <Lock className="w-2 h-2 text-muted-foreground/40 shrink-0" />
+                      <span className="text-[9px] text-muted-foreground/40 font-mono">
+                        {t("taskList.dependsOn")} {task.dependsOn.join(", ")}
+                      </span>
+                    </div>
+                  )}
                 </div>
               </div>
 

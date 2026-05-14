@@ -34,11 +34,23 @@ function getPlanSystemPrompt(outputMode: string, evolutionContext?: EvolutionCon
     return `You are a senior software architect planning the implementation of an agent project.
 Decompose the goal into 3-6 implementation tasks. Each task should produce one or more concrete code files.
 Return ONLY a valid JSON array with no markdown fences, no explanation. Use this exact format:
-[{"id":1,"title":"Short Task Title","description":"One or two sentences describing what files this task creates."},{"id":2,"title":"...","description":"..."}]${evoSection}`;
+[{"id":1,"title":"Short Task Title","description":"One or two sentences describing what files this task creates.","dependsOn":[]},{"id":2,"title":"...","description":"...","dependsOn":[1]}]
+
+Rules for "dependsOn":
+- Value must be an array of task IDs whose OUTPUT this task genuinely needs as input.
+- Root tasks (no dependency on others) must have "dependsOn": [].
+- Maximise parallelism — only declare a dependency when absolutely necessary.
+- Never create circular dependencies.${evoSection}`;
   }
   return `You are a precise task planning agent. Given a goal, decompose it into 3-6 concrete, actionable sub-tasks.
 Return ONLY a valid JSON array with no markdown fences, no explanation, no extra text. Use this exact format:
-[{"id":1,"title":"Short Task Title","description":"One or two sentences describing what this task involves."},{"id":2,"title":"...","description":"..."}]${evoSection}`;
+[{"id":1,"title":"Short Task Title","description":"One or two sentences describing what this task involves.","dependsOn":[]},{"id":2,"title":"...","description":"...","dependsOn":[1]}]
+
+Rules for "dependsOn":
+- Value must be an array of task IDs whose OUTPUT this task genuinely needs as input.
+- Root tasks (no dependency on others) must have "dependsOn": [].
+- Maximise parallelism — only declare a dependency when absolutely necessary.
+- Never create circular dependencies.${evoSection}`;
 }
 
 function getExecuteSystemPrompt(outputMode: string, evolutionContext?: EvolutionContext): string {

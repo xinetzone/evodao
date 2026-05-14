@@ -4,7 +4,7 @@ import { SUPABASE_URL, SUPABASE_ANON_KEY } from "@/lib/config";
 import { parseFilesFromOutput } from "@/lib/parseFiles";
 
 export type AgentStatus = "idle" | "planning" | "executing" | "done" | "error";
-export type TaskStatus = "pending" | "running" | "completed" | "error";
+export type TaskStatus = "pending" | "blocked" | "running" | "completed" | "error";
 export type OutputMode = "text" | "agent" | "qa" | "image";
 export type EvolutionStatus = "idle" | "reflecting" | "reflected";
 
@@ -12,6 +12,7 @@ export interface Task {
   id: number;
   title: string;
   description: string;
+  dependsOn?: number[];
 }
 
 export interface AgentFile {
@@ -86,6 +87,32 @@ const FALLBACK_MESSAGES: Record<string, string> = {
 function getUserErrorMessage(code: string, backendMessage: string): string {
   if (backendMessage) return backendMessage;
   return FALLBACK_MESSAGES[code] || "Service temporarily unavailable.";
+}
+
+/** DFS-based cycle detector: strips back edges so the task graph is always a valid DAG */
+function stripCycles(tasks: Task[]): Task[] {
+  const visiting = new Set<number>();
+  const visited = new Set<number>();
+  const taskMap = new Map(tasks.map((t) => [t.id, t]));
+
+  function dfs(id: number, path: Set<number>) {
+    if (visited.has(id)) return;
+    path.add(id);
+    visiting.add(id);
+    const task = taskMap.get(id);
+    if (task?.dependsOn) {
+      task.dependsOn = task.dependsOn.filter((depId) => {
+        if (path.has(depId)) return false; // back edge → strip
+        dfs(depId, path);
+        return true;
+      });
+    }
+    path.delete(id);
+    visited.add(id);
+  }
+
+  tasks.forEach((t) => { if (!visited.has(t.id)) dfs(t.id, new Set()); });
+  return tasks;
 }
 
 function loadSavedSession(): SavedSession | null {
@@ -354,7 +381,9 @@ export function useEvodaoAgent() {
     });
   };
 
-  // Shared execution loop — runs all pending tasks IN PARALLEL
+  // ── DAG-aware execution loop (Trae SOLO architecture) ────────────────────
+  // Independent tasks run immediately in parallel; tasks with dependsOn wait
+  // for their direct prerequisites and receive their outputs as context.
   const runExecutionLoop = async (
     goal: string,
     plannedTasks: Task[],
@@ -366,8 +395,14 @@ export function useEvodaoAgent() {
     evolutionCtx?: EvolutionContext,
     model?: string
   ) => {
-    // Context from already-completed tasks (e.g. resumed session)
-    const completedContext = plannedTasks
+    // Deep-copy tasks and strip any cycles so the graph is a valid DAG
+    const safeTasks = stripCycles(
+      plannedTasks.map((t) => ({ ...t, dependsOn: t.dependsOn ? [...t.dependsOn] : [] }))
+    );
+    const taskMap = new Map(safeTasks.map((t) => [t.id, t]));
+
+    // Context from already-completed tasks (e.g. resumed session) — 400 chars each
+    const completedContext = safeTasks
       .filter((t) => startStatuses[t.id] === "completed")
       .map((t) => {
         const out = startOutputs[t.id] || "";
@@ -376,63 +411,109 @@ export function useEvodaoAgent() {
 
     if (startFiles.length > 0) setExtractedFiles(startFiles);
 
-    const pendingTasks = plannedTasks.filter((t) => startStatuses[t.id] !== "completed");
+    const pendingTasks = safeTasks.filter((t) => startStatuses[t.id] !== "completed");
 
     // Parent run controller — aborting this stops all tasks
     const runController = new AbortController();
     abortControllerRef.current = runController;
     taskControllersRef.current.clear();
 
-    // Mark all pending tasks as running simultaneously
-    const initialRunning: Record<number, TaskStatus> = {};
+    // Initialise statuses: "blocked" if has unmet deps, "pending" otherwise
+    const initialStatuses: Record<number, TaskStatus> = {};
     const initialOutputs: Record<number, string> = {};
     pendingTasks.forEach((t) => {
-      initialRunning[t.id] = "running";
+      const unmetDeps = (t.dependsOn || []).filter((depId) => startStatuses[depId] !== "completed");
+      initialStatuses[t.id] = unmetDeps.length > 0 ? "blocked" : "pending";
       initialOutputs[t.id] = "";
     });
-    setTaskStatuses((prev) => ({ ...prev, ...initialRunning }));
+    setTaskStatuses((prev) => ({ ...prev, ...initialStatuses }));
     setTaskOutputs((prev) => ({ ...prev, ...initialOutputs }));
-    setActiveTaskIds(new Set(pendingTasks.map((t) => t.id)));
 
-    // Run all pending tasks in parallel
-    const results = await Promise.allSettled(
-      pendingTasks.map(async (task) => {
+    // ── Promise-cache DAG scheduler ────────────────────────────────────────
+    // getOrExecute(id) returns a stable promise for each task.
+    // A task awaits its deps' promises before executing — guaranteeing that
+    // outputs flow top-down while maximising parallelism.
+    const taskPromises = new Map<number, Promise<string>>();
+
+    const getOrExecute = (taskId: number): Promise<string> => {
+      if (taskPromises.has(taskId)) return taskPromises.get(taskId)!;
+
+      // Already completed from a resumed session → resolve immediately
+      if (startStatuses[taskId] === "completed") {
+        const p = Promise.resolve(startOutputs[taskId] || "");
+        taskPromises.set(taskId, p);
+        return p;
+      }
+
+      const task = taskMap.get(taskId);
+      if (!task) return Promise.resolve("");
+
+      const deps = task.dependsOn || [];
+
+      const p = (async (): Promise<string> => {
+        // Await all direct dependency promises (they run concurrently)
+        const depOutputsList = await Promise.all(deps.map((depId) => getOrExecute(depId)));
+
+        // Propagate abort that occurred while waiting for deps
+        if (runController.signal.aborted) {
+          throw Object.assign(new Error("Aborted"), { name: "AbortError" });
+        }
+
+        // Build dep context — 800 chars per direct dep, most relevant info
+        const depContext = deps.map((depId, i) => {
+          const depTask = taskMap.get(depId);
+          const out = depOutputsList[i] || "";
+          return `[Task ${depId}: ${depTask?.title || depId}]\n${out.substring(0, 800)}${out.length > 800 ? "..." : ""}`;
+        });
+
+        // Transition: blocked/pending → running
+        setTaskStatuses((prev) => ({ ...prev, [taskId]: "running" }));
+        setActiveTaskIds((prev) => new Set([...prev, taskId]));
+
         const taskController = new AbortController();
-        taskControllersRef.current.set(task.id, taskController);
-
-        // Forward parent abort → task abort
+        taskControllersRef.current.set(taskId, taskController);
         runController.signal.addEventListener("abort", () => taskController.abort(), { once: true });
 
         let taskContent = "";
         try {
-          await executeTask(goal, task, completedContext, mode, (chunk) => {
-            taskContent += chunk;
-            setTaskOutputs((prev) => ({ ...prev, [task.id]: (prev[task.id] || "") + chunk }));
-          }, evolutionCtx, model, taskController.signal);
+          await executeTask(
+            goal, task, [...completedContext, ...depContext], mode,
+            (chunk) => {
+              taskContent += chunk;
+              setTaskOutputs((prev) => ({ ...prev, [taskId]: (prev[taskId] || "") + chunk }));
+            },
+            evolutionCtx, model, taskController.signal
+          );
 
-          setTaskStatuses((prev) => ({ ...prev, [task.id]: "completed" }));
+          setTaskStatuses((prev) => ({ ...prev, [taskId]: "completed" }));
 
           if (mode === "agent") {
-            const newFiles = parseFilesFromOutput(taskContent, task.id);
+            const newFiles = parseFilesFromOutput(taskContent, taskId);
             if (newFiles.length > 0) setExtractedFiles((prev) => [...prev, ...newFiles]);
           }
 
           return taskContent;
         } catch (err) {
           if (!(err instanceof Error && err.name === "AbortError")) {
-            setTaskStatuses((prev) => ({ ...prev, [task.id]: "error" }));
+            setTaskStatuses((prev) => ({ ...prev, [taskId]: "error" }));
           }
           throw err;
         } finally {
-          taskControllersRef.current.delete(task.id);
+          taskControllersRef.current.delete(taskId);
           setActiveTaskIds((prev) => {
             const next = new Set(prev);
-            next.delete(task.id);
+            next.delete(taskId);
             return next;
           });
         }
-      })
-    );
+      })();
+
+      taskPromises.set(taskId, p);
+      return p;
+    };
+
+    // Kick off every pending task — the DAG handles sequencing internally
+    const results = await Promise.allSettled(pendingTasks.map((t) => getOrExecute(t.id)));
 
     setActiveTaskIds(new Set());
 
@@ -613,7 +694,9 @@ export function useEvodaoAgent() {
       setTasks(plannedTasks);
 
       const initialStatuses: Record<number, TaskStatus> = {};
-      plannedTasks.forEach((t) => { initialStatuses[t.id] = "pending"; });
+      plannedTasks.forEach((t) => {
+        initialStatuses[t.id] = (t.dependsOn || []).length > 0 ? "blocked" : "pending";
+      });
       setTaskStatuses(initialStatuses);
 
       setStatus("executing");

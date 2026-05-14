@@ -87,7 +87,8 @@
   "taskList": {
     "heading": "TASK DECOMPOSITION",
     "subTaskCount": "// {{count}} sub-tasks identified",
-    "completed": "{{done}} / {{total}} completed"
+    "completed": "{{done}} / {{total}} completed",
+    "dependsOn": "depends on:"
   },
   "terminal": {
     "heading": "EXECUTION OUTPUT",
