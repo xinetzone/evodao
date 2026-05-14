@@ -12,6 +12,7 @@ interface GoalInputProps {
   status: AgentStatus;
   onRun: (goal: string, outputMode: OutputMode, model: string, attachments: Attachment[]) => void;
   onReset: () => void;
+  onModelChange?: (model: string) => void;
   suggestions?: string[];
   suggestionsLoading?: boolean;
   suggestionsAI?: boolean;
@@ -21,6 +22,7 @@ export function GoalInput({
   status,
   onRun,
   onReset,
+  onModelChange,
   suggestions = [],
   suggestionsLoading = false,
   suggestionsAI = false,
@@ -34,6 +36,14 @@ export function GoalInput({
   const imageModelRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { attachments, hasLoading, addFiles, removeAttachment, clearAttachments } = useAttachments();
+
+  // Notify parent whenever the effective model changes (for footer display)
+  useEffect(() => {
+    const effective = outputMode === "image"
+      ? imageModel
+      : (manualModel ?? getAutoModel(outputMode));
+    onModelChange?.(effective);
+  }, [outputMode, manualModel, imageModel, onModelChange]);
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {

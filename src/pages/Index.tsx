@@ -37,6 +37,8 @@ const Index = () => {
   const [taskManagerOpen, setTaskManagerOpen] = useState(false);
   const [lastRunMode, setLastRunMode] = useState<string>("");
   const [activeImageModelId, setActiveImageModelId] = useState<string>("openai/gpt-image-2");
+  // The model currently selected in the dropdown (before execution)
+  const [selectedModel, setSelectedModel] = useState<string>("z-ai/glm-5.1");
   // Prompt suggestions state
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [suggestionsLoading, setSuggestionsLoading] = useState(false);
@@ -220,6 +222,7 @@ const Index = () => {
 
           <GoalInput
             status={status}
+            onModelChange={setSelectedModel}
             onRun={async (goal, mode, model, attachments) => {
               // Build text context from doc/PDF attachments
               const textParts = attachments
@@ -466,9 +469,15 @@ const Index = () => {
           <div className="flex items-center gap-2 sm:gap-3 text-[10px] text-muted-foreground tracking-wider">
             <span className="flex items-center gap-1">
               <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
-              {lastRunMode === "image"
-                ? t(`modelSelector.models.${activeImageModelId}.name`, { defaultValue: activeImageModelId.split("/")[1] })
-                : t(`modelSelector.models.${currentModel}.name`, { defaultValue: currentModel.split("/")[1] })}
+              {(() => {
+                // During execution show the active run model; idle shows the dropdown selection
+                const modelId = (status === "idle" && lastRunMode !== "image")
+                  ? selectedModel
+                  : lastRunMode === "image"
+                  ? activeImageModelId
+                  : currentModel;
+                return t(`modelSelector.models.${modelId}.name`, { defaultValue: modelId.split("/")[1] });
+              })()}
             </span>
             <span className="hidden sm:inline">|</span>
             <span className="hidden sm:inline">{lastRunMode === "image" ? t("index.protocolImage") : t("index.protocolLLM")}</span>
