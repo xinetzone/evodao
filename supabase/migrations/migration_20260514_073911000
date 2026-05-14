@@ -1,0 +1,10 @@
+-- profiles: add token quota fields
+ALTER TABLE profiles
+  ADD COLUMN IF NOT EXISTS daily_token_limit integer,
+  ADD COLUMN IF NOT EXISTS monthly_token_limit integer;
+
+-- usage_logs: add token consumption columns
+ALTER TABLE usage_logs
+  ADD COLUMN IF NOT EXISTS prompt_tokens integer NOT NULL DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS completion_tokens integer NOT NULL DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS total_tokens integer NOT NULL DEFAULT 0;

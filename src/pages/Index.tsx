@@ -28,8 +28,9 @@ const Index = () => {
   const taskManager = useTaskManager();
   const aiImage = useAIImage();
   const memory = useMemory();
-  const { checkQuota, recordUsage } = useUsageQuota();
+  const { checkQuota, recordUsage, finalizeUsage } = useUsageQuota();
   const [quotaExceeded, setQuotaExceeded] = useState<QuotaCheckResult | null>(null);
+  const [pendingLogId, setPendingLogId] = useState<string | null>(null);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [taskManagerOpen, setTaskManagerOpen] = useState(false);
   const [activeModel, setActiveModel] = useState("GLM 5.1");
@@ -166,6 +167,16 @@ const Index = () => {
     });
   }, [history, memory]);
 
+  // Finalize token usage when agent run completes
+  const prevStatusRef = useRef(status);
+  useEffect(() => {
+    if (prevStatusRef.current !== "done" && status === "done" && pendingLogId && sessionUsage.totalTokens > 0) {
+      finalizeUsage(pendingLogId, sessionUsage);
+      setPendingLogId(null);
+    }
+    prevStatusRef.current = status;
+  }, [status, pendingLogId, sessionUsage, finalizeUsage]);
+
   return (
     <div className="w-full h-full flex flex-col bg-background overflow-hidden">
       <AgentHeader
@@ -200,8 +211,9 @@ const Index = () => {
                 setQuotaExceeded(quotaResult);
                 return;
               }
-              // Record usage before running
-              await recordUsage(mode);
+              // Record usage before running; store logId for token finalization
+              const logId = await recordUsage(mode);
+              setPendingLogId(logId);
 
               setLastRunMode(mode);
               if (mode === "image") {

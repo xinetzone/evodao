@@ -13,12 +13,23 @@ export function QuotaExceededModal({ result, onClose }: Props) {
 
   if (!result || result.allowed) return null;
 
+  const isToken = result.reason === "daily_token" || result.reason === "monthly_token";
+
   const messageKey =
     result.reason === "daily_run"
       ? "quota.dailyRunExceeded"
       : result.reason === "daily_image"
       ? "quota.dailyImageExceeded"
+      : result.reason === "daily_token"
+      ? "quota.dailyTokenExceeded"
+      : result.reason === "monthly_token"
+      ? "quota.monthlyTokenExceeded"
       : "quota.monthlyExceeded";
+
+  // For token quotas display in K
+  const displayUsed = isToken ? Math.round(result.used / 1000) : result.used;
+  const displayLimit = isToken ? Math.round(result.limit / 1000) : result.limit;
+  const displayUnit = isToken ? "K" : "";
 
   return (
     <div
@@ -63,7 +74,7 @@ export function QuotaExceededModal({ result, onClose }: Props) {
           {/* Usage bar */}
           <div className="space-y-1.5">
             <div className="flex items-center justify-between text-[10px] text-muted-foreground/60 font-mono">
-              <span>{result.used} / {result.limit}</span>
+              <span>{displayUsed}{displayUnit} / {displayLimit}{displayUnit}</span>
               <span>{Math.round((result.used / result.limit) * 100)}%</span>
             </div>
             <div className="h-1.5 rounded-full bg-muted/30 overflow-hidden">

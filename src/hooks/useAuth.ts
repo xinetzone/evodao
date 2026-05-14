@@ -7,6 +7,11 @@ export interface Profile {
   email: string | null;
   is_admin: boolean;
   created_at: string;
+  daily_run_limit: number | null;
+  daily_image_limit: number | null;
+  monthly_run_limit: number | null;
+  daily_token_limit: number | null;
+  monthly_token_limit: number | null;
 }
 
 export function useAuth() {
@@ -18,7 +23,7 @@ export function useAuth() {
   const fetchProfile = useCallback(async (uid: string) => {
     const { data } = await supabase
       .from("profiles")
-      .select("id, email, is_admin, created_at")
+      .select("id, email, is_admin, created_at, daily_run_limit, daily_image_limit, monthly_run_limit, daily_token_limit, monthly_token_limit")
       .eq("id", uid)
       .maybeSingle();
     setProfile(data as Profile | null);

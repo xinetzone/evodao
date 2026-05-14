@@ -3144,48 +3144,63 @@ export type Database = {
           created_at: string | null
           daily_image_limit: number | null
           daily_run_limit: number | null
+          daily_token_limit: number | null
           email: string | null
           id: string
           is_admin: boolean | null
           monthly_run_limit: number | null
+          monthly_token_limit: number | null
         }
         Insert: {
           created_at?: string | null
           daily_image_limit?: number | null
           daily_run_limit?: number | null
+          daily_token_limit?: number | null
           email?: string | null
           id: string
           is_admin?: boolean | null
           monthly_run_limit?: number | null
+          monthly_token_limit?: number | null
         }
         Update: {
           created_at?: string | null
           daily_image_limit?: number | null
           daily_run_limit?: number | null
+          daily_token_limit?: number | null
           email?: string | null
           id?: string
           is_admin?: boolean | null
           monthly_run_limit?: number | null
+          monthly_token_limit?: number | null
         }
         Relationships: []
       }
       usage_logs: {
         Row: {
+          completion_tokens: number
           created_at: string | null
           id: string
           output_mode: string
+          prompt_tokens: number
+          total_tokens: number
           user_id: string
         }
         Insert: {
+          completion_tokens?: number
           created_at?: string | null
           id?: string
           output_mode: string
+          prompt_tokens?: number
+          total_tokens?: number
           user_id: string
         }
         Update: {
+          completion_tokens?: number
           created_at?: string | null
           id?: string
           output_mode?: string
+          prompt_tokens?: number
+          total_tokens?: number
           user_id?: string
         }
         Relationships: [

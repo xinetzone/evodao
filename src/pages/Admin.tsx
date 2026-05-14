@@ -16,6 +16,8 @@ interface UserRow {
   daily_run_limit: number | null;
   daily_image_limit: number | null;
   monthly_run_limit: number | null;
+  daily_token_limit: number | null;
+  monthly_token_limit: number | null;
 }
 
 interface MemoryRow {
@@ -41,14 +43,15 @@ export default function Admin() {
   const [togglingId, setTogglingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [monthlyUsage, setMonthlyUsage] = useState<Record<string, number>>({});
-  type QuotaField = "daily_run_limit" | "daily_image_limit" | "monthly_run_limit";
+  const [monthlyTokenUsage, setMonthlyTokenUsage] = useState<Record<string, number>>({});
+  type QuotaField = "daily_run_limit" | "daily_image_limit" | "monthly_run_limit" | "daily_token_limit" | "monthly_token_limit";
   const [editingQuota, setEditingQuota] = useState<{ userId: string; field: QuotaField; value: string } | null>(null);
 
   const fetchUsers = useCallback(async () => {
     setLoadingUsers(true);
     const { data } = await supabase
       .from("profiles")
-      .select("id, email, is_admin, created_at, daily_run_limit, daily_image_limit, monthly_run_limit")
+      .select("id, email, is_admin, created_at, daily_run_limit, daily_image_limit, monthly_run_limit, daily_token_limit, monthly_token_limit")
       .order("created_at", { ascending: false });
     setUsers((data as UserRow[]) || []);
     setLoadingUsers(false);
@@ -59,12 +62,17 @@ export default function Admin() {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { data } = await (supabase as any)
       .from("usage_logs")
-      .select("user_id")
+      .select("user_id, total_tokens")
       .gte("created_at", monthStart);
     if (data) {
       const counts: Record<string, number> = {};
-      for (const row of data) { counts[row.user_id] = (counts[row.user_id] ?? 0) + 1; }
+      const tokens: Record<string, number> = {};
+      for (const row of data) {
+        counts[row.user_id] = (counts[row.user_id] ?? 0) + 1;
+        tokens[row.user_id] = (tokens[row.user_id] ?? 0) + (row.total_tokens ?? 0);
+      }
       setMonthlyUsage(counts);
+      setMonthlyTokenUsage(tokens);
     }
   }, []);
 
@@ -395,6 +403,12 @@ export default function Admin() {
                         {t("admin.monthly")}
                       </th>
                       <th className="text-center px-3 py-3 text-[10px] tracking-widest text-muted-foreground font-semibold">
+                        {t("admin.dailyToken")}
+                      </th>
+                      <th className="text-center px-3 py-3 text-[10px] tracking-widest text-muted-foreground font-semibold">
+                        {t("admin.monthlyToken")}
+                      </th>
+                      <th className="text-center px-3 py-3 text-[10px] tracking-widest text-muted-foreground font-semibold">
                         {t("admin.thisMonthUsed")}
                       </th>
                     </tr>
@@ -414,7 +428,7 @@ export default function Admin() {
                             <span className="ml-2 text-[8px] text-primary/60 border border-primary/20 px-1 rounded">ADMIN</span>
                           )}
                         </td>
-                        {(["daily_run_limit", "daily_image_limit", "monthly_run_limit"] as QuotaField[]).map((field) => (
+                        {(["daily_run_limit", "daily_image_limit", "monthly_run_limit", "daily_token_limit", "monthly_token_limit"] as QuotaField[]).map((field) => (
                           <td key={field} className="px-3 py-3 text-center">
                             {editingQuota?.userId === u.id && editingQuota?.field === field ? (
                               <input
@@ -446,9 +460,16 @@ export default function Admin() {
                           </td>
                         ))}
                         <td className="px-3 py-3 text-center">
-                          <span className="text-[10px] font-mono text-muted-foreground/60">
-                            {monthlyUsage[u.id] ?? 0}
-                          </span>
+                          <div className="flex flex-col items-center gap-0.5">
+                            <span className="text-[10px] font-mono text-muted-foreground/60">
+                              {monthlyUsage[u.id] ?? 0} 次
+                            </span>
+                            {(monthlyTokenUsage[u.id] ?? 0) > 0 && (
+                              <span className="text-[9px] font-mono text-primary/50">
+                                {Math.round((monthlyTokenUsage[u.id] ?? 0) / 1000)}K tk
+                              </span>
+                            )}
+                          </div>
                         </td>
                       </tr>
                     ))}
