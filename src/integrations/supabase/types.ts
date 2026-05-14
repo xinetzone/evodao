@@ -3150,6 +3150,8 @@ export type Database = {
           is_admin: boolean | null
           monthly_run_limit: number | null
           monthly_token_limit: number | null
+          subscription_plan: string | null
+          subscription_status: string | null
         }
         Insert: {
           created_at?: string | null
@@ -3161,6 +3163,8 @@ export type Database = {
           is_admin?: boolean | null
           monthly_run_limit?: number | null
           monthly_token_limit?: number | null
+          subscription_plan?: string | null
+          subscription_status?: string | null
         }
         Update: {
           created_at?: string | null
@@ -3172,6 +3176,8 @@ export type Database = {
           is_admin?: boolean | null
           monthly_run_limit?: number | null
           monthly_token_limit?: number | null
+          subscription_plan?: string | null
+          subscription_status?: string | null
         }
         Relationships: []
       }

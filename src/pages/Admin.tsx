@@ -1,10 +1,11 @@
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { Shield, Users, Brain, Trash2, ChevronLeft, Loader, RefreshCw, ToggleLeft, ToggleRight, Gauge } from "lucide-react";
+import { Shield, Users, Brain, Trash2, ChevronLeft, Loader, RefreshCw, ToggleLeft, ToggleRight, Gauge, Zap } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuthContext } from "@/context/AuthContext";
 import { cn } from "@/lib/utils";
+import { PLAN_CONFIGS } from "@/lib/planConfig";
 
 type AdminTab = "users" | "memories" | "quotas";
 
@@ -18,6 +19,8 @@ interface UserRow {
   monthly_run_limit: number | null;
   daily_token_limit: number | null;
   monthly_token_limit: number | null;
+  subscription_plan: "basic" | "pro" | null;
+  subscription_status: "active" | "cancelled" | null;
 }
 
 interface MemoryRow {
@@ -51,7 +54,7 @@ export default function Admin() {
     setLoadingUsers(true);
     const { data } = await supabase
       .from("profiles")
-      .select("id, email, is_admin, created_at, daily_run_limit, daily_image_limit, monthly_run_limit, daily_token_limit, monthly_token_limit")
+      .select("id, email, is_admin, created_at, daily_run_limit, daily_image_limit, monthly_run_limit, daily_token_limit, monthly_token_limit, subscription_plan, subscription_status")
       .order("created_at", { ascending: false });
     setUsers((data as UserRow[]) || []);
     setLoadingUsers(false);
@@ -82,6 +85,29 @@ export default function Admin() {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     await (supabase as any).from("profiles").update({ [field]: numVal }).eq("id", userId);
     setEditingQuota(null);
+    await fetchUsers();
+  }, [fetchUsers]);
+
+  const assignPlan = useCallback(async (userId: string, plan: "basic" | "pro" | null) => {
+    if (plan === null) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await (supabase as any).from("profiles")
+        .update({ subscription_plan: null, subscription_status: null })
+        .eq("id", userId);
+    } else {
+      const preset = PLAN_CONFIGS.find((p) => p.id === plan);
+      if (!preset) return;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await (supabase as any).from("profiles").update({
+        subscription_plan: plan,
+        subscription_status: "active",
+        daily_run_limit: preset.daily_run_limit,
+        daily_image_limit: preset.daily_image_limit,
+        monthly_run_limit: preset.monthly_run_limit,
+        daily_token_limit: preset.daily_token_limit,
+        monthly_token_limit: preset.monthly_token_limit,
+      }).eq("id", userId);
+    }
     await fetchUsers();
   }, [fetchUsers]);
 
@@ -394,6 +420,9 @@ export default function Admin() {
                         {t("admin.email")}
                       </th>
                       <th className="text-center px-3 py-3 text-[10px] tracking-widest text-muted-foreground font-semibold">
+                        {t("admin.plan")}
+                      </th>
+                      <th className="text-center px-3 py-3 text-[10px] tracking-widest text-muted-foreground font-semibold">
                         {t("admin.dailyRun")}
                       </th>
                       <th className="text-center px-3 py-3 text-[10px] tracking-widest text-muted-foreground font-semibold">
@@ -426,6 +455,31 @@ export default function Admin() {
                           {u.email || "—"}
                           {u.is_admin && (
                             <span className="ml-2 text-[8px] text-primary/60 border border-primary/20 px-1 rounded">ADMIN</span>
+                          )}
+                        </td>
+                        {/* Plan assignment cell */}
+                        <td className="px-3 py-3 text-center">
+                          {u.is_admin ? (
+                            <span className="text-[9px] text-muted-foreground/30 tracking-wider">—</span>
+                          ) : (
+                            <div className="flex items-center justify-center gap-1">
+                              {(["basic", "pro", null] as const).map((plan) => (
+                                <button
+                                  key={String(plan)}
+                                  onClick={() => assignPlan(u.id, plan)}
+                                  className={cn(
+                                    "text-[9px] font-bold tracking-wider px-1.5 py-0.5 rounded border transition-colors",
+                                    u.subscription_plan === plan && u.subscription_status === "active"
+                                      ? "border-primary/50 bg-primary/10 text-primary"
+                                      : plan === null && !u.subscription_plan
+                                      ? "border-muted-foreground/20 bg-muted/10 text-muted-foreground/50"
+                                      : "border-border text-muted-foreground/40 hover:border-primary/30 hover:text-primary/60"
+                                  )}
+                                >
+                                  {plan === null ? "FREE" : plan.toUpperCase()}
+                                </button>
+                              ))}
+                            </div>
                           )}
                         </td>
                         {(["daily_run_limit", "daily_image_limit", "monthly_run_limit", "daily_token_limit", "monthly_token_limit"] as QuotaField[]).map((field) => (

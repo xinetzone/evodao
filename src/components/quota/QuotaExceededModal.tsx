@@ -1,14 +1,15 @@
 import { useTranslation } from "react-i18next";
-import { AlertTriangle, X } from "lucide-react";
+import { AlertTriangle, X, TrendingUp } from "lucide-react";
 import { QuotaCheckResult } from "@/hooks/useUsageQuota";
 import { cn } from "@/lib/utils";
 
 interface Props {
   result: QuotaCheckResult | null;
   onClose: () => void;
+  onUpgrade?: () => void;
 }
 
-export function QuotaExceededModal({ result, onClose }: Props) {
+export function QuotaExceededModal({ result, onClose, onUpgrade }: Props) {
   const { t } = useTranslation();
 
   if (!result || result.allowed) return null;
@@ -91,13 +92,22 @@ export function QuotaExceededModal({ result, onClose }: Props) {
         </div>
 
         {/* Footer */}
-        <div className="px-5 pb-4">
+        <div className="px-5 pb-4 flex gap-2">
           <button
             onClick={onClose}
-            className="w-full py-2 text-xs font-bold tracking-widest rounded border border-border hover:border-primary/40 hover:text-primary text-muted-foreground transition-all duration-200"
+            className="flex-1 py-2 text-xs font-bold tracking-widest rounded border border-border hover:border-border/80 text-muted-foreground/60 hover:text-muted-foreground transition-all duration-200"
           >
             {t("quota.close")}
           </button>
+          {onUpgrade && (
+            <button
+              onClick={() => { onClose(); onUpgrade(); }}
+              className="flex-1 py-2 text-xs font-bold tracking-widest rounded border border-primary/50 bg-primary/5 text-primary hover:bg-primary/10 hover:border-primary/70 transition-all duration-200 flex items-center justify-center gap-1.5"
+            >
+              <TrendingUp className="w-3 h-3" />
+              {t("pricing.upgradeNow")}
+            </button>
+          )}
         </div>
       </div>
     </div>

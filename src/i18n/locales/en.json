@@ -275,7 +275,8 @@
     "noQuotas": "No quota data",
     "dailyToken": "Daily Tokens",
     "monthlyToken": "Monthly Tokens",
-    "totalTokensMonth": "Month Tokens"
+    "totalTokensMonth": "Month Tokens",
+    "plan": "Plan"
   },
   "memory": {
     "label": "LONG-TERM MEMORY",
@@ -344,5 +345,24 @@
     "close": "Got it",
     "dailyTokenExceeded": "Daily token quota exceeded ({{used}}K/{{limit}}K)",
     "monthlyTokenExceeded": "Monthly token quota exceeded ({{used}}K/{{limit}}K)"
+  },
+  "pricing": {
+    "title": "Upgrade Your Plan",
+    "subtitle": "Choose a plan — quotas apply instantly",
+    "basicName": "Basic",
+    "basicDesc": "For everyday personal use with solid quotas",
+    "proName": "Pro",
+    "proDesc": "Power users — significantly higher limits",
+    "recommended": "Recommended",
+    "currentPlan": "Current Plan",
+    "upgradeNow": "Upgrade Plan",
+    "comingSoon": "Payment Coming Soon",
+    "contactToActivate": "Contact admin to manually activate your plan",
+    "footerNote": "Plans activated by admin · Quotas update automatically",
+    "quotaDailyRun": "Daily Runs",
+    "quotaDailyImage": "Daily Images",
+    "quotaMonthlyRun": "Monthly Runs",
+    "quotaDailyToken": "Daily Tokens",
+    "quotaMonthlyToken": "Monthly Tokens"
   }
 }

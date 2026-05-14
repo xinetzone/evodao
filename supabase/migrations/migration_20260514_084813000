@@ -1,0 +1,4 @@
+-- profiles: add subscription tracking fields
+ALTER TABLE profiles
+  ADD COLUMN IF NOT EXISTS subscription_plan text,
+  ADD COLUMN IF NOT EXISTS subscription_status text;

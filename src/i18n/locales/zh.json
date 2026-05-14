@@ -275,7 +275,8 @@
     "noQuotas": "暂无配额数据",
     "dailyToken": "每日Token",
     "monthlyToken": "每月Token",
-    "totalTokensMonth": "本月Token"
+    "totalTokensMonth": "本月Token",
+    "plan": "套餐"
   },
   "memory": {
     "label": "长期记忆",
@@ -344,5 +345,24 @@
     "close": "知道了",
     "dailyTokenExceeded": "今日 Token 用量（{{used}}K/{{limit}}K）已超限",
     "monthlyTokenExceeded": "本月 Token 用量（{{used}}K/{{limit}}K）已超限"
+  },
+  "pricing": {
+    "title": "升级您的套餐",
+    "subtitle": "选择适合您的套餐，配额立即自动生效",
+    "basicName": "基础版",
+    "basicDesc": "适合个人日常使用，基础配额保障稳定体验",
+    "proName": "专业版",
+    "proDesc": "高频用户首选，大幅提升配额上限",
+    "recommended": "推荐",
+    "currentPlan": "当前套餐",
+    "upgradeNow": "升级套餐",
+    "comingSoon": "即将开放支付",
+    "contactToActivate": "请联系管理员手动激活套餐",
+    "footerNote": "套餐由管理员激活后立即生效 · 配额自动更新",
+    "quotaDailyRun": "每日执行次数",
+    "quotaDailyImage": "每日图像生成",
+    "quotaMonthlyRun": "每月总次数",
+    "quotaDailyToken": "每日 Token",
+    "quotaMonthlyToken": "每月 Token"
   }
 }

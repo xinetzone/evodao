@@ -1,4 +1,4 @@
-import { Cpu, Zap, CircleCheck, AlertCircle, Loader, Clock, LayoutGrid, Shield, LogOut, ChevronDown } from "lucide-react";
+import { Cpu, Zap, CircleCheck, AlertCircle, Loader, Clock, LayoutGrid, Shield, LogOut, ChevronDown, TrendingUp } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import { useState, useRef, useEffect } from "react";
@@ -6,6 +6,7 @@ import { AgentStatus, TokenUsage } from "@/hooks/useEvodaoAgent";
 import { LanguageSwitcher } from "./LanguageSwitcher";
 import { useAuthContext } from "@/context/AuthContext";
 import { cn } from "@/lib/utils";
+import { PricingModal } from "@/components/pricing/PricingModal";
 
 interface AgentHeaderProps {
   status: AgentStatus;
@@ -22,6 +23,7 @@ export function AgentHeader({ status, currentGoal, historyCount, onHistoryOpen, 
   const navigate = useNavigate();
   const { user, profile, isAdmin, signOut } = useAuthContext();
   const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [pricingOpen, setPricingOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
   // Close menu on outside click
@@ -56,6 +58,7 @@ export function AgentHeader({ status, currentGoal, historyCount, onHistoryOpen, 
   const isPulsing = status === "planning" || status === "executing";
 
   return (
+    <>
     <header className="relative z-10 border-b border-border bg-card/50 backdrop-blur-sm">
       <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
         {/* Logo & Title */}
@@ -186,8 +189,13 @@ export function AgentHeader({ status, currentGoal, historyCount, onHistoryOpen, 
                             <Shield className="w-2.5 h-2.5" />
                             ADMIN
                           </span>
+                        ) : profile?.subscription_status === "active" && profile.subscription_plan ? (
+                          <span className="inline-flex items-center gap-1 text-[9px] font-bold tracking-widest text-primary border border-primary/30 bg-primary/10 px-1.5 py-0.5 rounded mt-0.5">
+                            <Zap className="w-2.5 h-2.5" />
+                            {profile.subscription_plan.toUpperCase()}
+                          </span>
                         ) : (
-                          <p className="text-[9px] text-muted-foreground/50 tracking-widest mt-0.5">USER</p>
+                          <p className="text-[9px] text-muted-foreground/50 tracking-widest mt-0.5">FREE</p>
                         )}
                       </div>
                     </div>
@@ -202,6 +210,16 @@ export function AgentHeader({ status, currentGoal, historyCount, onHistoryOpen, 
                       >
                         <Shield className="w-3.5 h-3.5 text-primary/50 group-hover:text-primary transition-colors" />
                         <span className="tracking-wider">{t("admin.title")}</span>
+                      </button>
+                    )}
+
+                    {!isAdmin && profile?.subscription_status !== "active" && (
+                      <button
+                        onClick={() => { setUserMenuOpen(false); setPricingOpen(true); }}
+                        className="w-full flex items-center gap-3 px-4 py-2.5 text-xs text-primary/80 hover:text-primary hover:bg-primary/5 transition-colors group"
+                      >
+                        <TrendingUp className="w-3.5 h-3.5 text-primary/50 group-hover:text-primary transition-colors" />
+                        <span className="tracking-wider">{t("pricing.upgradeNow")}</span>
                       </button>
                     )}
 
@@ -222,5 +240,7 @@ export function AgentHeader({ status, currentGoal, historyCount, onHistoryOpen, 
         </div>
       </div>
     </header>
+    <PricingModal open={pricingOpen} onClose={() => setPricingOpen(false)} />
+    </>
   );
 }

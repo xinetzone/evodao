@@ -19,6 +19,7 @@ import { QAOutput } from "@/components/agent/QAOutput";
 import { ImageOutput } from "@/components/agent/ImageOutput";
 import { MemoryContext } from "@/components/agent/MemoryContext";
 import { QuotaExceededModal } from "@/components/quota/QuotaExceededModal";
+import { PricingModal } from "@/components/pricing/PricingModal";
 import { AlertCircle, Trophy, RotateCcw, X } from "lucide-react";
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from "@/lib/config";
 
@@ -30,6 +31,7 @@ const Index = () => {
   const memory = useMemory();
   const { checkQuota, recordUsage, finalizeUsage } = useUsageQuota();
   const [quotaExceeded, setQuotaExceeded] = useState<QuotaCheckResult | null>(null);
+  const [pricingOpen, setPricingOpen] = useState(false);
   const [pendingLogId, setPendingLogId] = useState<string | null>(null);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [taskManagerOpen, setTaskManagerOpen] = useState(false);
@@ -470,7 +472,9 @@ const Index = () => {
       <QuotaExceededModal
         result={quotaExceeded}
         onClose={() => setQuotaExceeded(null)}
+        onUpgrade={() => setPricingOpen(true)}
       />
+      <PricingModal open={pricingOpen} onClose={() => setPricingOpen(false)} />
     </div>
   );
 };
