@@ -1,0 +1,149 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Terminal dark theme — always dark */
+    --background: 220 40% 4%;
+    --foreground: 142 100% 72%;
+
+    --card: 220 35% 7%;
+    --card-foreground: 142 80% 70%;
+
+    --popover: 220 35% 7%;
+    --popover-foreground: 142 80% 70%;
+
+    --primary: 142 100% 50%;
+    --primary-foreground: 220 40% 4%;
+
+    --secondary: 220 30% 11%;
+    --secondary-foreground: 142 60% 65%;
+
+    --muted: 220 30% 10%;
+    --muted-foreground: 220 20% 50%;
+
+    --accent: 142 100% 50%;
+    --accent-foreground: 220 40% 4%;
+
+    --destructive: 0 70% 55%;
+    --destructive-foreground: 0 0% 98%;
+
+    --border: 220 25% 16%;
+    --input: 220 30% 11%;
+    --ring: 142 100% 50%;
+
+    --radius: 0.375rem;
+
+    --sidebar-background: 220 40% 3%;
+    --sidebar-foreground: 142 80% 70%;
+    --sidebar-primary: 142 100% 50%;
+    --sidebar-primary-foreground: 220 40% 4%;
+    --sidebar-accent: 220 30% 11%;
+    --sidebar-accent-foreground: 142 60% 65%;
+    --sidebar-border: 220 25% 16%;
+    --sidebar-ring: 142 100% 50%;
+
+    /* Terminal-specific tokens */
+    --terminal-green: 142 100% 50%;
+    --terminal-green-dim: 142 60% 40%;
+    --terminal-green-glow: 142 100% 50%;
+    --terminal-surface: 220 35% 7%;
+    --terminal-surface-hover: 220 35% 10%;
+    --shadow-glow: 0 0 20px hsl(142 100% 50% / 0.25);
+    --shadow-glow-strong: 0 0 40px hsl(142 100% 50% / 0.45);
+    --gradient-terminal: linear-gradient(180deg, hsl(220 40% 5%) 0%, hsl(220 40% 4%) 100%);
+    --gradient-card: linear-gradient(135deg, hsl(220 35% 8%) 0%, hsl(220 35% 6%) 100%);
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground font-mono;
+  }
+}
+
+html,
+body,
+#root {
+  width: 100%;
+  height: 100%;
+}
+
+@layer utilities {
+  .terminal-glow {
+    box-shadow: var(--shadow-glow);
+  }
+
+  .terminal-glow-strong {
+    box-shadow: var(--shadow-glow-strong);
+  }
+
+  .text-glow {
+    text-shadow: 0 0 10px hsl(var(--terminal-green) / 0.8);
+  }
+
+  .border-glow {
+    border-color: hsl(var(--terminal-green) / 0.6);
+    box-shadow: 0 0 10px hsl(var(--terminal-green) / 0.2), inset 0 0 10px hsl(var(--terminal-green) / 0.05);
+  }
+
+  .scanline {
+    background: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      hsl(var(--terminal-green) / 0.03) 2px,
+      hsl(var(--terminal-green) / 0.03) 4px
+    );
+  }
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 0 8px hsl(142 100% 50% / 0.3); }
+  50% { box-shadow: 0 0 24px hsl(142 100% 50% / 0.7); }
+}
+
+@keyframes pulse-text-glow {
+  0%, 100% { text-shadow: 0 0 6px hsl(142 100% 50% / 0.5); }
+  50% { text-shadow: 0 0 16px hsl(142 100% 50% / 0.9); }
+}
+
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slide-in-right {
+  from { opacity: 0; transform: translateX(-12px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes typing {
+  from { width: 0; }
+  to { width: 100%; }
+}
+
+@keyframes spin-slow {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes accordion-down {
+  from { height: 0; }
+  to { height: var(--radix-accordion-content-height); }
+}
+
+@keyframes accordion-up {
+  from { height: var(--radix-accordion-content-height); }
+  to { height: 0; }
+}

@@ -1,0 +1,3 @@
+export const SUPABASE_URL = "https://spb-t4nuy88voqq31c81.supabase.opentrust.net";
+export const SUPABASE_ANON_KEY =
+  "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJyb2xlIjoiYW5vbiIsInJlZiI6InNwYi10NG51eTg4dm9xcTMxYzgxIiwiaXNzIjoic3VwYWJhc2UiLCJpYXQiOjE3Nzg0Mzk2NTksImV4cCI6MjA5NDAxNTY1OX0.pa4LO68gnGGhXShT_3Kw3is4GcEuv0GxWu_2vk09h-M";

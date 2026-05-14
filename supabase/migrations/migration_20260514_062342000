@@ -1,0 +1,12 @@
+
+CREATE TABLE agent_memory (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  goal text NOT NULL,
+  output_mode text NOT NULL DEFAULT 'text',
+  task_summaries text NOT NULL DEFAULT '',
+  quality_score integer,
+  evolution_round integer DEFAULT 0,
+  created_at timestamptz DEFAULT now()
+);
+ALTER TABLE agent_memory ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "public_all" ON agent_memory FOR ALL USING (true) WITH CHECK (true);

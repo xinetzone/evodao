@@ -1,0 +1,24 @@
+-- Add quota columns to profiles
+ALTER TABLE profiles
+  ADD COLUMN IF NOT EXISTS daily_run_limit integer,
+  ADD COLUMN IF NOT EXISTS daily_image_limit integer,
+  ADD COLUMN IF NOT EXISTS monthly_run_limit integer;
+
+-- Usage logs table
+CREATE TABLE IF NOT EXISTS usage_logs (
+  id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id     uuid NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+  output_mode text NOT NULL,
+  created_at  timestamptz DEFAULT now()
+);
+
+ALTER TABLE usage_logs ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "own_logs" ON usage_logs
+  USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "admin_read_all" ON usage_logs
+  FOR SELECT USING (is_admin_user());
+
+-- Index for fast date-range queries
+CREATE INDEX IF NOT EXISTS usage_logs_user_created ON usage_logs (user_id, created_at);

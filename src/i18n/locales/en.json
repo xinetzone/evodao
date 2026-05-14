@@ -1,0 +1,368 @@
+{
+  "header": {
+    "title": "EVODAO",
+    "subtitle": "EVOLVE THE WAY · AUTONOMOUS AGENT",
+    "goalPrefix": "goal://",
+    "promptTokens": "Prompt tokens",
+    "completionTokens": "Completion tokens",
+    "totalTokens": "Total tokens",
+    "status": {
+      "idle": "READY",
+      "planning": "PLANNING",
+      "executing": "EXECUTING",
+      "done": "COMPLETE",
+      "error": "ERROR"
+    }
+  },
+  "goalInput": {
+    "prompt": "ENTER MISSION OBJECTIVE",
+    "hint": "// Enter to execute · Shift+Enter for newline",
+    "chars": "{{count}} chars",
+    "awaiting": "AWAITING INPUT",
+    "reset": "RESET",
+    "abort": "ABORT",
+    "execute": "EXECUTE",
+    "send": "SEND",
+    "generate": "GENERATE",
+    "optimize": "OPTIMIZE",
+    "optimizing": "OPTIMIZING...",
+    "optimizeTitle": "Optimize prompt with AI",
+    "placeholders": [
+      "Build a personal finance tracker web application",
+      "Create a marketing strategy for a SaaS product",
+      "Design and implement a REST API for a blog platform",
+      "Analyze and optimize the performance of a React application"
+    ]
+  },
+  "promptSuggestions": {
+    "label": "SUGGESTIONS",
+    "loading": "Generating suggestions...",
+    "aiLabel": "AI SUGGESTED",
+    "text": [
+      "Build a web scraper that collects product prices from e-commerce sites daily",
+      "Create a CLI tool to automate git branching and PR workflows",
+      "Write a detailed technical specification for a real-time chat application"
+    ],
+    "agent": [
+      "Build a Python FastAPI backend with JWT authentication and PostgreSQL",
+      "Create a React dashboard with Chart.js and real-time WebSocket updates",
+      "Develop a LangChain agent that can browse the web and summarize articles"
+    ],
+    "qa": [
+      "What are the key differences between RAG and fine-tuning for LLMs?",
+      "How does transformer self-attention mechanism work under the hood?",
+      "Explain the trade-offs between microservices and monolithic architectures"
+    ],
+    "image": [
+      "Cyberpunk futuristic cityscape at night with neon reflections on rain-soaked streets",
+      "Minimalist black and white abstract landscape painting",
+      "Mysterious bioluminescent creature in the deep ocean, cinematic lighting"
+    ]
+  },
+  "imageGen": {
+    "title": "IMAGE GENERATION",
+    "taskId": "TASK ID",
+    "submitting": "Submitting image generation task...",
+    "generating": "Generating image, please wait...",
+    "download": "Download",
+    "downloadAll": "Download All ({{count}})",
+    "imageAlt": "Generated image",
+    "errors": {
+      "authentication_error": "Authentication failed, please refresh the page",
+      "rate_limit_error": "Too many requests, please try again later",
+      "invalid_request_error": "Invalid request, please try again",
+      "overloaded_error": "Service is busy, please try again later",
+      "insufficient_credits": "AI credits exhausted, please contact admin",
+      "permission_error": "AI feature not enabled, please contact admin",
+      "api_error": "AI service temporarily unavailable",
+      "not_found_error": "Resource not found",
+      "internal_error": "Internal error, please try again later",
+      "configuration_error": "AI service not configured",
+      "network_error": "Network connection error, please check your connection",
+      "fetch_error": "Network request failed, please try again later",
+      "timeout_error": "Image generation timed out, please try again",
+      "poll_error": "Failed to get task status"
+    }
+  },
+  "taskList": {
+    "heading": "TASK DECOMPOSITION",
+    "subTaskCount": "// {{count}} sub-tasks identified",
+    "completed": "{{done}} / {{total}} completed",
+    "dependsOn": "depends on:"
+  },
+  "terminal": {
+    "heading": "EXECUTION OUTPUT",
+    "windowTitle": "evodao — output",
+    "taskLabel": "TASK {{id}}: {{title}}",
+    "processing": "PROCESSING...",
+    "done": "DONE",
+    "failed": "FAILED",
+    "generating": "Generating output..."
+  },
+  "export": {
+    "copy": "COPY",
+    "copied": "COPIED!",
+    "download": "DOWNLOAD .MD",
+    "downloadZip": "DOWNLOAD .ZIP",
+    "zipping": "PACKING..."
+  },
+  "history": {
+    "title": "HISTORY",
+    "empty": "No completed sessions yet",
+    "tasks": "{{count}} tasks",
+    "clearAll": "CLEAR ALL",
+    "back": "Back",
+    "completedAt": "Completed {{time}}",
+    "deleteEntry": "Delete"
+  },
+  "resume": {
+    "banner": "PREVIOUS SESSION DETECTED",
+    "tasksProgress": "{{done}} of {{total}} tasks completed",
+    "resumeBtn": "RESUME",
+    "dismissBtn": "DISMISS"
+  },
+  "evolution": {
+    "hint": "Agent can self-reflect and evolve its approach",
+    "evolveBtn": "EVOLVE",
+    "reflecting": "AGENT SELF-REFLECTING...",
+    "reflectingDesc": "Analyzing output quality and identifying improvements",
+    "reportTitle": "EVOLUTION REPORT",
+    "qualityScore": "QUALITY SCORE",
+    "strengths": "STRENGTHS",
+    "weaknesses": "WEAKNESSES",
+    "improvements": "IMPROVEMENT DIRECTIONS",
+    "evolvedGoal": "EVOLVED GOAL",
+    "applyBtn": "APPLY EVOLUTION",
+    "dismissBtn": "DISMISS",
+    "roundBadge": "Round {{from}} → Round {{to}}",
+    "maxRounds": "Maximum evolution rounds reached ({{max}})"
+  },
+  "agentMode": {
+    "taskMode": "Task Mode",
+    "agentBuild": "Build Mode",
+    "agentBuildHint": "LLM outputs structured code files for ZIP export",
+    "qaChat": "Q&A",
+    "qaChatHint": "Ask directly — no task decomposition, supports multi-turn",
+    "qaChatPlaceholders": [
+      "What is a vector database?",
+      "How do I implement a singleton in Python?",
+      "When does React useEffect cleanup run?",
+      "Explain the CAP theorem"
+    ],
+    "imageGen": "Image Gen",
+    "imageGenHint": "Describe an image in natural language — AI will generate it for you",
+    "imageGenPlaceholders": [
+      "Cyberpunk futuristic cityscape at night with neon reflections on rain-soaked streets",
+      "Minimalist black and white abstract landscape painting",
+      "Glowing crystal palace floating in space, surrealist style",
+      "Mysterious bioluminescent creature in the deep ocean, cinematic lighting"
+    ]
+  },
+  "modelSelector": {
+    "label": "MODEL",
+    "auto": "AUTO",
+    "autoDesc": "Auto-selects the best model for each mode",
+    "models": {
+      "openai/gpt-5.4-pro": {
+        "name": "GPT 5.4 Pro",
+        "desc": "Advanced reasoning, coding & complex tasks"
+      },
+      "anthropic/claude-opus-4.7": {
+        "name": "Claude Opus 4.7",
+        "desc": "Deep reasoning, long context & complex analysis"
+      },
+      "anthropic/claude-opus-4.6": {
+        "name": "Claude Opus 4.6",
+        "desc": "Powerful reasoning & instruction following"
+      },
+      "deepseek/deepseek-v4-pro": {
+        "name": "DeepSeek V4 Pro",
+        "desc": "Coding, math & deep reasoning"
+      },
+      "z-ai/glm-5.1": {
+        "name": "GLM 5.1",
+        "desc": "Long-horizon agent tasks"
+      },
+      "z-ai/glm-5": {
+        "name": "GLM 5",
+        "desc": "Complex system design"
+      },
+      "moonshotai/kimi-k2.6": {
+        "name": "Kimi K2.6",
+        "desc": "Multimodal & tool use"
+      },
+      "minimax/minimax-m2.7": {
+        "name": "MiniMax M2.7",
+        "desc": "Coding & workflows"
+      },
+      "openai/gpt-image-2": {
+        "name": "GPT Image 2",
+        "desc": "High-quality text-to-image generation"
+      },
+      "google/gemini-3.1-flash-image-preview": {
+        "name": "Nano Banana 2",
+        "desc": "Text-to-image & image-to-image, balanced speed and quality"
+      },
+      "doubao/seedream-4.5": {
+        "name": "Seedream 4.5",
+        "desc": "High-aesthetics image generation, supports Chinese prompts"
+      }
+    }
+  },
+  "qaOutput": {
+    "title": "EXPLORATORY Q&A",
+    "clearChat": "CLEAR",
+    "you": "YOU",
+    "assistant": "AGENT",
+    "thinking": "THINKING...",
+    "copy": "Copy",
+    "copied": "Copied"
+  },
+  "fileTree": {
+    "title": "FILES",
+    "copy": "Copy",
+    "copied": "Copied"
+  },
+  "auth": {
+    "login": "LOGIN",
+    "register": "REGISTER",
+    "email": "EMAIL",
+    "password": "PASSWORD",
+    "confirmPassword": "CONFIRM PASSWORD",
+    "loginBtn": "SIGN IN",
+    "registerBtn": "CREATE ACCOUNT",
+    "loginTitle": "Welcome back",
+    "loginSubtitle": "Enter your credentials to continue",
+    "registerTitle": "Create account",
+    "registerSubtitle": "Sign up to start using the agent platform",
+    "loginError": "Invalid email or password. Please try again.",
+    "registerSuccess": "Account created! Please sign in with your email and password.",
+    "passwordMismatch": "Passwords do not match",
+    "processing": "Processing...",
+    "logout": "Sign out",
+    "loggedInAs": "Signed in as",
+    "noAccount": "Don't have an account?",
+    "hasAccount": "Already have an account?"
+  },
+  "admin": {
+    "title": "ADMIN PANEL",
+    "backToApp": "Back to app",
+    "users": "USERS",
+    "memories": "MEMORIES",
+    "email": "EMAIL",
+    "isAdmin": "ROLE",
+    "createdAt": "REGISTERED",
+    "toggleAdmin": "TOGGLE",
+    "you": "me",
+    "cannotDemoteSelf": "Cannot change your own admin status",
+    "goal": "GOAL",
+    "mode": "MODE",
+    "score": "SCORE",
+    "round": "ROUND",
+    "delete": "Delete",
+    "refresh": "Refresh",
+    "noUsers": "No users found",
+    "noMemories": "No memory records found",
+    "totalUsers": "{{count}} users total",
+    "totalMemories": "{{count}} memory records",
+    "quotas": "QUOTAS",
+    "dailyRun": "Daily Runs",
+    "dailyImage": "Daily Images",
+    "monthly": "Monthly Total",
+    "unlimited": "∞",
+    "thisMonthUsed": "This Month",
+    "setUnlimited": "Leave blank for unlimited",
+    "noQuotas": "No quota data",
+    "dailyToken": "Daily Tokens",
+    "monthlyToken": "Monthly Tokens",
+    "totalTokensMonth": "Month Tokens",
+    "plan": "Plan"
+  },
+  "memory": {
+    "label": "LONG-TERM MEMORY",
+    "searching": "Searching memory...",
+    "found": "{{count}} memories recalled",
+    "saved": "Saved to long-term memory",
+    "heading": "MEMORY CONTEXT"
+  },
+  "intent": {
+    "detecting": "Detecting intent...",
+    "detected": "Detected: {{mode}}",
+    "autoBtn": "AUTO",
+    "reason": "Reason: "
+  },
+  "taskTools": {
+    "search": "search",
+    "code": "code",
+    "write": "write",
+    "analyze": "analyze",
+    "design": "design"
+  },
+  "taskManager": {
+    "title": "TASK MANAGER",
+    "addTask": "ADD",
+    "addPlaceholder": "Enter a goal, press Enter to add...",
+    "empty": "No sessions yet — add a goal to run tasks in parallel",
+    "clearCompleted": "Clear done",
+    "running": "running",
+    "abort": "Abort",
+    "remove": "Remove",
+    "tasks": "tasks",
+    "sessions": "sessions",
+    "expand": "Expand details"
+  },
+  "index": {
+    "planning": "ANALYZING GOAL — DECOMPOSING INTO SUB-TASKS...",
+    "errorTitle": "AGENT ERROR",
+    "missionAccomplished": "MISSION ACCOMPLISHED",
+    "missionDone": "All {{count}} tasks completed successfully. Reset to run a new mission.",
+    "standby": "AGENT STANDBY",
+    "standbyDesc": "Enter any goal or objective above. The agent will automatically decompose it into actionable sub-tasks and execute all of them in parallel.",
+    "steps": [
+      {
+        "label": "DEFINE GOAL",
+        "desc": "Describe any objective or task in natural language"
+      },
+      {
+        "label": "AUTO PLAN",
+        "desc": "Agent decomposes your goal into concrete sub-tasks"
+      },
+      {
+        "label": "PARALLEL EXEC",
+        "desc": "All sub-tasks execute in parallel with live output"
+      }
+    ],
+    "footer": "EVODAO © 2026",
+    "protocolLLM": "openai_chat_completions",
+    "protocolImage": "image_generation"
+  },
+  "quota": {
+    "exceeded": "Usage Limit Reached",
+    "dailyRunExceeded": "Daily run quota used up ({{used}}/{{limit}})",
+    "dailyImageExceeded": "Daily image generation quota used up ({{used}}/{{limit}})",
+    "monthlyExceeded": "Monthly total quota used up ({{used}}/{{limit}})",
+    "contactAdmin": "Please contact an admin to adjust your quota.",
+    "close": "Got it",
+    "dailyTokenExceeded": "Daily token quota exceeded ({{used}}K/{{limit}}K)",
+    "monthlyTokenExceeded": "Monthly token quota exceeded ({{used}}K/{{limit}}K)"
+  },
+  "pricing": {
+    "title": "Upgrade Your Plan",
+    "subtitle": "Choose a plan — quotas apply instantly",
+    "basicName": "Basic",
+    "basicDesc": "For everyday personal use with solid quotas",
+    "proName": "Pro",
+    "proDesc": "Power users — significantly higher limits",
+    "recommended": "Recommended",
+    "currentPlan": "Current Plan",
+    "upgradeNow": "Upgrade Plan",
+    "comingSoon": "Payment Coming Soon",
+    "contactToActivate": "Contact admin to manually activate your plan",
+    "footerNote": "Plans activated by admin · Quotas update automatically",
+    "quotaDailyRun": "Daily Runs",
+    "quotaDailyImage": "Daily Images",
+    "quotaMonthlyRun": "Monthly Runs",
+    "quotaDailyToken": "Daily Tokens",
+    "quotaMonthlyToken": "Monthly Tokens"
+  }
+}

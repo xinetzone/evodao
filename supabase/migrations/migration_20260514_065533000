@@ -1,0 +1,39 @@
+
+-- profiles 表
+CREATE TABLE profiles (
+  id         uuid PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+  email      text,
+  is_admin   boolean DEFAULT false,
+  created_at timestamptz DEFAULT now()
+);
+ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
+
+-- 用户只能读写自己的 profile
+CREATE POLICY "users_own" ON profiles FOR ALL USING (auth.uid() = id);
+
+-- 管理员可读全部（用 security definer 函数避免递归 RLS）
+CREATE OR REPLACE FUNCTION is_admin_user()
+RETURNS boolean LANGUAGE sql SECURITY DEFINER AS $$
+  SELECT COALESCE(
+    (SELECT is_admin FROM profiles WHERE id = auth.uid()),
+    false
+  );
+$$;
+
+CREATE POLICY "admins_read_all" ON profiles FOR SELECT
+  USING (is_admin_user());
+
+-- 新用户自动创建 profile 的触发器
+CREATE OR REPLACE FUNCTION create_profile_on_signup()
+RETURNS TRIGGER LANGUAGE plpgsql SECURITY DEFINER AS $$
+BEGIN
+  INSERT INTO profiles(id, email)
+  VALUES (NEW.id, NEW.email)
+  ON CONFLICT DO NOTHING;
+  RETURN NEW;
+END;
+$$;
+
+CREATE TRIGGER on_auth_user_created
+  AFTER INSERT ON auth.users
+  FOR EACH ROW EXECUTE FUNCTION create_profile_on_signup();

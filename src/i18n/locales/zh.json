@@ -1,0 +1,368 @@
+{
+  "header": {
+    "title": "EVODAO",
+    "subtitle": "演绎大道 · 自主智能体",
+    "goalPrefix": "目标://",
+    "promptTokens": "输入 Token",
+    "completionTokens": "输出 Token",
+    "totalTokens": "总 Token",
+    "status": {
+      "idle": "待机",
+      "planning": "规划中",
+      "executing": "执行中",
+      "done": "已完成",
+      "error": "错误"
+    }
+  },
+  "goalInput": {
+    "prompt": "输入任务目标",
+    "hint": "// Enter 执行 · Shift+Enter 换行",
+    "chars": "{{count}} 字符",
+    "awaiting": "等待输入",
+    "reset": "重置",
+    "abort": "中止",
+    "execute": "执行",
+    "send": "发送",
+    "generate": "生成",
+    "optimize": "优化",
+    "optimizing": "优化中...",
+    "optimizeTitle": "AI 优化提示词",
+    "placeholders": [
+      "构建个人财务管理 Web 应用",
+      "制定 SaaS 产品的营销策略",
+      "设计并实现博客平台的 REST API",
+      "分析并优化 React 应用的性能"
+    ]
+  },
+  "promptSuggestions": {
+    "label": "推荐提示词",
+    "loading": "正在生成建议...",
+    "aiLabel": "AI 推荐",
+    "text": [
+      "构建一个每日从电商网站抓取商品价格的爬虫工具",
+      "创建一个自动化 git 分支和 PR 工作流的 CLI 工具",
+      "撰写一份实时聊天应用的详细技术规范文档"
+    ],
+    "agent": [
+      "使用 Python FastAPI + JWT 认证 + PostgreSQL 构建后端服务",
+      "创建一个带 Chart.js 和 WebSocket 实时更新的 React 数据看板",
+      "开发一个能浏览网页并总结文章的 LangChain 智能体"
+    ],
+    "qa": [
+      "RAG 和 LLM 微调有哪些核心区别？",
+      "Transformer 的自注意力机制底层是如何工作的？",
+      "微服务与单体架构各有哪些权衡取舍？"
+    ],
+    "image": [
+      "赛博朋克风格的未来城市夜景，霓虹灯倒影在雨水中",
+      "极简主义风格的黑白抽象山水画",
+      "深海中发光的神秘生物，电影级光影效果"
+    ]
+  },
+  "imageGen": {
+    "title": "图像生成",
+    "taskId": "任务 ID",
+    "submitting": "正在提交图像生成任务...",
+    "generating": "图像生成中，请稍候...",
+    "download": "下载",
+    "downloadAll": "下载全部 ({{count}})",
+    "imageAlt": "生成图像",
+    "errors": {
+      "authentication_error": "认证失败，请刷新页面",
+      "rate_limit_error": "请求过于频繁，请稍后再试",
+      "invalid_request_error": "请求无效，请重试",
+      "overloaded_error": "服务繁忙，请稍后再试",
+      "insufficient_credits": "AI 额度已耗尽，请联系管理员",
+      "permission_error": "AI 功能未启用，请联系管理员",
+      "api_error": "AI 服务暂时不可用",
+      "not_found_error": "资源不存在",
+      "internal_error": "内部错误，请稍后再试",
+      "configuration_error": "AI 服务未配置",
+      "network_error": "网络连接错误，请检查网络后重试",
+      "fetch_error": "网络请求失败，请稍后再试",
+      "timeout_error": "图像生成超时，请重试",
+      "poll_error": "获取任务状态失败"
+    }
+  },
+  "taskList": {
+    "heading": "任务分解",
+    "subTaskCount": "// 识别到 {{count}} 个子任务",
+    "completed": "{{done}} / {{total}} 已完成",
+    "dependsOn": "依赖任务:"
+  },
+  "terminal": {
+    "heading": "执行输出",
+    "windowTitle": "evodao — 输出",
+    "taskLabel": "任务 {{id}}: {{title}}",
+    "processing": "处理中...",
+    "done": "完成",
+    "failed": "失败",
+    "generating": "正在生成输出..."
+  },
+  "export": {
+    "copy": "复制",
+    "copied": "已复制",
+    "download": "下载 .MD",
+    "downloadZip": "下载 .ZIP",
+    "zipping": "打包中..."
+  },
+  "history": {
+    "title": "历史记录",
+    "empty": "暂无已完成的任务记录",
+    "tasks": "{{count}} 个任务",
+    "clearAll": "清空全部",
+    "back": "返回",
+    "completedAt": "完成于 {{time}}",
+    "deleteEntry": "删除"
+  },
+  "resume": {
+    "banner": "检测到未完成的任务",
+    "tasksProgress": "已完成 {{done}} / {{total}} 个任务",
+    "resumeBtn": "继续执行",
+    "dismissBtn": "忽略"
+  },
+  "evolution": {
+    "hint": "智能体可以自我反思并进化执行策略",
+    "evolveBtn": "自我进化",
+    "reflecting": "智能体自我反思中...",
+    "reflectingDesc": "正在分析输出质量并识别改进方向",
+    "reportTitle": "进化报告",
+    "qualityScore": "质量评分",
+    "strengths": "优势",
+    "weaknesses": "不足",
+    "improvements": "改进方向",
+    "evolvedGoal": "进化后的目标",
+    "applyBtn": "应用进化",
+    "dismissBtn": "忽略",
+    "roundBadge": "第 {{from}} 轮 → 第 {{to}} 轮",
+    "maxRounds": "已达到最大进化轮数（{{max}} 轮）"
+  },
+  "agentMode": {
+    "taskMode": "任务模式",
+    "agentBuild": "构建模式",
+    "agentBuildHint": "LLM 输出结构化代码文件，可导出为 ZIP",
+    "qaChat": "探索问答",
+    "qaChatHint": "直接提问，无需任务拆解 — 支持多轮对话",
+    "qaChatPlaceholders": [
+      "什么是向量数据库？",
+      "如何用 Python 实现单例模式？",
+      "React useEffect 的清理函数什么时候执行？",
+      "解释一下 CAP 定理"
+    ],
+    "imageGen": "图像生成",
+    "imageGenHint": "用自然语言描述图像内容，AI 模型将生成高质量图片",
+    "imageGenPlaceholders": [
+      "赛博朋克风格的未来城市夜景，霓虹灯倒影在雨水中",
+      "极简主义风格的黑白抽象山水画",
+      "宇宙中漂浮的发光水晶宫殿，超现实主义",
+      "深海中发光的神秘生物，电影级光影效果"
+    ]
+  },
+  "modelSelector": {
+    "label": "模型",
+    "auto": "自动",
+    "autoDesc": "根据模式自动选择最优模型",
+    "models": {
+      "openai/gpt-5.4-pro": {
+        "name": "GPT 5.4 Pro",
+        "desc": "高级推理、编码与复杂任务"
+      },
+      "anthropic/claude-opus-4.7": {
+        "name": "Claude Opus 4.7",
+        "desc": "深度推理、长文本与复杂分析"
+      },
+      "anthropic/claude-opus-4.6": {
+        "name": "Claude Opus 4.6",
+        "desc": "强大推理与指令遵循"
+      },
+      "deepseek/deepseek-v4-pro": {
+        "name": "DeepSeek V4 Pro",
+        "desc": "编码、数学与深度推理"
+      },
+      "z-ai/glm-5.1": {
+        "name": "GLM 5.1",
+        "desc": "长程智能体任务"
+      },
+      "z-ai/glm-5": {
+        "name": "GLM 5",
+        "desc": "复杂系统设计"
+      },
+      "moonshotai/kimi-k2.6": {
+        "name": "Kimi K2.6",
+        "desc": "多模态与工具调用"
+      },
+      "minimax/minimax-m2.7": {
+        "name": "MiniMax M2.7",
+        "desc": "编码与工作流"
+      },
+      "openai/gpt-image-2": {
+        "name": "GPT Image 2",
+        "desc": "高质量文生图，创意图像生成"
+      },
+      "google/gemini-3.1-flash-image-preview": {
+        "name": "Nano Banana 2",
+        "desc": "文生图与图生图，速度与质量均衡"
+      },
+      "doubao/seedream-4.5": {
+        "name": "Seedream 4.5",
+        "desc": "高美感图像生成，支持中文提示词"
+      }
+    }
+  },
+  "qaOutput": {
+    "title": "探索问答",
+    "clearChat": "清空对话",
+    "you": "YOU",
+    "assistant": "AGENT",
+    "thinking": "思考中...",
+    "copy": "复制",
+    "copied": "已复制"
+  },
+  "fileTree": {
+    "title": "生成文件",
+    "copy": "复制",
+    "copied": "已复制"
+  },
+  "auth": {
+    "login": "登录",
+    "register": "注册",
+    "email": "邮箱",
+    "password": "密码",
+    "confirmPassword": "确认密码",
+    "loginBtn": "登录",
+    "registerBtn": "注册",
+    "loginTitle": "欢迎回来",
+    "loginSubtitle": "输入账号密码继续使用",
+    "registerTitle": "创建账号",
+    "registerSubtitle": "注册后即可开始使用智能体平台",
+    "loginError": "邮箱或密码错误，请重试",
+    "registerSuccess": "注册成功！请使用邮箱和密码登录",
+    "passwordMismatch": "两次输入的密码不一致",
+    "processing": "处理中...",
+    "logout": "退出登录",
+    "loggedInAs": "当前账号",
+    "noAccount": "还没有账号？",
+    "hasAccount": "已有账号？"
+  },
+  "admin": {
+    "title": "管理后台",
+    "backToApp": "返回应用",
+    "users": "用户管理",
+    "memories": "记忆管理",
+    "email": "邮箱",
+    "isAdmin": "角色",
+    "createdAt": "注册时间",
+    "toggleAdmin": "权限切换",
+    "you": "我",
+    "cannotDemoteSelf": "无法修改自己的管理员权限",
+    "goal": "目标",
+    "mode": "模式",
+    "score": "质量分",
+    "round": "轮次",
+    "delete": "删除",
+    "refresh": "刷新",
+    "noUsers": "暂无用户数据",
+    "noMemories": "暂无记忆记录",
+    "totalUsers": "共 {{count}} 位用户",
+    "totalMemories": "共 {{count}} 条记忆记录",
+    "quotas": "配额管理",
+    "dailyRun": "每日执行",
+    "dailyImage": "每日图像",
+    "monthly": "每月总量",
+    "unlimited": "∞",
+    "thisMonthUsed": "本月已用",
+    "setUnlimited": "留空为无限制",
+    "noQuotas": "暂无配额数据",
+    "dailyToken": "每日Token",
+    "monthlyToken": "每月Token",
+    "totalTokensMonth": "本月Token",
+    "plan": "套餐"
+  },
+  "memory": {
+    "label": "长期记忆",
+    "searching": "检索历史记忆中...",
+    "found": "召回 {{count}} 条历史记忆",
+    "saved": "已保存至长期记忆",
+    "heading": "历史上下文"
+  },
+  "intent": {
+    "detecting": "识别意图中...",
+    "detected": "检测到: {{mode}}",
+    "autoBtn": "AUTO",
+    "reason": "推荐原因: "
+  },
+  "taskTools": {
+    "search": "搜索",
+    "code": "代码",
+    "write": "写作",
+    "analyze": "分析",
+    "design": "设计"
+  },
+  "taskManager": {
+    "title": "任务管理器",
+    "addTask": "添加",
+    "addPlaceholder": "输入目标，Enter 添加...",
+    "empty": "暂无任务，输入目标开始并行执行",
+    "clearCompleted": "清除已完成",
+    "running": "运行中",
+    "abort": "中止",
+    "remove": "移除",
+    "tasks": "任务",
+    "sessions": "个会话",
+    "expand": "展开详情"
+  },
+  "index": {
+    "planning": "分析目标中 — 正在拆解子任务...",
+    "errorTitle": "代理错误",
+    "missionAccomplished": "任务全部完成",
+    "missionDone": "全部 {{count}} 个任务成功完成。重置以运行新任务。",
+    "standby": "代理待机",
+    "standbyDesc": "在上方输入任何目标，代理将自动将其分解为可操作的子任务并并行执行。",
+    "steps": [
+      {
+        "label": "定义目标",
+        "desc": "用自然语言描述任何目标或任务"
+      },
+      {
+        "label": "自动规划",
+        "desc": "代理将目标分解为具体的子任务"
+      },
+      {
+        "label": "并行执行",
+        "desc": "所有子任务同时并行执行，显示实时输出"
+      }
+    ],
+    "footer": "EVODAO © 2026",
+    "protocolLLM": "openai_chat_completions",
+    "protocolImage": "image_generation"
+  },
+  "quota": {
+    "exceeded": "已达使用上限",
+    "dailyRunExceeded": "今日执行次数（{{used}}/{{limit}}）已用完",
+    "dailyImageExceeded": "今日图像生成次数（{{used}}/{{limit}}）已用完",
+    "monthlyExceeded": "本月总使用次数（{{used}}/{{limit}}）已用完",
+    "contactAdmin": "请联系管理员调整您的配额",
+    "close": "知道了",
+    "dailyTokenExceeded": "今日 Token 用量（{{used}}K/{{limit}}K）已超限",
+    "monthlyTokenExceeded": "本月 Token 用量（{{used}}K/{{limit}}K）已超限"
+  },
+  "pricing": {
+    "title": "升级您的套餐",
+    "subtitle": "选择适合您的套餐，配额立即自动生效",
+    "basicName": "基础版",
+    "basicDesc": "适合个人日常使用，基础配额保障稳定体验",
+    "proName": "专业版",
+    "proDesc": "高频用户首选，大幅提升配额上限",
+    "recommended": "推荐",
+    "currentPlan": "当前套餐",
+    "upgradeNow": "升级套餐",
+    "comingSoon": "即将开放支付",
+    "contactToActivate": "请联系管理员手动激活套餐",
+    "footerNote": "套餐由管理员激活后立即生效 · 配额自动更新",
+    "quotaDailyRun": "每日执行次数",
+    "quotaDailyImage": "每日图像生成",
+    "quotaMonthlyRun": "每月总次数",
+    "quotaDailyToken": "每日 Token",
+    "quotaMonthlyToken": "每月 Token"
+  }
+}
