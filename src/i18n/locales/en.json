@@ -204,7 +204,7 @@
         "desc": "High-quality text-to-image generation"
       },
       "google/gemini-3.1-flash-image-preview": {
-        "name": "Nano Banana 2",
+        "name": "Gemini Flash Image",
         "desc": "Text-to-image & image-to-image, balanced speed and quality"
       },
       "doubao/seedream-4.5": {

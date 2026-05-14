@@ -35,7 +35,6 @@ const Index = () => {
   const [pendingLogId, setPendingLogId] = useState<string | null>(null);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [taskManagerOpen, setTaskManagerOpen] = useState(false);
-  const [activeModel, setActiveModel] = useState("GLM 5.1");
   const [lastRunMode, setLastRunMode] = useState<string>("");
   const [activeImageModelId, setActiveImageModelId] = useState<string>("openai/gpt-image-2");
   // Prompt suggestions state
@@ -52,6 +51,7 @@ const Index = () => {
     activeTaskIds,
     error,
     currentGoal,
+    currentModel,
     outputMode,
     extractedFiles,
     savedSession,
@@ -172,15 +172,19 @@ const Index = () => {
     });
   }, [history, memory]);
 
-  // Finalize token usage when agent run completes
+  // Finalize token usage when agent run completes (text/agent modes → "done"; QA mode → back to "idle")
   const prevStatusRef = useRef(status);
   useEffect(() => {
-    if (prevStatusRef.current !== "done" && status === "done" && pendingLogId && sessionUsage.totalTokens > 0) {
+    const isDoneTransition = prevStatusRef.current !== "done" && status === "done";
+    const isQAFinished =
+      prevStatusRef.current === "executing" && status === "idle" && outputMode === "qa";
+
+    if ((isDoneTransition || isQAFinished) && pendingLogId && sessionUsage.totalTokens > 0) {
       finalizeUsage(pendingLogId, sessionUsage);
       setPendingLogId(null);
     }
     prevStatusRef.current = status;
-  }, [status, pendingLogId, sessionUsage, finalizeUsage]);
+  }, [status, pendingLogId, sessionUsage, finalizeUsage, outputMode]);
 
   // Back-fill quality_score into long-term memory after QA evaluation (Agent 自我进化)
   useEffect(() => {
@@ -243,10 +247,8 @@ const Index = () => {
               setLastRunMode(mode);
               if (mode === "image") {
                 setActiveImageModelId(model);
-                setActiveModel(t(`modelSelector.models.${model}.name`, { defaultValue: "Image Model" }));
                 aiImage.submitAndPoll({ model, prompt: enrichedGoal, type: "txt_2_img" });
               } else {
-                setActiveModel(model.split("/")[1] || model);
                 // Coze 长期记忆检索节点 — retrieve relevant past sessions to inject as context
                 let memCtx: string[] = [];
                 if (mode !== "qa") {
@@ -464,7 +466,9 @@ const Index = () => {
           <div className="flex items-center gap-2 sm:gap-3 text-[10px] text-muted-foreground tracking-wider">
             <span className="flex items-center gap-1">
               <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
-              {activeModel}
+              {lastRunMode === "image"
+                ? t(`modelSelector.models.${activeImageModelId}.name`, { defaultValue: activeImageModelId.split("/")[1] })
+                : t(`modelSelector.models.${currentModel}.name`, { defaultValue: currentModel.split("/")[1] })}
             </span>
             <span className="hidden sm:inline">|</span>
             <span className="hidden sm:inline">{lastRunMode === "image" ? t("index.protocolImage") : t("index.protocolLLM")}</span>

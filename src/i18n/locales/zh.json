@@ -204,7 +204,7 @@
         "desc": "高质量文生图，创意图像生成"
       },
       "google/gemini-3.1-flash-image-preview": {
-        "name": "Nano Banana 2",
+        "name": "Gemini Flash 图像",
         "desc": "文生图与图生图，速度与质量均衡"
       },
       "doubao/seedream-4.5": {

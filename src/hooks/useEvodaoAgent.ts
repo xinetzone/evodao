@@ -2,6 +2,7 @@ import { useState, useRef, useCallback, useEffect } from "react";
 import { fetchEventSource } from "@microsoft/fetch-event-source";
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from "@/lib/config";
 import { parseFilesFromOutput } from "@/lib/parseFiles";
+import { getAutoModel } from "@/lib/models";
 
 export type AgentStatus = "idle" | "planning" | "executing" | "done" | "error";
 export type TaskStatus = "pending" | "blocked" | "running" | "completed" | "error";
@@ -165,6 +166,9 @@ export function useEvodaoAgent() {
   const currentGoalRef = useRef<string>("");
   const evolutionRoundRef = useRef(0);
   const reflectionRef = useRef<ReflectionResult | null>(null);
+  // Track the last model used — preserved through evolution rounds
+  const [currentModel, setCurrentModel] = useState<string>("z-ai/glm-5.1");
+  const currentModelRef = useRef<string>("z-ai/glm-5.1");
 
   // Sync refs with state
   useEffect(() => { taskOutputsRef.current = taskOutputs; }, [taskOutputs]);
@@ -174,6 +178,7 @@ export function useEvodaoAgent() {
   useEffect(() => { evolutionRoundRef.current = evolutionRound; }, [evolutionRound]);
   useEffect(() => { reflectionRef.current = reflection; }, [reflection]);
   useEffect(() => { qaMessagesRef.current = qaMessages; }, [qaMessages]);
+  useEffect(() => { currentModelRef.current = currentModel; }, [currentModel]);
 
   // Auto-save
   useEffect(() => {
@@ -227,7 +232,6 @@ export function useEvodaoAgent() {
     setQaMessages([]);
     setSessionUsage({ promptTokens: 0, completionTokens: 0, totalTokens: 0 });
   }, []);
-
   /** Clears only the QA conversation, keeps status idle */
   const resetQA = useCallback(() => {
     abortControllerRef.current?.abort();
@@ -570,6 +574,10 @@ export function useEvodaoAgent() {
       setOutputMode("qa");
       setCurrentGoal(goal);
       setError(null);
+      // Track the model for display + evolution continuity
+      const resolvedModel = model || getAutoModel(mode);
+      setCurrentModel(resolvedModel);
+      currentModelRef.current = resolvedModel;
       // Abort any prior QA stream so its retry loop can't race with this one
       abortControllerRef.current?.abort();
 
@@ -737,6 +745,10 @@ export function useEvodaoAgent() {
     setActiveTaskIds(new Set());
     setExtractedFiles([]);
     setSavedSession(null);
+    // Track the model for display + evolution continuity
+    const resolvedModel = model || getAutoModel(mode);
+    setCurrentModel(resolvedModel);
+    currentModelRef.current = resolvedModel;
     if (!evolutionCtx) {
       // Fresh run resets evolution
       setEvolutionStatus("idle");
@@ -847,7 +859,7 @@ export function useEvodaoAgent() {
       evolvedGoal: r.evolvedGoal,
     };
 
-    await runAgent(r.evolvedGoal, outputModeRef.current, onComplete, evolutionCtx);
+    await runAgent(r.evolvedGoal, outputModeRef.current, onComplete, evolutionCtx, currentModelRef.current);
   }, [runAgent]);
 
   const dismissEvolution = useCallback(() => {
@@ -863,6 +875,7 @@ export function useEvodaoAgent() {
     activeTaskIds,
     error,
     currentGoal,
+    currentModel,
     outputMode,
     extractedFiles,
     savedSession,
