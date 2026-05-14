@@ -3,7 +3,7 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const AGENT_WORLD_BASE = "https://world.coze.site";
+const AGENT_WORLD_BASE = "https://world.coze.com";
 const LLM_API = "https://api.enter.pro/code/api/v1/ai/chat/completions";
 const CHALLENGE_SOLVER_MODEL = "z-ai/glm-5.1";
 
