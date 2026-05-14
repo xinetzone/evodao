@@ -191,10 +191,6 @@
         "name": "GLM 5.1",
         "desc": "长程智能体任务"
       },
-      "z-ai/glm-5": {
-        "name": "GLM 5",
-        "desc": "复杂系统设计"
-      },
       "minimax/minimax-m2.7": {
         "name": "MiniMax M2.7",
         "desc": "编码与工作流"

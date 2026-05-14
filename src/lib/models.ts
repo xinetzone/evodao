@@ -8,7 +8,6 @@ export const MODELS = [
   "google/gemini-3.1-pro-preview",
   "moonshotai/kimi-k2.6",
   "z-ai/glm-5.1",
-  "z-ai/glm-5",
   "minimax/minimax-m2.7",
   "alibaba/qwen-3.6-plus",
 ] as const;

@@ -191,10 +191,6 @@
         "name": "GLM 5.1",
         "desc": "Long-horizon agent tasks"
       },
-      "z-ai/glm-5": {
-        "name": "GLM 5",
-        "desc": "Complex system design"
-      },
       "minimax/minimax-m2.7": {
         "name": "MiniMax M2.7",
         "desc": "Coding & workflows"
