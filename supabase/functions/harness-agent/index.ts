@@ -104,72 +104,84 @@ Rules:
  */
 function translateAnthropicToOpenAI(anthropicStream: ReadableStream<Uint8Array>): ReadableStream<Uint8Array> {
   const encoder = new TextEncoder();
+  // Shared decoder preserves state for multi-byte UTF-8 sequences split across chunks
+  const decoder = new TextDecoder();
   let buffer = "";
+  let doneEmitted = false;
+
+  function emitDone(controller: TransformStreamDefaultController<Uint8Array>) {
+    if (doneEmitted) return;
+    doneEmitted = true;
+    controller.enqueue(encoder.encode(`data: {"choices":[{"delta":{},"finish_reason":"stop"}]}\n\n`));
+    controller.enqueue(encoder.encode("data: [DONE]\n\n"));
+  }
+
+  function processLine(line: string, controller: TransformStreamDefaultController<Uint8Array>) {
+    if (!line.startsWith("data: ")) return;
+    const jsonStr = line.slice(6).trim();
+    if (!jsonStr) return;
+
+    let event: Record<string, unknown>;
+    try { event = JSON.parse(jsonStr); } catch { return; }
+
+    const eventType = event.type as string;
+
+    if (eventType === "content_block_delta") {
+      const delta = event.delta as Record<string, unknown>;
+      if (delta?.type === "text_delta" && typeof delta.text === "string") {
+        const oaiChunk = { choices: [{ delta: { content: delta.text }, finish_reason: null }] };
+        controller.enqueue(encoder.encode(`data: ${JSON.stringify(oaiChunk)}\n\n`));
+      }
+    } else if (eventType === "message_stop") {
+      emitDone(controller);
+    } else if (eventType === "message_delta") {
+      const usage = (event.usage ?? (event as Record<string, unknown>)) as Record<string, number>;
+      if (usage?.output_tokens !== undefined) {
+        const uChunk = {
+          usage: {
+            prompt_tokens: usage.input_tokens ?? 0,
+            completion_tokens: usage.output_tokens ?? 0,
+            total_tokens: (usage.input_tokens ?? 0) + (usage.output_tokens ?? 0),
+          }
+        };
+        controller.enqueue(encoder.encode(`data: ${JSON.stringify(uChunk)}\n\n`));
+      }
+    } else if (eventType === "error") {
+      const err = event.error as Record<string, string>;
+      const errChunk = { error: { message: err?.message ?? "Claude error", type: err?.type ?? "api_error" } };
+      controller.enqueue(encoder.encode(`data: ${JSON.stringify(errChunk)}\n\n`));
+    }
+    // Silently skip: message_start, content_block_start, content_block_stop, ping
+  }
 
   const transform = new TransformStream<Uint8Array, Uint8Array>({
     transform(chunk, controller) {
-      const decoder = new TextDecoder();
       buffer += decoder.decode(chunk, { stream: true });
       const lines = buffer.split("\n");
       buffer = lines.pop() ?? "";
-
-      for (const line of lines) {
-        if (!line.startsWith("data: ")) continue;
-        const jsonStr = line.slice(6).trim();
-        if (!jsonStr) continue;
-
-        let event: Record<string, unknown>;
-        try { event = JSON.parse(jsonStr); } catch { continue; }
-
-        const eventType = event.type as string;
-
-        if (eventType === "content_block_delta") {
-          const delta = event.delta as Record<string, unknown>;
-          if (delta?.type === "text_delta" && typeof delta.text === "string") {
-            const oaiChunk = { choices: [{ delta: { content: delta.text }, finish_reason: null }] };
-            controller.enqueue(encoder.encode(`data: ${JSON.stringify(oaiChunk)}\n\n`));
-          }
-        } else if (eventType === "message_stop") {
-          controller.enqueue(encoder.encode(`data: {"choices":[{"delta":{},"finish_reason":"stop"}]}\n\n`));
-          controller.enqueue(encoder.encode("data: [DONE]\n\n"));
-        } else if (eventType === "message_delta") {
-          const usage = (event.usage ?? (event as Record<string, unknown>)) as Record<string, number>;
-          if (usage?.output_tokens !== undefined) {
-            const uChunk = {
-              usage: {
-                prompt_tokens: usage.input_tokens ?? 0,
-                completion_tokens: usage.output_tokens ?? 0,
-                total_tokens: (usage.input_tokens ?? 0) + (usage.output_tokens ?? 0),
-              }
-            };
-            controller.enqueue(encoder.encode(`data: ${JSON.stringify(uChunk)}\n\n`));
-          }
-        } else if (eventType === "error") {
-          const err = event.error as Record<string, string>;
-          const errChunk = { error: { message: err?.message ?? "Claude error", type: err?.type ?? "api_error" } };
-          controller.enqueue(encoder.encode(`data: ${JSON.stringify(errChunk)}\n\n`));
-        }
-        // Silently skip: message_start, content_block_start, content_block_stop, ping
-      }
+      for (const line of lines) processLine(line, controller);
     },
     flush(controller) {
-      // Process any remainder in buffer
-      if (!buffer.trim()) return;
-      for (const line of buffer.split("\n")) {
-        if (!line.startsWith("data: ")) continue;
-        const jsonStr = line.slice(6).trim();
-        if (!jsonStr) continue;
-        let event: Record<string, unknown>;
-        try { event = JSON.parse(jsonStr); } catch { continue; }
-        if (event.type === "message_stop") {
-          controller.enqueue(encoder.encode(`data: {"choices":[{"delta":{},"finish_reason":"stop"}]}\n\n`));
-          controller.enqueue(encoder.encode("data: [DONE]\n\n"));
-        }
+      // Flush any remaining bytes in the TextDecoder
+      const tail = decoder.decode();
+      if (tail) buffer += tail;
+
+      // Process any remaining buffered lines
+      if (buffer.trim()) {
+        for (const line of buffer.split("\n")) processLine(line, controller);
       }
+
+      // Safety net: if Anthropic never sent message_stop (e.g. error/truncation),
+      // always emit [DONE] so the client SSE parser doesn't hang waiting.
+      emitDone(controller);
     }
   });
 
-  anthropicStream.pipeTo(transform.writable);
+  // Pipe async; errors are propagated to transform.readable automatically
+  anthropicStream.pipeTo(transform.writable).catch(() => {
+    // pipeTo errors close transform.writable, which triggers flush and closes
+    // transform.readable — the client will see stream end and onclose fires.
+  });
   return transform.readable;
 }
 

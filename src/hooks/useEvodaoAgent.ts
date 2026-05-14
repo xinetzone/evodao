@@ -565,6 +565,8 @@ export function useEvodaoAgent() {
       setOutputMode("qa");
       setCurrentGoal(goal);
       setError(null);
+      // Abort any prior QA stream so its retry loop can't race with this one
+      abortControllerRef.current?.abort();
 
       const userMsg: QAMessage = { role: "user", content: goal };
       // messages to send to API (completed exchanges only)
@@ -673,6 +675,12 @@ export function useEvodaoAgent() {
               if (err instanceof Error && err.name === "AbortError") throw err;
               settle(() => reject(err));
               throw err;
+            },
+
+            // Stream closed cleanly (server side done) — resolve if not already settled
+            // This also prevents @microsoft/fetch-event-source from retrying indefinitely
+            onclose() {
+              settle(() => resolve());
             },
           });
         });
