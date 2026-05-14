@@ -1,70 +1,103 @@
-# GitHub Push Skill 计划
+# 历史记录跨设备共享计划
 
-## 技能目标
+## 背景
 
-创建 `github-push` skill，让 AI 代理在用户需要推送代码到 GitHub 时，提供**完整的引导 + 兜底脚本方案**。
-
-## 核心约束
-
-- `git push` 在 Enter.pro 框架中被强制拦截，AI 代理无法直接执行
-- 因此技能分两路：①重连 Enter.pro GitHub Integration（自动同步）②生成本地推送脚本（兜底）
+当前 `useAgentHistory` 使用 `localStorage` 存储（key: `evodao-history`），仅本设备可见。需迁移至 Supabase，实现同账号跨设备共享。
 
 ---
 
-## Skill 内容设计
+## 数据结构
 
-### 触发场景
-- 用户说"推送到 GitHub"、"push to GitHub"、"代码同步到 github"
-- 用户遇到 git push 失败或无法连接
-- 用户第一次配置 GitHub 推送
-
-### 执行流程
-
-**Step 1：检查当前 git 状态**
-```bash
-git remote -v          # 查看 remote 是否已指向 GitHub
-git log --oneline -5   # 查看最近待推送的 commits
+`HistoryEntry` 接口（来自 `useEvodaoAgent.ts`）：
+```typescript
+{
+  id: string;                          // Date.now().toString()
+  goal: string;
+  tasks: Task[];
+  taskOutputs: Record<number, string>; // 可能很大
+  taskStatuses: Record<number, TaskStatus>;
+  completedAt: number;                 // epoch ms
+  outputMode?: OutputMode;
+  extractedFiles?: AgentFile[];        // 含文件内容，可能很大
+  evolutionRound?: number;
+}
 ```
 
-**Step 2A：优先引导 Enter.pro GitHub Integration**
-- 检测 `origin` 是否为 `/workspace/center`（未连接 GitHub）
-- 如果是，引导用户：项目设置 → GitHub → Connect
-- 常见问题：弹窗被拦截（提供 Chrome/Edge 解除方法）
-- 成功后：每次对话代码变更自动同步到 GitHub
+---
 
-**Step 2B：兜底 — 生成本地推送脚本**
-- 询问用户的 GitHub 仓库 URL（HTTPS 或 SSH）
-- 根据用户选择生成对应脚本：
+## 方案
 
-  **SSH 版本**（`push-github-ssh.sh`）：
-  - 检查本地是否有 SSH key，没有则生成
-  - 显示公钥，提示用户添加到 GitHub
-  - 配置 SSH remote，执行 push
+### 1. DB 迁移
 
-  **HTTPS/PAT 版本**（`push-github-https.sh`）：
-  - 配置 credential 使用 token
-  - 设置 remote URL 含 PAT
-  - 执行 push
+新建 `agent_history` 表：
 
-- 脚本写入项目根目录，用户下载后一键执行
+```sql
+CREATE TABLE agent_history (
+  id           TEXT PRIMARY KEY,            -- HistoryEntry.id (Date.now())
+  user_id      UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  goal         TEXT NOT NULL,
+  tasks        JSONB NOT NULL DEFAULT '[]',
+  task_outputs JSONB NOT NULL DEFAULT '{}',
+  task_statuses JSONB NOT NULL DEFAULT '{}',
+  completed_at BIGINT NOT NULL,
+  output_mode  TEXT DEFAULT 'text',
+  extracted_files JSONB DEFAULT '[]',
+  evolution_round INTEGER DEFAULT 0,
+  created_at   TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+ALTER TABLE agent_history ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "own_history" ON agent_history FOR ALL USING (auth.uid() = user_id);
+```
+
+### 2. `useAgentHistory.ts` 完全重写
+
+- 引入 `useAuth` 获取 `profile.id`
+- `isLoading` 状态 — 首次加载时为 true
+- `fetchHistory()` — SELECT 前 20 条按 `completed_at DESC`，组装成 `HistoryEntry[]`
+- `addEntry(entry)` — INSERT（`taskOutputs` 每条截断为 6000 chars 防超限，`extractedFiles` 仅存 path+language+taskId 不存 content）
+- `removeEntry(id)` — DELETE by id
+- `clearHistory()` — DELETE WHERE user_id
+- **一次性 localStorage 迁移**：mount 时若 localStorage 有数据且 DB 为空 → 写入 DB → 清除 localStorage
+- 用户未登录时：降级为 localStorage 行为（兼容性）
+
+### 3. `HistoryPanel.tsx` 小改动
+
+- 接收 `isLoading?: boolean` prop
+- 列表为空且 `isLoading` 时显示 loading spinner 而非 "暂无历史" 空状态
+
+### 4. `Index.tsx` 小改动
+
+- 从 `useAgentHistory()` 取出 `isLoading`，传入 `<HistoryPanel>`
 
 ---
 
-## Skill 文件位置
+## 关键决策
 
-`/workspace/skill-drafts/custom/github-push@1/SKILL.md`
-
----
-
-## 执行步骤
-
-1. 写入 SKILL.md 草稿到 `/workspace/skill-drafts/custom/github-push@1/`
-2. 调用 `confirm_skill` 提交
+| 决策 | 选择 | 原因 |
+|------|------|------|
+| `taskOutputs` 存储上限 | 每条 6000 chars | 防止单条记录过大；HistoryPanel 展示用量足够 |
+| `extractedFiles` 存储 | 仅存 metadata (path/lang/taskId)，不存 content | 文件内容可重新生成，减少 DB 负担 |
+| localStorage 向 DB 迁移 | 自动一次性迁移 | 用户无感知，历史不丢失 |
+| 未登录时降级 | 继续用 localStorage | 确保非登录状态也可用 |
 
 ---
 
-## 注意事项
+## 需要修改的文件
 
-- skill 中需明确告知 AI：不能执行 `git push`，只能生成脚本或引导
-- 生成脚本时包含 `--force` 选项说明（适用于历史冲突场景）
-- SSH key 生成使用 `ed25519` 算法（更现代、更安全）
+1. `supabase/migrations/migration_...` — 建表 + RLS
+2. `src/hooks/useAgentHistory.ts` — 完全重写
+3. `src/components/agent/HistoryPanel.tsx` — 加 `isLoading` prop + loading UI
+4. `src/pages/Index.tsx` — 传 `isLoading` 到 HistoryPanel
+
+**不需要修改：**
+- `useEvodaoAgent.ts` — HistoryEntry 定义不变
+- `src/integrations/supabase/types.ts` — 使用 `any` 类型断言操作新表
+
+---
+
+## 验证
+
+1. 同账号 A 设备运行一次 → 历史面板显示该条记录
+2. 同账号 B 设备登录 → 历史面板同样显示该条记录
+3. 删除/清空 → 两端同步消失
+4. 未登录时 → 历史仍可本地使用
