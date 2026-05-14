@@ -3,10 +3,18 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+// OpenAI-compatible endpoint (GPT, DeepSeek, Kimi, GLM, etc.)
 const API_BASE = "https://api.enter.pro/code/api/v1/ai/chat/completions";
+// Anthropic Messages endpoint (Claude models)
+const API_BASE_MESSAGES = "https://api.enter.pro/code/api/v1/ai/messages";
 
 // Lightweight fallback model for utility calls (suggest / optimize / reflect / intent)
 const UTILITY_MODEL = "z-ai/glm-5.1";
+
+// Detect Claude / Anthropic models
+function isClaudeModel(model: string): boolean {
+  return model.startsWith("anthropic/");
+}
 
 interface EvolutionContext {
   round: number;
@@ -87,6 +95,177 @@ Rules:
 - Always include a README.md with setup and usage instructions in the first or last task${toolHints}${evoSection}`;
   }
   return `You are a skilled execution agent. Carry out assigned tasks thoroughly and produce high-quality, detailed outputs. Be specific, practical, and thorough. Use clear structure with headers and bullet points where helpful.${toolHints}${evoSection}`;
+}
+
+/**
+ * Translates Anthropic SSE stream to OpenAI-compatible SSE format.
+ * The frontend expects OpenAI format (choices[0].delta.content etc.),
+ * so we normalise here and keep the frontend parser unchanged.
+ */
+function translateAnthropicToOpenAI(anthropicStream: ReadableStream<Uint8Array>): ReadableStream<Uint8Array> {
+  const encoder = new TextEncoder();
+  let buffer = "";
+
+  const transform = new TransformStream<Uint8Array, Uint8Array>({
+    transform(chunk, controller) {
+      const decoder = new TextDecoder();
+      buffer += decoder.decode(chunk, { stream: true });
+      const lines = buffer.split("\n");
+      buffer = lines.pop() ?? "";
+
+      for (const line of lines) {
+        if (!line.startsWith("data: ")) continue;
+        const jsonStr = line.slice(6).trim();
+        if (!jsonStr) continue;
+
+        let event: Record<string, unknown>;
+        try { event = JSON.parse(jsonStr); } catch { continue; }
+
+        const eventType = event.type as string;
+
+        if (eventType === "content_block_delta") {
+          const delta = event.delta as Record<string, unknown>;
+          if (delta?.type === "text_delta" && typeof delta.text === "string") {
+            const oaiChunk = { choices: [{ delta: { content: delta.text }, finish_reason: null }] };
+            controller.enqueue(encoder.encode(`data: ${JSON.stringify(oaiChunk)}\n\n`));
+          }
+        } else if (eventType === "message_stop") {
+          controller.enqueue(encoder.encode(`data: {"choices":[{"delta":{},"finish_reason":"stop"}]}\n\n`));
+          controller.enqueue(encoder.encode("data: [DONE]\n\n"));
+        } else if (eventType === "message_delta") {
+          const usage = (event.usage ?? (event as Record<string, unknown>)) as Record<string, number>;
+          if (usage?.output_tokens !== undefined) {
+            const uChunk = {
+              usage: {
+                prompt_tokens: usage.input_tokens ?? 0,
+                completion_tokens: usage.output_tokens ?? 0,
+                total_tokens: (usage.input_tokens ?? 0) + (usage.output_tokens ?? 0),
+              }
+            };
+            controller.enqueue(encoder.encode(`data: ${JSON.stringify(uChunk)}\n\n`));
+          }
+        } else if (eventType === "error") {
+          const err = event.error as Record<string, string>;
+          const errChunk = { error: { message: err?.message ?? "Claude error", type: err?.type ?? "api_error" } };
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify(errChunk)}\n\n`));
+        }
+        // Silently skip: message_start, content_block_start, content_block_stop, ping
+      }
+    },
+    flush(controller) {
+      // Process any remainder in buffer
+      if (!buffer.trim()) return;
+      for (const line of buffer.split("\n")) {
+        if (!line.startsWith("data: ")) continue;
+        const jsonStr = line.slice(6).trim();
+        if (!jsonStr) continue;
+        let event: Record<string, unknown>;
+        try { event = JSON.parse(jsonStr); } catch { continue; }
+        if (event.type === "message_stop") {
+          controller.enqueue(encoder.encode(`data: {"choices":[{"delta":{},"finish_reason":"stop"}]}\n\n`));
+          controller.enqueue(encoder.encode("data: [DONE]\n\n"));
+        }
+      }
+    }
+  });
+
+  anthropicStream.pipeTo(transform.writable);
+  return transform.readable;
+}
+
+/**
+ * Non-streaming call — returns the assistant text content.
+ * Handles both OpenAI (choices[0].message.content) and
+ * Anthropic (content[].text) response shapes.
+ */
+async function callLLMNonStream(
+  token: string,
+  model: string,
+  systemPrompt: string,
+  userContent: string,
+): Promise<string> {
+  if (isClaudeModel(model)) {
+    const res = await fetch(API_BASE_MESSAGES, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model,
+        system: systemPrompt,
+        messages: [{ role: "user", content: userContent }],
+        stream: false,
+        max_tokens: 8192,
+      }),
+    });
+    if (!res.ok) {
+      const txt = await res.text();
+      throw new Error(`Planning LLM error (Claude): ${txt}`);
+    }
+    const data = await res.json();
+    // Anthropic: { content: [{type:"thinking",...},{type:"text",text:"..."}] }
+    const block = (data.content as Array<{ type: string; text?: string }>)
+      ?.find((b) => b.type === "text");
+    return block?.text ?? "[]";
+  } else {
+    const res = await fetch(API_BASE, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model,
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userContent },
+        ],
+        stream: false,
+      }),
+    });
+    if (!res.ok) {
+      const txt = await res.text();
+      throw new Error(`Planning LLM error: ${txt}`);
+    }
+    const data = await res.json();
+    return data.choices?.[0]?.message?.content ?? "[]";
+  }
+}
+
+/**
+ * Streaming call — returns { response, isAnthropic }.
+ * Caller is responsible for translating the stream if isAnthropic === true.
+ */
+async function callLLMStream(
+  token: string,
+  model: string,
+  systemPrompt: string,
+  userMessages: Array<{ role: string; content: unknown }>,
+): Promise<{ response: Response; isAnthropic: boolean }> {
+  if (isClaudeModel(model)) {
+    const res = await fetch(API_BASE_MESSAGES, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model,
+        system: systemPrompt,
+        messages: userMessages.filter((m) => m.role !== "system"),
+        stream: true,
+        max_tokens: 8192,
+      }),
+    });
+    return { response: res, isAnthropic: true };
+  } else {
+    const messages = systemPrompt
+      ? [{ role: "system", content: systemPrompt }, ...userMessages]
+      : userMessages;
+    const res = await fetch(API_BASE, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model,
+        messages,
+        stream: true,
+        stream_options: { include_usage: true },
+      }),
+    });
+    return { response: res, isAnthropic: false };
+  }
 }
 
 Deno.serve(async (req) => {
@@ -218,13 +397,7 @@ Return ONLY a JSON array of exactly 3 strings. No explanations, no markdown fenc
 
 Original prompt: "${goal}"
 
-Rules:
-- Preserve the core intent exactly
-- Make it more specific and actionable
-- Add concrete constraints or success criteria where beneficial
-- Keep it concise (no longer than 2-3 sentences)
-
-Return ONLY the optimized prompt text. No explanation, no quotes, no preamble.`;
+Return ONLY the rewritten prompt as a plain string — no JSON, no markdown, no explanation.`;
 
       const response = await fetch(API_BASE, {
         method: "POST",
@@ -239,63 +412,126 @@ Return ONLY the optimized prompt text. No explanation, no quotes, no preamble.`;
       if (!response.ok) throw new Error("Optimize LLM error");
 
       const data = await response.json();
-      const optimizedPrompt = (data.choices?.[0]?.message?.content || goal).trim();
-
-      return new Response(JSON.stringify({ optimizedPrompt }), {
+      const optimized = (data.choices?.[0]?.message?.content || goal).trim();
+      return new Response(JSON.stringify({ optimized }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
 
-    // ── CHAT (Q&A) ────────────────────────────────────────────────────────────
-    } else if (mode === "chat") {
-      const chatMessages = messages && messages.length > 0
-        ? messages
-        : [{ role: "user", content: goal }];
+    // ── MEMORY SEARCH ─────────────────────────────────────────────────────────
+    } else if (mode === "memory_search") {
+      const { query, taskSummaries } = body;
+
+      if (!taskSummaries || taskSummaries.length === 0) {
+        return new Response(JSON.stringify({ ids: [] }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      const summaryList = taskSummaries
+        .map((s: { id: string; summary: string }) => `ID: ${s.id}\nSummary: ${s.summary}`)
+        .join("\n\n---\n\n");
+
+      const prompt = `You are a memory retrieval agent. Given a new task goal, identify which of the following past session summaries are most relevant and useful as context.
+
+New goal: "${query}"
+
+Past sessions:
+${summaryList}
+
+Return ONLY a JSON array of the most relevant session IDs (up to 3). If none are relevant, return [].
+Example: ["id1", "id2"]`;
 
       const response = await fetch(API_BASE, {
         method: "POST",
         headers: { Authorization: `Bearer ${AI_API_TOKEN}`, "Content-Type": "application/json" },
         body: JSON.stringify({
-          model: primaryModel,
-          messages: [
-            { role: "system", content: "You are a knowledgeable, helpful assistant. Answer clearly and accurately. Use markdown formatting (headers, bullet points, code blocks) when it aids readability." },
-            ...chatMessages,
-          ],
-          stream: true,
-          stream_options: { include_usage: true },
+          model: UTILITY_MODEL,
+          messages: [{ role: "user", content: prompt }],
+          stream: false,
         }),
       });
+
+      if (!response.ok) throw new Error("Memory search LLM error");
+
+      const data = await response.json();
+      const content = data.choices?.[0]?.message?.content || "[]";
+      let ids = [];
+      try {
+        const cleaned = content.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
+        ids = JSON.parse(cleaned);
+        if (!Array.isArray(ids)) ids = [];
+      } catch { ids = []; }
+
+      return new Response(JSON.stringify({ ids: ids.slice(0, 3) }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+
+    // ── MEMORY SUMMARIZE ──────────────────────────────────────────────────────
+    } else if (mode === "memory_summarize") {
+      const { taskOutputsToSummarize } = body;
+
+      const outputText = Object.entries(taskOutputsToSummarize || {})
+        .map(([id, output]) => `Task ${id}:\n${(output as string).substring(0, 800)}`)
+        .join("\n\n---\n\n");
+
+      const prompt = `Summarize the following AI agent session in 2-3 sentences. Focus on: what was accomplished, key outputs or code produced, and any important decisions made.
+
+Goal: ${goal}
+Outputs:
+${outputText}
+
+Return ONLY the summary as a plain string.`;
+
+      const response = await fetch(API_BASE, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${AI_API_TOKEN}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: UTILITY_MODEL,
+          messages: [{ role: "user", content: prompt }],
+          stream: false,
+        }),
+      });
+
+      if (!response.ok) throw new Error("Memory summarize LLM error");
+
+      const data = await response.json();
+      const summary = (data.choices?.[0]?.message?.content || "").trim();
+      return new Response(JSON.stringify({ summary }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+
+    // ── CHAT (Q&A mode) ───────────────────────────────────────────────────────
+    } else if (mode === "chat") {
+      const chatMessages = messages && messages.length > 0
+        ? messages
+        : [{ role: "user", content: goal }];
+
+      const chatSystemPrompt = "You are a knowledgeable, helpful assistant. Answer clearly and accurately. Use markdown formatting (headers, bullet points, code blocks) when it aids readability.";
+
+      const { response, isAnthropic } = await callLLMStream(
+        AI_API_TOKEN,
+        primaryModel,
+        chatSystemPrompt,
+        chatMessages,
+      );
 
       if (!response.ok) {
         const text = await response.text();
         throw new Error(`Chat LLM error: ${text}`);
       }
 
-      return new Response(response.body, {
+      const responseBody = isAnthropic
+        ? translateAnthropicToOpenAI(response.body!)
+        : response.body!;
+
+      return new Response(responseBody, {
         headers: { ...corsHeaders, "Content-Type": "text/event-stream", "Cache-Control": "no-cache" },
       });
 
     // ── PLAN ─────────────────────────────────────────────────────────────────
     } else if (mode === "plan") {
-      const response = await fetch(API_BASE, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${AI_API_TOKEN}`, "Content-Type": "application/json" },
-        body: JSON.stringify({
-          model: primaryModel,
-          messages: [
-            { role: "system", content: getPlanSystemPrompt(outputMode, evolutionContext) },
-            { role: "user", content: `Goal: ${goal}` },
-          ],
-          stream: false,
-        }),
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`Planning LLM error: ${errorText}`);
-      }
-
-      const data = await response.json();
-      const content = data.choices?.[0]?.message?.content || "[]";
+      const planSystemPrompt = getPlanSystemPrompt(outputMode, evolutionContext);
+      const content = await callLLMNonStream(AI_API_TOKEN, primaryModel, planSystemPrompt, `Goal: ${goal}`);
 
       let taskList = [];
       try {
@@ -319,22 +555,15 @@ Return ONLY the optimized prompt text. No explanation, no quotes, no preamble.`;
         ? `Overall Goal: ${goal}\n\nCurrent Task:\nTitle: ${task.title}\nDescription: ${task.description}${contextSection}\n\nImplement this task completely. Output every file using the \`\`\`language:path format. Write full, working code.`
         : `Overall Goal: ${goal}\n\nCurrent Task to Execute:\nTitle: ${task.title}\nDescription: ${task.description}${contextSection}\n\nPlease execute this task completely and provide detailed, actionable output.`;
 
-      // Use task.tools to customize system prompt behaviour
       const taskTools: string[] | undefined = task?.tools;
+      const execSystemPrompt = getExecuteSystemPrompt(outputMode, taskTools, evolutionContext);
 
-      const response = await fetch(API_BASE, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${AI_API_TOKEN}`, "Content-Type": "application/json" },
-        body: JSON.stringify({
-          model: primaryModel,
-          messages: [
-            { role: "system", content: getExecuteSystemPrompt(outputMode, taskTools, evolutionContext) },
-            { role: "user", content: userPrompt },
-          ],
-          stream: true,
-          stream_options: { include_usage: true },
-        }),
-      });
+      const { response, isAnthropic } = await callLLMStream(
+        AI_API_TOKEN,
+        primaryModel,
+        execSystemPrompt,
+        [{ role: "user", content: userPrompt }],
+      );
 
       if (!response.ok) {
         const text = await response.text();
@@ -353,7 +582,11 @@ Return ONLY the optimized prompt text. No explanation, no quotes, no preamble.`;
         });
       }
 
-      return new Response(response.body, {
+      const responseBody = isAnthropic
+        ? translateAnthropicToOpenAI(response.body!)
+        : response.body!;
+
+      return new Response(responseBody, {
         headers: { ...corsHeaders, "Content-Type": "text/event-stream", "Cache-Control": "no-cache" },
       });
 
