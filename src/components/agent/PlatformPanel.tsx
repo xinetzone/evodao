@@ -1,5 +1,6 @@
 import { X, Copy, Check, ExternalLink, Globe, AlertTriangle, CheckCircle, XCircle, Zap } from "lucide-react";
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
 
 interface PlatformPanelProps {
@@ -7,7 +8,6 @@ interface PlatformPanelProps {
   onClose: () => void;
 }
 
-// C: Static data from memory.md
 // DESENSITIZATION_EXEMPTION: These are operational Agent World API keys for
 // project-owned accounts, intentionally exposed via this internal operator panel
 // so the user can copy them for use on allied sites. See AGENTS.md 2.3c.
@@ -16,25 +16,25 @@ const ACCOUNTS = [
     username: "evodao_v2",
     apiKey: "agent-world-92706b8b6c45e7a4ced7f0bf14127c1d496cc3b3526f1922",
     status: "active" as const,
-    note: "主账号",
+    noteKey: "noteMain",
   },
   {
     username: "evodao-link1",
     apiKey: "agent-world-cd2686305de084b88c4d5d80050fb00279b7a2f8307c9c11",
     status: "active" as const,
-    note: "备用账号",
+    noteKey: "noteBackup",
   },
   {
     username: "evodao-xp",
     apiKey: "agent-world-18d9eab205dd6b89c52b1fcb3de603e07f5cffe0b3e8a3ae",
     status: "active" as const,
-    note: "xiaping 预备",
+    noteKey: "noteXpPrep",
   },
   {
     username: "evodao-dx",
     apiKey: "agent-world-ebd81aa57c31ea2612f74787ed7223fc7ec54b3af5673bde",
     status: "active" as const,
-    note: "DreamX 专用",
+    noteKey: "noteDxDedicated",
   },
 ];
 
@@ -44,16 +44,14 @@ const PLATFORMS = [
     name: "Agent World",
     domain: "world.coze.com",
     status: "ok" as const,
-    note: "evodao_v2 认证有效",
-    agents: null,
-    transactions: null,
+    noteKey: "noteAgentWorldOk",
   },
   {
     id: "dreamx",
     name: "DreamX",
     domain: "dreamx.coze.com",
     status: "blocked" as const,
-    note: "401 — verify-key 307 问题",
+    noteKey: "noteVerifyKey307",
     agents: 1737,
     transactions: 489,
   },
@@ -62,18 +60,14 @@ const PLATFORMS = [
     name: "虾评",
     domain: "xiaping.coze.com",
     status: "blocked" as const,
-    note: "注册失败 — 后端 307 bug",
-    agents: null,
-    transactions: null,
+    noteKey: "noteRegistrationFail",
   },
   {
     id: "abti",
     name: "ABTI",
     domain: "abti.coze.com",
     status: "blocked" as const,
-    note: "401 — verify-key 307 问题",
-    agents: null,
-    transactions: null,
+    noteKey: "noteVerifyKey307",
   },
 ];
 
@@ -84,7 +78,7 @@ function maskKey(key: string): string {
   return `${key.slice(0, 20)}...${key.slice(-8)}`;
 }
 
-function CopyButton({ text }: { text: string }) {
+function CopyButton({ text, title }: { text: string; title: string }) {
   const [copied, setCopied] = useState(false);
   const handle = () => {
     navigator.clipboard.writeText(text).catch(() => {});
@@ -95,7 +89,7 @@ function CopyButton({ text }: { text: string }) {
     <button
       onClick={handle}
       className="p-1 text-muted-foreground hover:text-primary transition-colors"
-      title="复制 API Key"
+      title={title}
     >
       {copied ? <Check className="w-3 h-3 text-primary" /> : <Copy className="w-3 h-3" />}
     </button>
@@ -121,6 +115,14 @@ const statusClass = {
 };
 
 export function PlatformPanel({ open, onClose }: PlatformPanelProps) {
+  const { t } = useTranslation();
+
+  const stats = [
+    { label: t("platformPanel.statDreams"), value: DREAMX_STATS.dreams.toLocaleString() },
+    { label: t("platformPanel.statAgents"), value: DREAMX_STATS.agents.toLocaleString() },
+    { label: t("platformPanel.statTransactions"), value: DREAMX_STATS.transactions.toLocaleString() },
+  ];
+
   return (
     <>
       {/* Backdrop */}
@@ -145,7 +147,7 @@ export function PlatformPanel({ open, onClose }: PlatformPanelProps) {
             <Globe className="w-4 h-4 text-primary" />
             <div>
               <h2 className="text-xs font-bold tracking-[0.25em] text-primary">AGENT WORLD</h2>
-              <p className="text-[10px] text-muted-foreground tracking-wider">Platform Status</p>
+              <p className="text-[10px] text-muted-foreground tracking-wider">{t("platformPanel.subtitle")}</p>
             </div>
           </div>
           <button
@@ -161,7 +163,9 @@ export function PlatformPanel({ open, onClose }: PlatformPanelProps) {
           {/* ── Agent World Accounts ─────────────────────────────── */}
           <section>
             <div className="flex items-center gap-2 mb-3">
-              <span className="text-[9px] font-bold tracking-widest text-muted-foreground/60">ACCOUNTS</span>
+              <span className="text-[9px] font-bold tracking-widest text-muted-foreground/60">
+                {t("platformPanel.accountsSection")}
+              </span>
               <div className="flex-1 h-px bg-border/40" />
             </div>
             <div className="space-y-2">
@@ -178,7 +182,9 @@ export function PlatformPanel({ open, onClose }: PlatformPanelProps) {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-1.5">
                       <span className="text-xs font-semibold text-foreground/80 font-mono">{acc.username}</span>
-                      <span className="text-[9px] text-muted-foreground/50 tracking-wider">{acc.note}</span>
+                      <span className="text-[9px] text-muted-foreground/50 tracking-wider">
+                        {t(`platformPanel.${acc.noteKey}`)}
+                      </span>
                     </div>
                     <p className="text-[10px] text-muted-foreground/50 font-mono truncate mt-0.5">
                       {maskKey(acc.apiKey)}
@@ -186,7 +192,7 @@ export function PlatformPanel({ open, onClose }: PlatformPanelProps) {
                   </div>
                   <div className="flex items-center gap-1 shrink-0">
                     <CheckCircle className="w-3 h-3 text-primary/70" />
-                    <CopyButton text={acc.apiKey} />
+                    <CopyButton text={acc.apiKey} title={t("platformPanel.copyKey")} />
                   </div>
                 </div>
               ))}
@@ -196,7 +202,9 @@ export function PlatformPanel({ open, onClose }: PlatformPanelProps) {
           {/* ── Platform Status ───────────────────────────────────── */}
           <section>
             <div className="flex items-center gap-2 mb-3">
-              <span className="text-[9px] font-bold tracking-widest text-muted-foreground/60">PLATFORMS</span>
+              <span className="text-[9px] font-bold tracking-widest text-muted-foreground/60">
+                {t("platformPanel.platformsSection")}
+              </span>
               <div className="flex-1 h-px bg-border/40" />
             </div>
             <div className="rounded border border-border/60 overflow-hidden">
@@ -220,7 +228,7 @@ export function PlatformPanel({ open, onClose }: PlatformPanelProps) {
                     {statusLabel[p.status]}
                   </div>
                   <p className="text-[10px] text-muted-foreground/50 flex-1 min-w-0 truncate">
-                    {p.note}
+                    {t(`platformPanel.${p.noteKey}`)}
                   </p>
                   <a
                     href={`https://${p.domain}`}
@@ -238,16 +246,14 @@ export function PlatformPanel({ open, onClose }: PlatformPanelProps) {
           {/* ── DreamX Quick Stats ────────────────────────────────── */}
           <section>
             <div className="flex items-center gap-2 mb-3">
-              <span className="text-[9px] font-bold tracking-widest text-muted-foreground/60">DREAMX STATS</span>
+              <span className="text-[9px] font-bold tracking-widest text-muted-foreground/60">
+                {t("platformPanel.dreamxStatsSection")}
+              </span>
               <div className="flex-1 h-px bg-border/40" />
-              <span className="text-[9px] text-muted-foreground/30 font-mono">last sync</span>
+              <span className="text-[9px] text-muted-foreground/30 font-mono">{t("platformPanel.lastSync")}</span>
             </div>
             <div className="grid grid-cols-3 gap-2">
-              {[
-                { label: "Dreams", value: DREAMX_STATS.dreams.toLocaleString() },
-                { label: "Agents", value: DREAMX_STATS.agents.toLocaleString() },
-                { label: "Transactions", value: DREAMX_STATS.transactions.toLocaleString() },
-              ].map((stat) => (
+              {stats.map((stat) => (
                 <div
                   key={stat.label}
                   className="rounded border border-border/40 bg-background/30 px-3 py-2.5 text-center"
@@ -265,12 +271,15 @@ export function PlatformPanel({ open, onClose }: PlatformPanelProps) {
               <div className="flex items-start gap-2">
                 <AlertTriangle className="w-3.5 h-3.5 text-yellow-400 shrink-0 mt-0.5" />
                 <div>
-                  <p className="text-[10px] font-bold text-yellow-400 tracking-wider mb-1">KNOWN ISSUE</p>
+                  <p className="text-[10px] font-bold text-yellow-400 tracking-wider mb-1">
+                    {t("platformPanel.knownIssueTitle")}
+                  </p>
                   <p className="text-[10px] text-foreground/60 leading-relaxed">
-                    所有新注册账号在 member sites 均 401。根因：各站后端调用{" "}
-                    <code className="font-mono text-yellow-400/70">world.coze.site</code> → 307 → POST body 丢失。
-                    等待各站后端更新调用地址为{" "}
-                    <code className="font-mono text-primary/70">world.coze.com</code>。
+                    {t("platformPanel.knownIssuePre")}{" "}
+                    <code className="font-mono text-yellow-400/70">world.coze.site</code>{" "}
+                    {t("platformPanel.knownIssuePost")}{" "}
+                    <code className="font-mono text-primary/70">world.coze.com</code>
+                    {t("platformPanel.knownIssueSuffix")}
                   </p>
                 </div>
               </div>
@@ -280,7 +289,9 @@ export function PlatformPanel({ open, onClose }: PlatformPanelProps) {
           {/* ── evodao-dx DreamX key ────────────────────────────── */}
           <section>
             <div className="flex items-center gap-2 mb-3">
-              <span className="text-[9px] font-bold tracking-widest text-muted-foreground/60">DREAMX KEY (evodao-dx)</span>
+              <span className="text-[9px] font-bold tracking-widest text-muted-foreground/60">
+                {t("platformPanel.dreamxKeySection")}
+              </span>
               <div className="flex-1 h-px bg-border/40" />
             </div>
             <div className="rounded border border-border/60 bg-background/30 px-3 py-2.5">
@@ -292,11 +303,14 @@ export function PlatformPanel({ open, onClose }: PlatformPanelProps) {
                   <div className="flex items-center gap-1.5 mt-1">
                     <Zap className="w-2.5 h-2.5 text-primary/40" />
                     <span className="text-[9px] text-muted-foreground/40">
-                      Challenge answer: 81 (seventy + one + ten)
+                      {t("platformPanel.challengeAnswer")}
                     </span>
                   </div>
                 </div>
-                <CopyButton text="agent-world-ebd81aa57c31ea2612f74787ed7223fc7ec54b3af5673bde" />
+                <CopyButton
+                  text="agent-world-ebd81aa57c31ea2612f74787ed7223fc7ec54b3af5673bde"
+                  title={t("platformPanel.copyKey")}
+                />
               </div>
             </div>
           </section>

@@ -424,5 +424,29 @@
     "quotaMonthlyRun": "每月总次数",
     "quotaDailyToken": "每日 Token",
     "quotaMonthlyToken": "每月 Token"
+  },
+  "platformPanel": {
+    "subtitle": "平台状态",
+    "accountsSection": "账号管理",
+    "platformsSection": "平台列表",
+    "dreamxStatsSection": "DREAMX 统计",
+    "lastSync": "上次同步",
+    "statDreams": "梦境数",
+    "statAgents": "智能体",
+    "statTransactions": "交易数",
+    "knownIssueTitle": "已知问题",
+    "knownIssuePre": "所有新注册账号在 member sites 均 401。根因：各站后端调用",
+    "knownIssuePost": "→ 307 → POST body 丢失。等待各站后端更新调用地址为",
+    "knownIssueSuffix": "。",
+    "dreamxKeySection": "DREAMX KEY (evodao-dx)",
+    "challengeAnswer": "挑战答案：81 (seventy + one + ten)",
+    "copyKey": "复制 API Key",
+    "noteMain": "主账号",
+    "noteBackup": "备用账号",
+    "noteXpPrep": "xiaping 预备",
+    "noteDxDedicated": "DreamX 专用",
+    "noteAgentWorldOk": "evodao_v2 认证有效",
+    "noteVerifyKey307": "401 — verify-key 307 问题",
+    "noteRegistrationFail": "注册失败 — 后端 307 bug"
   }
 }

@@ -424,5 +424,29 @@
     "quotaMonthlyRun": "Monthly Runs",
     "quotaDailyToken": "Daily Tokens",
     "quotaMonthlyToken": "Monthly Tokens"
+  },
+  "platformPanel": {
+    "subtitle": "Platform Status",
+    "accountsSection": "ACCOUNTS",
+    "platformsSection": "PLATFORMS",
+    "dreamxStatsSection": "DREAMX STATS",
+    "lastSync": "last sync",
+    "statDreams": "Dreams",
+    "statAgents": "Agents",
+    "statTransactions": "Transactions",
+    "knownIssueTitle": "KNOWN ISSUE",
+    "knownIssuePre": "All newly registered accounts receive 401 on member sites. Root cause: each site's backend calls",
+    "knownIssuePost": "→ 307 → POST body lost. Waiting for site backends to update the call address to",
+    "knownIssueSuffix": ".",
+    "dreamxKeySection": "DREAMX KEY (evodao-dx)",
+    "challengeAnswer": "Challenge answer: 81 (seventy + one + ten)",
+    "copyKey": "Copy API Key",
+    "noteMain": "Primary",
+    "noteBackup": "Backup",
+    "noteXpPrep": "xiaping Standby",
+    "noteDxDedicated": "DreamX Dedicated",
+    "noteAgentWorldOk": "evodao_v2 authenticated",
+    "noteVerifyKey307": "401 — verify-key 307 issue",
+    "noteRegistrationFail": "Registration failed — backend 307 bug"
   }
 }
