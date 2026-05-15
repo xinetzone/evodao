@@ -2,6 +2,7 @@ import { useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuthContext } from "@/context/AuthContext";
 import { OutputMode, TokenUsage } from "@/hooks/useEvodaoAgent";
+import { estimateCostUsd } from "@/lib/models";
 
 export interface QuotaCheckResult {
   allowed: boolean;
@@ -92,14 +93,14 @@ export function useUsageQuota() {
     [user, profile, isAdmin]
   );
 
-  /** Inserts a usage log row at run start. Returns the new row's ID. */
+  /** Inserts a usage log row at run start (model_id recorded immediately). */
   const recordUsage = useCallback(
-    async (outputMode: OutputMode): Promise<string | null> => {
+    async (outputMode: OutputMode, modelId?: string): Promise<string | null> => {
       if (isAdmin || !user) return null;
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const { data } = await (supabase as any)
         .from("usage_logs")
-        .insert({ user_id: user.id, output_mode: outputMode })
+        .insert({ user_id: user.id, output_mode: outputMode, model_id: modelId ?? null })
         .select("id")
         .single();
       return (data as { id: string } | null)?.id ?? null;
@@ -107,10 +108,11 @@ export function useUsageQuota() {
     [user, isAdmin]
   );
 
-  /** Updates the usage log row with actual token counts after a run completes. */
+  /** Updates the usage log row with actual token counts + estimated cost after a run completes. */
   const finalizeUsage = useCallback(
-    async (logId: string, tokens: TokenUsage) => {
+    async (logId: string, tokens: TokenUsage, modelId?: string) => {
       if (!logId || !tokens.totalTokens) return;
+      const cost_usd = estimateCostUsd(modelId ?? "", tokens.totalTokens);
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       await (supabase as any)
         .from("usage_logs")
@@ -118,6 +120,7 @@ export function useUsageQuota() {
           prompt_tokens: tokens.promptTokens,
           completion_tokens: tokens.completionTokens,
           total_tokens: tokens.totalTokens,
+          cost_usd,
         })
         .eq("id", logId);
     },

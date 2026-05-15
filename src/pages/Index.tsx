@@ -36,6 +36,7 @@ const Index = () => {
   const [quotaExceeded, setQuotaExceeded] = useState<QuotaCheckResult | null>(null);
   const [pricingOpen, setPricingOpen] = useState(false);
   const [pendingLogId, setPendingLogId] = useState<string | null>(null);
+  const [pendingModel, setPendingModel] = useState<string>("");
   const [historyOpen, setHistoryOpen] = useState(false);
   const [taskManagerOpen, setTaskManagerOpen] = useState(false);
   const [platformOpen, setPlatformOpen] = useState(false);
@@ -192,11 +193,12 @@ const Index = () => {
       prevStatusRef.current === "executing" && status === "idle" && outputMode === "qa";
 
     if ((isDoneTransition || isQAFinished) && pendingLogId && sessionUsage.totalTokens > 0) {
-      finalizeUsage(pendingLogId, sessionUsage);
+      finalizeUsage(pendingLogId, sessionUsage, pendingModel);
       setPendingLogId(null);
+      setPendingModel("");
     }
     prevStatusRef.current = status;
-  }, [status, pendingLogId, sessionUsage, finalizeUsage, outputMode]);
+  }, [status, pendingLogId, pendingModel, sessionUsage, finalizeUsage, outputMode]);
 
   // Back-fill quality_score into long-term memory after QA evaluation (Agent 自我进化)
   useEffect(() => {
@@ -287,8 +289,9 @@ const Index = () => {
                 return;
               }
               // Record usage before running; store logId for token finalization
-              const logId = await recordUsage(mode);
+              const logId = await recordUsage(mode, model);
               setPendingLogId(logId);
+              setPendingModel(model);
 
               setLastRunMode(mode);
               if (mode === "image") {

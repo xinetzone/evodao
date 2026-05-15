@@ -43,6 +43,40 @@ export const IMAGE_MODEL_DISPLAY: Record<ImageModelId, { name: string; desc: str
   "doubao/seedream-4.5":                   { name: "Seedream 4.5",        desc: "ByteDance creative image model",  descZh: "字节跳动创意图像" },
 };
 
+/**
+ * Estimated USD cost per 1,000,000 tokens (blended input+output average).
+ * Used for display/estimation only — actual billing is via Enter AI All balance.
+ */
+export const MODEL_PRICING: Record<string, number> = {
+  "anthropic/claude-opus-4.7":      30.0,
+  "anthropic/claude-sonnet-4.5":     7.0,
+  "openai/gpt-5.4":                 10.0,
+  "deepseek/deepseek-v4-pro":        0.5,
+  "google/gemini-3.1-pro-preview":   2.0,
+  "moonshotai/kimi-k2.6":            0.5,
+  "z-ai/glm-5.1":                    0.1,
+  "minimax/minimax-m2.7":            0.5,
+  "alibaba/qwen-3.6-plus":           0.3,
+};
+
+/**
+ * Estimated USD cost per image generation (flat rate, not token-based).
+ */
+export const IMAGE_PRICING: Record<string, number> = {
+  "openai/gpt-image-2":                    0.04,
+  "google/gemini-3.1-flash-image-preview": 0.02,
+  "doubao/seedream-4.5":                   0.015,
+};
+
+/** Calculate estimated USD cost for a run. */
+export function estimateCostUsd(modelId: string, totalTokens: number): number {
+  if (IMAGE_PRICING[modelId] !== undefined) {
+    return IMAGE_PRICING[modelId]; // flat per image
+  }
+  const pricePerMillion = MODEL_PRICING[modelId] ?? 0;
+  return (totalTokens / 1_000_000) * pricePerMillion;
+}
+
 /** Auto-selects the optimal model based on output mode */
 export function getAutoModel(outputMode: OutputMode): ModelId {
   if (outputMode === "agent") return "deepseek/deepseek-v4-pro";

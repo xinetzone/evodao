@@ -3235,8 +3235,10 @@ export type Database = {
       usage_logs: {
         Row: {
           completion_tokens: number
+          cost_usd: number
           created_at: string | null
           id: string
+          model_id: string | null
           output_mode: string
           prompt_tokens: number
           total_tokens: number
@@ -3244,8 +3246,10 @@ export type Database = {
         }
         Insert: {
           completion_tokens?: number
+          cost_usd?: number
           created_at?: string | null
           id?: string
+          model_id?: string | null
           output_mode: string
           prompt_tokens?: number
           total_tokens?: number
@@ -3253,8 +3257,10 @@ export type Database = {
         }
         Update: {
           completion_tokens?: number
+          cost_usd?: number
           created_at?: string | null
           id?: string
+          model_id?: string | null
           output_mode?: string
           prompt_tokens?: number
           total_tokens?: number
