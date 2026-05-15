@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
-import { useEvodaoAgent, HistoryEntry, TokenUsage } from "@/hooks/useEvodaoAgent";
+import { useEvodaoAgent, HistoryEntry, TokenUsage, OutputMode } from "@/hooks/useEvodaoAgent";
 import { useAgentHistory } from "@/hooks/useAgentHistory";
 import { useTaskManager } from "@/hooks/useTaskManager";
 import { useAIImage } from "@/hooks/useAIImage";
@@ -51,6 +51,8 @@ const Index = () => {
   const [activeImageModelId, setActiveImageModelId] = useState<string>("openai/gpt-image-2");
   // The model currently selected in the dropdown (before execution)
   const [selectedModel, setSelectedModel] = useState<string>("z-ai/glm-5.1");
+  // The mode tab currently selected in GoalInput (tracks UI selection, not last run)
+  const [uiMode, setUIMode] = useState<OutputMode>("text");
   // Prompt suggestions state
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [suggestionsLoading, setSuggestionsLoading] = useState(false);
@@ -294,6 +296,7 @@ const Index = () => {
             <GoalInput
               status={status}
               onModelChange={setSelectedModel}
+              onModeChange={setUIMode}
               pendingPrompt={pendingPrompt}
               onPendingPromptConsumed={() => setPendingPrompt(undefined)}
               onRun={async (goal, mode, model, attachments) => {
@@ -419,8 +422,8 @@ const Index = () => {
             </div>
           )}
 
-          {/* Q&A Output — shown in exploratory mode */}
-          {outputMode === "qa" && qaMessages.length > 0 && (
+          {/* Q&A Output — shown only when QA mode is selected or actively running */}
+          {outputMode === "qa" && qaMessages.length > 0 && (uiMode === "qa" || status === "executing") && (
             <QAOutput messages={qaMessages} onClear={handleResetQA} />
           )}
 

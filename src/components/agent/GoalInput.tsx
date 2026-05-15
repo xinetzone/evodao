@@ -14,6 +14,7 @@ interface GoalInputProps {
   onRun: (goal: string, outputMode: OutputMode, model: string, attachments: Attachment[]) => void;
   onReset: () => void;
   onModelChange?: (model: string) => void;
+  onModeChange?: (mode: OutputMode) => void;
   pendingPrompt?: string;
   onPendingPromptConsumed?: () => void;
   suggestions?: string[];
@@ -26,6 +27,7 @@ export function GoalInput({
   onRun,
   onReset,
   onModelChange,
+  onModeChange,
   pendingPrompt,
   onPendingPromptConsumed,
   suggestions = [],
@@ -173,7 +175,9 @@ export function GoalInput({
       if (!resp.ok) throw new Error("Intent detection failed");
       const data = await resp.json();
       if (data.outputMode) {
-        setOutputMode((data.outputMode === "image" ? "text" : data.outputMode) as OutputMode);
+        const detected = (data.outputMode === "image" ? "text" : data.outputMode) as OutputMode;
+        setOutputMode(detected);
+        onModeChange?.(detected);
         setDetectedReason(data.reason || null);
         // auto-clear reason badge after 6 seconds
         setTimeout(() => setDetectedReason(null), 6000);
@@ -222,7 +226,7 @@ export function GoalInput({
             {(["text", "agent", "qa"] as OutputMode[]).map((m) => (
               <button
                 key={m}
-                onClick={() => setOutputMode(m)}
+                onClick={() => { setOutputMode(m); onModeChange?.(m); }}
                 disabled={isRunning}
                 className={cn(
                   "px-1.5 sm:px-2.5 py-0.5 sm:py-1 text-xs font-semibold tracking-widest rounded transition-all duration-150",
