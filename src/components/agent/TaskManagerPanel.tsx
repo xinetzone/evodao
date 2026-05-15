@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { X, Square, Trash2, LayoutGrid, Plus, Check, AlertCircle, Loader, Clock, ChevronDown, ChevronRight, Wand2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { AgentSession } from "@/hooks/useTaskManager";
@@ -383,7 +384,7 @@ export function TaskManagerPanel({
     return () => document.removeEventListener("keydown", handler);
   }, [open, onClose]);
 
-  return (
+  return createPortal(
     <>
       {/* Backdrop */}
       {open && (
@@ -465,6 +466,7 @@ export function TaskManagerPanel({
           <span>EVODAO TASK MANAGER</span>
         </div>
       </div>
-    </>
+    </>,
+    document.body
   );
 }

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 import { X, Trash2, ArrowLeft, Clock, CheckCircle, AlertCircle, ChevronRight, Loader2 } from "lucide-react";
 import { HistoryEntry } from "@/hooks/useAgentHistory";
@@ -65,7 +66,7 @@ export function HistoryPanel({ open, onClose, entries, onRemove, onClear, isLoad
     });
   };
 
-  return (
+  return createPortal(
     <>
       {/* Backdrop */}
       <div
@@ -276,6 +277,7 @@ export function HistoryPanel({ open, onClose, entries, onRemove, onClear, isLoad
           </div>
         )}
       </div>
-    </>
+    </>,
+    document.body
   );
 }

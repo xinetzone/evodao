@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 import {
   X, Rocket, ListChecks, Code2, MessageSquare, ImageIcon, Lightbulb,
@@ -186,7 +187,7 @@ export function HelpModal({ open, onClose }: HelpModalProps) {
 
   if (!open) return null;
 
-  return (
+  return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       {/* Backdrop */}
       <div
@@ -241,6 +242,7 @@ export function HelpModal({ open, onClose }: HelpModalProps) {
           </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

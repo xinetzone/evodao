@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import { createPortal } from "react-dom";
 import { BarChart2, X, RefreshCw, Zap, Cpu, DollarSign, TrendingUp, Clock } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
@@ -118,7 +119,7 @@ export function UsagePanel({ open, onClose }: UsagePanelProps) {
 
   const isLoading = stats.loading || !stats.loaded;
 
-  return (
+  return createPortal(
     <>
       {/* Backdrop */}
       <div
@@ -299,6 +300,7 @@ export function UsagePanel({ open, onClose }: UsagePanelProps) {
           </div>
         </div>
       </div>
-    </>
+    </>,
+    document.body
   );
 }

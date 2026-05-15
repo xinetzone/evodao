@@ -1,4 +1,5 @@
 import { X, Copy, Check, ExternalLink, Globe, AlertTriangle, CheckCircle, XCircle, Zap } from "lucide-react";
+import { createPortal } from "react-dom";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
@@ -123,7 +124,7 @@ export function PlatformPanel({ open, onClose }: PlatformPanelProps) {
     { label: t("platformPanel.statTransactions"), value: DREAMX_STATS.transactions.toLocaleString() },
   ];
 
-  return (
+  return createPortal(
     <>
       {/* Backdrop */}
       <div
@@ -316,6 +317,7 @@ export function PlatformPanel({ open, onClose }: PlatformPanelProps) {
           </section>
         </div>
       </div>
-    </>
+    </>,
+    document.body
   );
 }

@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 import { Globe, Copy, Check, ExternalLink, AlertCircle, X } from "lucide-react";
 import { useAgentWorld } from "@/hooks/useAgentWorld";
@@ -89,7 +90,7 @@ export function AgentWorldModal({
 
   const avatarUrl = worldProfile?.avatarUrl ?? agentProfile?.avatarUrl ?? null;
 
-  return (
+  return createPortal(
     <div
       className="fixed inset-0 z-50 flex items-center justify-center p-4"
       onClick={(e) => e.target === e.currentTarget && handleClose()}
@@ -290,6 +291,7 @@ export function AgentWorldModal({
           )}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
