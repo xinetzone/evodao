@@ -1,94 +1,50 @@
-# 修复模型下拉无法选中（Portal 方案）
+# harness-agent 开发计划（更新版）
 
-## 根因
+## 现状评估
 
-`Index.tsx` 的 `<main className="flex-1 overflow-y-auto">` 创建了滚动容器。
-CSS 规范：绝对定位子元素超出滚动容器边界后：
-- ✅ 视觉上仍然渲染（所以下拉项看得见）
-- ❌ 指针事件被裁剪（所以点不了）
-
-ModelSelector 下拉用的是 `position: absolute`，从触发按钮向下展开，共10项（~440px）。
-触发按钮距 main 顶约 50px，前5项（AUTO + 4个模型）在容器内 → 可点。
-第6项起（Gemini 3.1 Pro 往下）超出 main 边界 → 不可点。
-
-## 修复方案
-
-在 `ModelSelector.tsx` 中用 `ReactDOM.createPortal` 把下拉菜单渲染到 `document.body`，
-使用 `position: fixed` + `getBoundingClientRect()` 计算精确位置，彻底绕开 overflow 裁剪。
+原计划（ModelSelector Portal 修复）**已全部实现**：
+- `src/components/agent/ModelSelector.tsx` ✅ 已用 `createPortal` + `getBoundingClientRect` 完成
+- `supabase/functions/harness-agent/index.ts` ✅ 已实现所有 mode（plan / execute / reflect / chat / suggest / intent / optimize / memory_search / memory_summarize）
+- `src/pages/Index.tsx` ✅ 已接入 `suggest` mode，运行完成后自动触发建议
+- `src/hooks/useEvodaoAgent.ts` ✅ 已调用 plan / execute / reflect / chat mode
 
 ---
 
-## 改动：`src/components/agent/ModelSelector.tsx`（唯一改动文件）
+## 待确认：下一步开发方向
 
-### 新增 imports
-```typescript
-import { createPortal } from "react-dom";
-```
+以下是可以继续推进的方向，请用户选择：
 
-### 新增 refs 和 state
-```typescript
-const triggerRef = useRef<HTMLButtonElement>(null);
-const portalRef = useRef<HTMLDivElement>(null);
-const [dropdownPos, setDropdownPos] = useState<{ top: number; right: number } | null>(null);
-```
+### 方向 A — 流式输出（Streaming）
+**目标**：`execute` / `chat` 响应改为 SSE 流式输出，用户看到逐字生成而不是等待后一次性显示。
+**改动范围**：
+- `harness-agent/index.ts`：`execute` / `chat` mode 改为 ReadableStream 响应
+- `useEvodaoAgent.ts`：用 `fetch` + `reader.read()` 消费 SSE 流，实时更新 output 状态
 
-### 修改外部点击 handler
-同时检查 `dropdownRef`（包裹 div）和 `portalRef`（portal 内容）：
-```typescript
-useEffect(() => {
-  const handler = (e: MouseEvent) => {
-    const target = e.target as Node;
-    const insideTrigger = dropdownRef.current?.contains(target);
-    const insidePortal = portalRef.current?.contains(target);
-    if (!insideTrigger && !insidePortal) setOpen(false);
-  };
-  document.addEventListener("mousedown", handler);
-  return () => document.removeEventListener("mousedown", handler);
-}, []);
-```
+### 方向 B — 记忆与上下文增强
+**目标**：每次运行时自动携带 memory.md 摘要 + 历史关键输出作为 context，让 Agent 做更连贯的多轮工作。
+**改动范围**：
+- `harness-agent/index.ts`：`plan` / `execute` mode 接受 `memoryContext` 参数并注入 system prompt
+- `Index.tsx` + `useEvodaoAgent.ts`：运行前读取 memory 内容注入请求
 
-### open 时计算位置（useEffect 监听 open）
-```typescript
-useEffect(() => {
-  if (open && triggerRef.current) {
-    const rect = triggerRef.current.getBoundingClientRect();
-    setDropdownPos({
-      top: rect.bottom + 6,               // mt-1.5 = 6px
-      right: window.innerWidth - rect.right,
-    });
-  }
-}, [open]);
-```
+### 方向 C — Agent World 平台集成 tab
+**目标**：在 UI 侧边栏增加 Agent World 平台管理面板（虾评/DreamX/ABTI），展示账号状态、尝试操作。
+**改动范围**：
+- 新增 `PlatformPanel.tsx`：平台账号状态列表 + 快捷操作
+- `Index.tsx`：左侧 tab 中增加「平台」入口
 
-### 给触发按钮加 triggerRef
-```tsx
-<button ref={triggerRef} onClick={...} ...>
-```
+### 方向 D — 优化 Plan 可视化
+**目标**：任务列表显示依赖关系图（DAG），并行任务并排显示，让用户更直观地看到执行流程。
+**改动范围**：
+- `TaskList.tsx` / `TaskManagerPanel.tsx`：增加 DAG 渲染层
 
-### 下拉菜单改为 portal 渲染（position: fixed）
-```tsx
-{open && dropdownPos && createPortal(
-  <div
-    ref={portalRef}
-    style={{ position: "fixed", top: dropdownPos.top, right: dropdownPos.right }}
-    className="z-[200] w-[220px] rounded border border-border bg-card shadow-xl shadow-black/50 overflow-y-auto max-h-[70vh] animate-fade-in"
-  >
-    {/* AUTO + model list 内容不变 */}
-  </div>,
-  document.body
-)}
-```
-
-注意：
-- z-index 从 `z-50` 提升为 `z-[200]`，确保在所有 Modal/Header 之上
-- 添加 `overflow-y-auto max-h-[70vh]` 防止在小屏幕上再次溢出
-- 去掉原来 wrapper div 上的 `overflow-hidden`（改为 portal div 上加 `overflow-y-auto`）
+### 方向 E — 快速修复 & 打磨
+**目标**：修复现有已知问题 + 改善细节体验：
+1. `IndexPage` 的 `suggest` 请求错误时静默 fallback（已实现），但 loading 状态可以优化
+2. 历史面板的导出功能完善
+3. AgentWorldModal 旧域名 `world.coze.site` 提示文本更新（已有代码修复，检查是否还有其他 .site 引用）
 
 ---
 
-## 验证
+## 用户决策
 
-1. 打开模型下拉 → 点击 Gemini 3.1 Pro / Kimi K2.6 / GLM 5.1 / MiniMax M2.7 / Qwen 3.6 Plus → 全部可选中
-2. 点击下拉外部 → 正常关闭
-3. 窗口滚动时下拉位置跟随（fixed 定位保证不偏移）
-4. 移动端/小屏：下拉不超出视口高度（max-h-[70vh]）
+请选择上面的方向（可多选），或描述你想做的具体功能。
