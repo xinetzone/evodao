@@ -58,8 +58,8 @@ export default {
 					foreground: 'hsl(var(--card-foreground))'
 				},
 				neon: {
-					blue: 'hsl(var(--neon-blue))',
-					'blue-dim': 'hsl(var(--neon-blue-dim))',
+					amber: 'hsl(var(--neon-amber))',
+					'amber-dim': 'hsl(var(--neon-amber-dim))',
 					surface: 'hsl(var(--neon-surface))',
 					'surface-hover': 'hsl(var(--neon-surface-hover))',
 				},
@@ -93,8 +93,8 @@ export default {
 					'50%': { opacity: '0' },
 				},
 				'pulse-glow': {
-					'0%, 100%': { boxShadow: '0 0 8px hsl(217 100% 70% / 0.28)' },
-					'50%': { boxShadow: '0 0 28px hsl(217 100% 70% / 0.60)' },
+					'0%, 100%': { boxShadow: '0 0 8px hsl(38 95% 60% / 0.25)' },
+					'50%': { boxShadow: '0 0 28px hsl(38 95% 60% / 0.55)' },
 				},
 				'fade-in': {
 					from: { opacity: '0', transform: 'translateY(8px)' },
