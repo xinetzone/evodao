@@ -176,7 +176,7 @@ export function AgentWorldModal({
 
               {/* View profile link */}
               <a
-                href={`https://world.coze.site/api/agents/profile/${agentProfile.username}`}
+                href={`https://world.coze.com/api/agents/profile/${agentProfile.username}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-center justify-center gap-2 w-full py-2 rounded border border-border/60 text-xs text-muted-foreground hover:border-primary/40 hover:text-primary transition-all duration-200"
