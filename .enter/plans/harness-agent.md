@@ -1,81 +1,100 @@
-# UI Polish: Felt Texture + Text Contrast Fix
+# Token/Cost Consumption Analytics
 
 ## Context
-Two separate issues:
-1. Background needs a felt/fabric texture on top of the cream color
-2. Several text elements in GoalInput use `/40` opacity that produces ~1.8:1 contrast on cream — unacceptable
+Current `usage_logs` only stores token counts (prompt/completion/total) and output_mode.
+Missing: which model was used, estimated USD cost. Admin panel shows per-user totals but
+no per-model breakdown or cost estimate.
+
+User wants to see: per-model, per-run token consumption + credits/cost estimation.
+
+Note on "per-task" granularity: each run = one `usage_logs` row (one goal execution).
+True per-task breakdown would require streaming per-task token counts from the edge function —
+that is a separate larger task. This plan tracks per-run-per-model which captures the model
+selection at execution time.
 
 ---
 
-## Part 1 — Felt Texture Background
+## Implementation Steps
 
-### Technique
-Pure CSS diagonal weave pattern applied as `background-image` on the body.
-Classic felt/textile CSS: two overlapping repeating diagonal gradients at ±45°
-produce a woven diamond pattern that mimics fabric fiber.
+### Step 1 — DB Migration
+Add two columns to `usage_logs`:
+- `model_id TEXT` — which LLM/image model was used
+- `cost_usd NUMERIC(10,6) DEFAULT 0` — estimated USD cost
 
-```css
-body {
-  background-color: hsl(var(--background));   /* cream base */
-  background-image:
-    repeating-linear-gradient(
-      45deg,
-      transparent 0px, transparent 3px,
-      hsl(36 40% 55% / 0.06) 3px, hsl(36 40% 55% / 0.06) 4px
-    ),
-    repeating-linear-gradient(
-      -45deg,
-      transparent 0px, transparent 3px,
-      hsl(36 40% 55% / 0.05) 3px, hsl(36 40% 55% / 0.05) 4px
-    );
-}
+```sql
+ALTER TABLE usage_logs ADD COLUMN model_id TEXT;
+ALTER TABLE usage_logs ADD COLUMN cost_usd NUMERIC(10,6) NOT NULL DEFAULT 0;
 ```
 
-Cards and panels should have `background-color` only (no texture inheritance), so the texture stays on the body layer.
+### Step 2 — `src/lib/models.ts`
+Add `MODEL_PRICING` map — estimated USD per 1,000,000 tokens (blended input+output average):
 
-### Card Background Override
-Add a CSS utility class `.card-solid` in index.css that explicitly sets a solid background to prevent texture showing through card elements incorrectly.
+```typescript
+export const MODEL_PRICING: Record<string, number> = {
+  "anthropic/claude-opus-4.7":      30.0,   // $15 in + $75 out avg
+  "anthropic/claude-sonnet-4.5":     7.0,   // $3 in + $15 out avg
+  "openai/gpt-5.4":                 10.0,   // estimated
+  "deepseek/deepseek-v4-pro":        0.5,   // $0.27 in + $1.1 out
+  "google/gemini-3.1-pro-preview":   2.0,   // $1.25 in + $5 out avg
+  "moonshotai/kimi-k2.6":            0.5,
+  "z-ai/glm-5.1":                    0.1,
+  "minimax/minimax-m2.7":            0.5,
+  "alibaba/qwen-3.6-plus":           0.3,
+};
+// Image models: cost per generation (fixed, not per token)
+export const IMAGE_PRICING: Record<string, number> = {
+  "openai/gpt-image-2":                     0.04,
+  "google/gemini-3.1-flash-image-preview":  0.02,
+  "doubao/seedream-4.5":                    0.015,
+};
+```
 
-Actually, since cards use `bg-card` which translates to `background-color: hsl(var(--card))`, they naturally override the body's `background-image`. No special handling needed — `background-image` and `background-color` are separate CSS properties.
+Cost formula: `cost_usd = (total_tokens / 1_000_000) * MODEL_PRICING[model_id]`
+Image cost: `cost_usd = IMAGE_PRICING[model_id]` (flat per image)
 
----
+### Step 3 — `src/hooks/useUsageQuota.ts`
+- `recordUsage(mode, modelId?: string)` → insert `model_id` into the row
+- `finalizeUsage(logId, tokens, modelId?: string)` → calculate and update `cost_usd`
 
-## Part 2 — Text Contrast Fixes in GoalInput
+### Step 4 — `src/pages/Index.tsx`
+- `recordUsage(mode, selectedModel)` for text/agent/qa modes
+- `recordUsage("image", activeImageModelId)` for image mode
+- `finalizeUsage(pendingLogId, sessionUsage, lastUsedModel)` — need to track which model was active at run time
 
-### Root cause
-On cream background `hsl(46 80% 90%)`, muted-foreground `hsl(28 10% 42%)` at `/40` opacity gives effective contrast ~1.8:1.
+Add `const [runningModel, setRunningModel] = useState("")` to remember the model at execution start.
 
-### Lines to fix in `src/components/agent/GoalInput.tsx`
+### Step 5 — `src/pages/Admin.tsx`
+Add new tab `"usage"` — **Usage Analytics**:
 
-| Line | Current | Fixed | Reason |
+#### Top summary row (3 cards):
+- **本月总 Token 数** — sum of total_tokens this month
+- **本月预估费用** — sum of cost_usd this month (labeled "USD 估算")
+- **本月运行次数** — count of rows this month
+
+#### Per-model breakdown table:
+Query: group usage_logs by model_id → show model name, run count, total tokens, total cost_usd
+
+| 模型 | 运行次数 | 总 Tokens | 估算费用 (USD) |
 |---|---|---|---|
-| 204 | `text-muted-foreground/40` (hint text) | `text-muted-foreground/60` | Raise hint visibility |
-| 348 | `text-muted-foreground/40` (推荐提示词 label) | `text-muted-foreground` (full opacity) | Label must be clearly readable |
-| 363 | `text-muted-foreground/70` (chip text) | `text-foreground/65` | Chip text should use foreground for higher contrast |
-| 453 | `placeholder:text-muted-foreground/40` | `placeholder:text-muted-foreground/55` | Slightly improve placeholder |
+| Claude Sonnet 4.5 | 12 | 1,234,567 | $8.64 |
 
-Also in `src/pages/Index.tsx`:
-
-| Line | Current | Fixed |
-|---|---|---|
-| 484 | `text-muted-foreground/60` (standby desc) | `text-muted-foreground/80` |
-| 494 | `text-primary/50` (STEP label) | `text-primary/70` |
-| 497 | `text-foreground/70` (step label) | `text-foreground/80` |
-| 500 | `text-muted-foreground/60` (step desc) | `text-muted-foreground/75` |
+#### Recent 50 runs table:
+Query: latest 50 rows from usage_logs (admin sees all) with columns:
+- 时间 / 用户邮箱 / 模式 / 模型 / Token (Prompt+Completion) / 估算费用
 
 ---
 
-## Files to Modify
-
-1. **`src/index.css`** — Add felt texture to `body` background-image
-2. **`src/components/agent/GoalInput.tsx`** — Fix 4 opacity values
-3. **`src/pages/Index.tsx`** — Fix 4 opacity values in idle hero section
+## Files Modified
+1. DB migration (new SQL)
+2. `src/lib/models.ts` — add MODEL_PRICING, IMAGE_PRICING
+3. `src/hooks/useUsageQuota.ts` — update recordUsage/finalizeUsage signatures + cost calc
+4. `src/pages/Index.tsx` — pass model to recordUsage, track runningModel state
+5. `src/pages/Admin.tsx` — add "usage" tab with analytics UI
 
 ---
 
-## Verification
-- "推荐提示词" label should be clearly visible on cream background
-- Hint text ("// Enter 执行 · Shift+Enter 换行") should be readable
-- Suggestion chips text should be legible
-- Background should show subtle diagonal woven fiber pattern
-- Cards (GoalInput box, etc.) should have solid background without texture showing through incorrectly
+## Caveats (to show in UI)
+- Cost figures are **estimated** based on standard provider pricing
+- Actual Enter AI Credits consumed can be viewed on Enter.pro Credits page
+- Image generations: 1 image = flat rate (not token-based)
+- No per-task breakdown within a single run (one row = one goal execution)
