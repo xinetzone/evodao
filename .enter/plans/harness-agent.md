@@ -1,57 +1,75 @@
-# Plan: Force Chinese Output Across ALL Modes
+# 用量统计 Token 追踪修复
 
 ## Context
 
-All agent modes (chat, plan, execute, reflect, suggest, optimize) currently append
-the language rule at the END of English system prompts. Models (GLM, Gemini, etc.)
-default to mirroring the user's input language and ignore trailing rules.
+用量面板显示骨架屏、所有数据库行 `total_tokens = 0`。
 
-## Fix: Move Language Instruction to PREFIX
-
-Change `getLanguageInstruction` to return a preamble that goes BEFORE the role
-description, so the model reads the language rule first.
-
-Also rewrite the chat system prompt entirely in Chinese when lang === "zh".
-
-## File: `supabase/functions/harness-agent/index.ts`
-
-### 1. Rewrite `getLanguageInstruction` as a prefix
-
+根本原因：OpenAI 格式（含 `stream_options: { include_usage: true }`）流式响应顺序如下：
 ```
-// BEFORE — appended suffix (ignored by models):
-return `\n\nCRITICAL LANGUAGE RULE: ...respond in Chinese`;
-
-// AFTER — prepended prefix (read first):
-return `[LANGUAGE: zh] All text output MUST be in Simplified Chinese. Code identifiers, file paths, and CLI commands may stay in English. This is mandatory regardless of the user's input language.\n\n`;
+data: {"choices":[{"delta":{},"finish_reason":"stop"}]}   ← settle 在这里触发！
+data: {"usage":{"prompt_tokens":X,...}}                   ← 被 abort，永远收不到
+data: [DONE]                                              ← 被 abort
 ```
+当前代码在 `finish_reason` 时调用 `settle(() => resolve())`，内部调用 `controller.abort()`，
+导致 usage chunk 永远无法到达 → `sessionUsage.totalTokens` 始终为 0。
 
-### 2. All `getLanguageInstruction(lang)` call sites: move to PREFIX
+连锁效应：
+- `sessionUsage.totalTokens > runStartUsage.totalTokens` 永远为 false
+- `finalizeUsage` 不被调用 → DB 行保持 0 tokens
+- `statsRefreshKey` 不递增 → 用量面板不自动刷新
 
-Affected locations (all currently use `...${langInstruction}` at the end):
+## Files to Modify
 
-- `getPlanSystemPrompt` — agent branch (line ~64) and text branch (line ~79)
-- `getExecuteSystemPrompt` — agent branch (line ~104) and text branch (line ~106)
-- `reflectSystemPrompt` (line ~630)
-- `suggest` prompt (line ~362)
-- `optimize` prompt (line ~401)
+- `src/hooks/useEvodaoAgent.ts` — 两处流式处理（QA 模式 ~714行，text/agent 模式 ~421行）
+- `src/components/agent/UsagePanel.tsx` — useEffect 缺少 fetchStats 依赖
 
-Pattern change:
-```
-BEFORE: return `You are a ... role ...${langInstruction}`;
-AFTER:  return `${langInstruction}You are a ... role ...`;
+## Changes
+
+### 1. `useEvodaoAgent.ts` — 移除 `finish_reason` 上的 settle（两处）
+
+**text/agent 模式**（约 421 行）：
+```typescript
+// BEFORE:
+if (choice.finish_reason) settle(() => resolve());
+
+// AFTER: 不在这里 settle，等 [DONE] 或 onclose
+// (删除这行)
 ```
 
-### 3. Chat mode: full Chinese system prompt when lang === "zh"
+**QA 模式**（约 744 行）：
+```typescript
+// BEFORE:
+if (choice.finish_reason) settle(() => resolve());
+
+// AFTER: 删除（同上）
+```
+
+理由：`[DONE]` 事件和 `onclose` 回调已经足够处理所有终止情形：
+- 模型发 `finish_reason` → usage → `[DONE]` → 在 `[DONE]` settle ✓
+- 模型发 `finish_reason` → `[DONE]`（无 usage）→ 在 `[DONE]` settle ✓
+- 服务器直接关闭连接（无 `[DONE]`）→ `onclose` settle ✓
+
+### 2. `UsagePanel.tsx` — 将 `fetchStats` 加入 useEffect 依赖
 
 ```typescript
-const chatSystemPrompt = lang === "zh"
-  ? `[LANGUAGE: zh] All output MUST be in Simplified Chinese regardless of user input language.\n\n你是一位博学、乐于助人的AI助手。回答清晰准确，必要时使用Markdown格式（标题、列表、代码块）提升可读性。`
-  : `You are a knowledgeable, helpful assistant. Answer clearly and accurately. Use markdown formatting (headers, bullet points, code blocks) when it aids readability.`;
+// BEFORE:
+useEffect(() => {
+  if (open) fetchStats();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+}, [open, refreshKey]);
+
+// AFTER:
+useEffect(() => {
+  if (open) fetchStats();
+}, [open, refreshKey, fetchStats]);
 ```
+
+理由：`fetchStats` 的 useCallback 依赖 `userId`，当 auth 晚于面板打开时加载，
+必须通过 fetchStats 引用变更来触发重新执行。
 
 ## Verification
 
-1. Chinese UI + QA mode + type "hi" → response in Chinese
-2. Chinese UI + task mode → task titles and output in Chinese
-3. Chinese UI + suggestions → suggestions in Chinese
-4. English UI → responses in English
+1. 发送 QA 提问 → 等待回答完成 → 打开用量面板
+2. 应看到 `Tokens` 字段显示非零值（而不是 0）
+3. 关闭面板再打开，数据应立即加载（不卡在骨架屏）
+4. `usage_logs` 表中对应行应有 `total_tokens > 0`
