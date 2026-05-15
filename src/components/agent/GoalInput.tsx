@@ -336,41 +336,44 @@ export function GoalInput({
       )}
 
       {/* Prompt suggestion chips */}
-      <div className="relative mb-3 min-h-[26px]">
-        <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5 scrollbar-none pr-10">
+      <div className="mb-3">
         {suggestionsLoading ? (
-          <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground/60">
+          <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground/60 mb-1.5">
             <Loader className="w-3 h-3 animate-spin" />
             {t("promptSuggestions.loading")}
           </div>
         ) : (
           <>
-            <span className="text-[9px] text-muted-foreground tracking-widest font-bold shrink-0">
-              {suggestionsAI ? (
-                <span className="flex items-center gap-1 text-primary/50">
-                  <Sparkles className="w-2.5 h-2.5" />
-                  {t("promptSuggestions.aiLabel")}
-                </span>
-              ) : (
-                t("promptSuggestions.label")
-              )}
-            </span>
-            {activeSuggestions.map((s, i) => (
-              <button
-                key={i}
-                onClick={() => handleSuggestionClick(s)}
-                disabled={isRunning}
-                className="shrink-0 px-2 py-0.5 text-[10px] text-foreground/65 border border-border/60 rounded hover:border-primary/40 hover:text-foreground hover:bg-primary/5 transition-all duration-150 truncate max-w-[200px] sm:max-w-[240px] text-left"
-                title={s}
-              >
-                {s.length > 42 ? s.slice(0, 42) + "…" : s}
-              </button>
-            ))}
+            {/* Label */}
+            <div className="flex items-center gap-1.5 mb-1.5">
+              <span className="text-[9px] text-muted-foreground tracking-widest font-bold shrink-0">
+                {suggestionsAI ? (
+                  <span className="flex items-center gap-1 text-primary/50">
+                    <Sparkles className="w-2.5 h-2.5" />
+                    {t("promptSuggestions.aiLabel")}
+                  </span>
+                ) : (
+                  t("promptSuggestions.label")
+                )}
+              </span>
+            </div>
+
+            {/* 2-column grid — all chips visible, no horizontal scroll */}
+            <div className="grid grid-cols-2 gap-1.5">
+              {activeSuggestions.map((s, i) => (
+                <button
+                  key={i}
+                  onClick={() => handleSuggestionClick(s)}
+                  disabled={isRunning}
+                  className="px-2.5 py-1 text-[10px] text-foreground/65 border border-border/60 rounded hover:border-primary/40 hover:text-foreground hover:bg-primary/5 transition-all duration-150 truncate text-left w-full"
+                  title={s}
+                >
+                  {s}
+                </button>
+              ))}
+            </div>
           </>
         )}
-        </div>
-        {/* Right fade hint for overflow scroll */}
-        <div className="pointer-events-none absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-background to-transparent" />
       </div>
 
       {/* Attachment preview strip */}
