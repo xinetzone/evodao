@@ -1,112 +1,90 @@
-# UI Theme Overhaul
+# Warm Dark Theme: "Amber Forge"
 
 ## Context
-Current theme: harsh pure-green (`hsl(142 100% 50%)`) terminal hacker aesthetic on near-black background with monospace everywhere. Reference site (道衍) shows: clean card design, warm accent color, sans-serif body text, softer surface hierarchy, more breathing room.
+Current blue-navy theme lacks warmth and has contrast issues. User wants a visually beautiful warm-colored scheme.
 
-Goal: Keep dark mode (fits the AI agent product), replace amateur pure-green with a sophisticated **deep navy + electric violet-blue** palette inspired by modern AI product design principles extracted from the reference.
+## Design Direction
+**"Amber Forge"** — Deep charcoal dark + rich amber/gold primary accent.
+Inspired by: Raycast warm dark, Linear amber, premium dark editorial.
+
+The amber primary creates a "digital alchemy" feeling — perfectly fitting an AI agent product. High contrast, warm, inviting, and premium-looking.
 
 ---
 
-## New Design Direction
+## Complete Color Palette
 
-| Token | Old | New | Reason |
+| Token | HSL | Hex (approx) | Role |
 |---|---|---|---|
-| Background | 220 40% 4% (near-black) | 224 38% 4% (deep navy-black) | Subtle warmth |
-| Foreground | 142 100% 72% (pure green!) | 220 15% 90% (clean off-white) | No more green body text |
-| Primary | 142 100% 50% (pure #00ff00) | 217 100% 64% (electric blue) | Sophisticated, premium |
-| Card | 220 35% 7% | 224 32% 7% | Depth maintained |
-| Muted foreground | 220 20% 50% | 220 12% 52% | Less saturated |
-| Border | 220 25% 16% | 224 22% 16% | Consistent palette |
-| Shadow glow | green | blue | Match new primary |
-| Body font | `font-mono` everywhere | `font-sans` body + `font-mono` code-only | Match reference's typographic hierarchy |
+| `--background` | `22 18% 5%` | `#0e0b09` | Very dark warm charcoal |
+| `--foreground` | `38 25% 93%` | `#edebe6` | Warm cream — not cold white |
+| `--card` | `24 15% 9%` | `#191410` | Warm elevated surface |
+| `--card-foreground` | `38 20% 90%` | `#e6e3dd` | Slightly warm card text |
+| `--primary` | `38 95% 60%` | `#f5a01e` | Rich amber gold |
+| `--primary-foreground` | `22 18% 5%` | `#0e0b09` | Dark on amber |
+| `--secondary` | `25 12% 14%` | `#231d18` | Warm dark secondary |
+| `--secondary-foreground` | `35 15% 74%` | `#bfb8ad` | Warm medium |
+| `--muted` | `25 12% 11%` | `#1c1713` | Slightly elevated muted bg |
+| `--muted-foreground` | `35 12% 64%` | `#a89f92` | Warm medium gray — 7:1 contrast |
+| `--accent` | `18 90% 58%` | `#f07026` | Deep orange complement |
+| `--accent-foreground` | `22 18% 5%` | `#0e0b09` | Dark on orange |
+| `--destructive` | `0 72% 58%` | `#e84040` | Red |
+| `--border` | `25 14% 18%` | `#2e2520` | Warm visible border |
+| `--input` | `25 12% 14%` | `#231d18` | Input bg |
+| `--ring` | `38 95% 60%` | `#f5a01e` | Focus ring = primary amber |
+| `--radius` | `0.5rem` | — | Corner radius |
 
-Secondary accent: keep `text-yellow-400` for planning/warning states (intentional semantic).
+### Sidebar tokens (slightly darker base)
+| Token | HSL |
+|---|---|
+| `--sidebar-background` | `22 20% 3%` |
+| `--sidebar-foreground` | `35 18% 80%` |
+| `--sidebar-primary` | `38 95% 60%` |
+| `--sidebar-border` | `25 14% 15%` |
 
----
+### Glow / Shadow / Gradient tokens
+| Token | Value |
+|---|---|
+| `--neon-amber` | `38 95% 60%` |
+| `--neon-amber-dim` | `38 70% 42%` |
+| `--shadow-glow` | `0 0 20px hsl(38 95% 60% / 0.20)` |
+| `--shadow-glow-strong` | `0 0 40px hsl(38 95% 60% / 0.38)` |
+| `--shadow-card` | `0 4px 24px hsl(22 18% 2% / 0.60)` |
+| `--gradient-hero` | `linear-gradient(135deg, hsl(38 95% 60% / 0.07) 0%, hsl(18 90% 58% / 0.03) 100%)` |
+| `--gradient-card` | `linear-gradient(135deg, hsl(24 15% 10%) 0%, hsl(24 15% 8%) 100%)` |
 
-## Files to Change
-
-### 1. `src/index.css` (primary change)
-- New `:root` tokens: background, foreground, card, primary, secondary, muted, accent, border, ring
-- Update sidebar tokens to match
-- Update terminal-specific tokens (`--terminal-green` → `--neon-blue`)
-- Update utility classes: `.terminal-glow`, `.text-glow`, `.border-glow` to use new primary
-- Update `@keyframes pulse-glow`, `pulse-text-glow` keyframe colors
-- Update `body`: remove `font-mono`, use `font-sans`; monospace only via explicit `font-mono` class
-- Add new design tokens: `--gradient-hero`, `--shadow-card`, richer card gradient
-
-### 2. `tailwind.config.ts`
-- Add `sans` font family: `['Inter', 'system-ui', 'sans-serif']` as default
-- Update keyframe colors: `pulse-glow` uses new primary blue (not hardcoded `hsl(142...)`)
-- Add `neon` color alias pointing to new primary token
-
-### 3. `src/pages/Index.tsx` (one-line fix)
-- Grid lines decoration hardcodes `hsl(142 100% 50%)` → replace with `hsl(var(--primary))`
-
-### 4. `tailwind.config.ts`
-- `pulse-glow` keyframe: replace `142 100% 50%` with `var(--primary)` approach
-
----
-
-## New Palette (exact HSL values)
-
-```css
-/* Dark navy background */
---background: 224 38% 4%;
---foreground: 220 15% 90%;
-
-/* Cards with depth */
---card: 224 32% 7%;
---card-foreground: 220 12% 85%;
-
-/* Electric blue primary */
---primary: 217 100% 64%;
---primary-foreground: 224 38% 4%;
-
-/* Muted surfaces */
---secondary: 224 25% 11%;
---secondary-foreground: 220 12% 65%;
---muted: 224 25% 9%;
---muted-foreground: 220 12% 52%;
-
-/* Accent: violet for variety */
---accent: 258 90% 68%;
---accent-foreground: 224 38% 4%;
-
-/* Utility */
---destructive: 0 70% 55%;
---border: 224 22% 16%;
---input: 224 25% 11%;
---ring: 217 100% 64%;
---radius: 0.5rem;
-
-/* New semantic tokens */
---neon-blue: 217 100% 64%;
---neon-blue-dim: 217 60% 42%;
---shadow-glow: 0 0 20px hsl(217 100% 64% / 0.25);
---shadow-glow-strong: 0 0 40px hsl(217 100% 64% / 0.45);
---gradient-terminal: linear-gradient(180deg, hsl(224 38% 5%) 0%, hsl(224 38% 4%) 100%);
---gradient-card: linear-gradient(135deg, hsl(224 32% 8%) 0%, hsl(224 32% 6%) 100%);
---shadow-card: 0 4px 24px hsl(224 38% 2% / 0.6);
-```
+### Keyframe colors
+- `pulse-glow`: `hsl(38 95% 60% / 0.25)` → `hsl(38 95% 60% / 0.55)`
+- `pulse-text-glow`: `text-shadow 6px hsl(38 95% 60% / 0.40)` → `18px / 0.80`
 
 ---
 
-## Verification
-1. Check header: logo badge, status pill, token badge all use blue not green
-2. Check GoalInput: execute button primary color = blue
-3. Check idle hero: concentric rings use blue primary
-4. Check footer: pulse dot uses blue
-5. Check PlatformPanel: OK badge is blue
-6. Verify body text is NOT green – should be near-white
-7. Verify terminal output areas retain `font-mono` class (they use explicit mono classes)
-8. Check Auth page for any hardcoded green
+## WCAG Contrast Verification
+| Element | Foreground | Background | Ratio | Pass |
+|---|---|---|---|---|
+| Body text | `#edebe6` | `#0e0b09` | ~17:1 | ✓ AAA |
+| Muted text | `#a89f92` | `#0e0b09` | ~7:1 | ✓ AA |
+| Primary amber | `#f5a01e` | `#0e0b09` | ~10:1 | ✓ AAA |
+| Card text | `#e6e3dd` | `#191410` | ~12:1 | ✓ AAA |
 
 ---
 
-## Non-changes
-- Component logic: zero changes
-- i18n: zero changes
-- Layout structure: zero changes
-- Yellow warning states: unchanged (semantic yellow is intentional)
-- Red destructive states: unchanged
+## Files to Modify
+
+### `src/index.css`
+- Replace entire `:root` block with new warm amber tokens
+- Rename `--neon-blue` → `--neon-amber` 
+- Update all `hsl(217 100% ...)` references in utilities and keyframes to amber `hsl(38 95% 60%)`
+
+### `tailwind.config.ts`
+- Rename `neon.blue` → `neon.amber` color alias
+- Update `pulse-glow` keyframe values to amber
+
+### `src/pages/Index.tsx`
+- Grid lines already use `hsl(var(--primary))` — no change needed ✓
+
+---
+
+## No Changes Needed
+- All component files — they reference semantic tokens only
+- i18n files — no change
+- Layout / logic — no change
