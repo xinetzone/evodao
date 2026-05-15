@@ -615,6 +615,8 @@ export function useEvodaoAgent() {
       setOutputMode("qa");
       setCurrentGoal(goal);
       setError(null);
+      setSavedSession(null);
+      localStorage.removeItem(STORAGE_KEY);
       // Track the model for display + evolution continuity
       const resolvedModel = model || getAutoModel(mode);
       setCurrentModel(resolvedModel);
@@ -786,6 +788,7 @@ export function useEvodaoAgent() {
     setActiveTaskIds(new Set());
     setExtractedFiles([]);
     setSavedSession(null);
+    localStorage.removeItem(STORAGE_KEY);
     // Track the model for display + evolution continuity
     const resolvedModel = model || getAutoModel(mode);
     setCurrentModel(resolvedModel);

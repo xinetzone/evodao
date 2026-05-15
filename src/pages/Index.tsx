@@ -297,6 +297,8 @@ const Index = () => {
               pendingPrompt={pendingPrompt}
               onPendingPromptConsumed={() => setPendingPrompt(undefined)}
               onRun={async (goal, mode, model, attachments) => {
+              // Clear any pending resume session immediately — new run takes priority
+              dismissSavedSession();
               // Build text context from doc/PDF attachments
               const textParts = attachments
                 .filter((a) => a.textContent)
