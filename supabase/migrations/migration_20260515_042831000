@@ -1,0 +1,12 @@
+-- 1. Add user_id column (nullable to safely handle existing rows)
+ALTER TABLE agent_memory
+  ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES auth.users ON DELETE CASCADE;
+
+-- 2. Composite index for fast per-user retrieval
+CREATE INDEX IF NOT EXISTS agent_memory_user_quality_date
+  ON agent_memory (user_id, quality_score DESC NULLS LAST, created_at DESC);
+
+-- 3. Fix RLS: drop public_all, add per-user isolation
+DROP POLICY IF EXISTS public_all ON agent_memory;
+CREATE POLICY own_memory ON agent_memory
+  FOR ALL USING (auth.uid() = user_id);
