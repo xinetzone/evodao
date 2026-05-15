@@ -477,5 +477,77 @@
     "noteAgentWorldOk": "evodao_v2 authenticated",
     "noteVerifyKey307": "401 — verify-key 307 issue",
     "noteRegistrationFail": "Registration failed — backend 307 bug"
+  },
+  "guide": {
+    "title": "USER GUIDE",
+    "tabs": {
+      "start": "QUICK START",
+      "task": "TASK MODE",
+      "agent": "BUILD MODE",
+      "qa": "Q&A MODE",
+      "image": "IMAGE MODE",
+      "tips": "TIPS"
+    },
+    "start": {
+      "intro": "EVODAO is an autonomous AI agent platform supporting multiple run modes to help you accomplish tasks efficiently.",
+      "step1Title": "Enter Objective",
+      "step1Desc": "Describe your task clearly in the input box at the bottom. The more specific you are, the better the output.",
+      "step2Title": "Choose Mode",
+      "step2Desc": "Switch between run modes based on your task: Task Mode for general tasks, Build Mode for code output, Q&A for conversation, Image for generation.",
+      "step3Title": "Select Model",
+      "step3Desc": "Pick an AI model from the model selector. Different models vary in reasoning capability, speed, and cost.",
+      "step4Title": "Execute",
+      "step4Desc": "Press Enter or click 'Execute'. The Agent will automatically decompose tasks, run them in parallel, and produce results."
+    },
+    "task": {
+      "badge": "TASK",
+      "desc": "Automatically breaks complex goals into sub-tasks, runs them in parallel or series, and produces a consolidated Markdown report.",
+      "uc1": "Market research and competitive analysis",
+      "uc2": "Content strategy planning and calendars",
+      "uc3": "Data analysis with actionable recommendations",
+      "example": "Analyze the current AI coding assistant market, identify the top 3 products' core differentiators, and suggest a market entry strategy.",
+      "tip": "The more specific your goal, the more precise the task decomposition. Include context and desired output format."
+    },
+    "agent": {
+      "badge": "BUILD",
+      "desc": "Optimized for code generation — outputs structured multi-file projects you can download as a ZIP archive.",
+      "uc1": "Generate full frontend or backend project scaffolds",
+      "uc2": "Batch-create config files and automation scripts",
+      "uc3": "Convert requirement docs into runnable code",
+      "example": "Build a user auth service with Python + FastAPI including register, login, and JWT verification endpoints with a Dockerfile.",
+      "tip": "After completion, click 'Download ZIP' to get the full project files ready to run or extend locally."
+    },
+    "qa": {
+      "badge": "Q&A",
+      "desc": "Chat directly with AI — no task decomposition. Supports multi-turn conversations for deep topic exploration.",
+      "uc1": "Deep-dive technical concept explanations",
+      "uc2": "Solution analysis and brainstorming",
+      "uc3": "Document review and content refinement",
+      "example": "Explain how RAG (Retrieval-Augmented Generation) works and what its main differences are vs Fine-tuning.",
+      "tip": "Q&A mode retains conversation context — you can follow up with 'elaborate on point 2' or 'give me a code example'."
+    },
+    "image": {
+      "badge": "IMAGE",
+      "desc": "Describe your image in natural language and AI generates high-quality results in various styles and compositions.",
+      "uc1": "Brand logos and illustration assets",
+      "uc2": "Short video covers and poster materials",
+      "uc3": "Product visuals and concept renders",
+      "example": "Cyberpunk-style futuristic cityscape at night, neon reflections on rain-soaked streets, cinematic widescreen, ultra-detailed.",
+      "tip": "More detail = better results. Specify: style (realistic/illustration/watercolor), composition (close-up/wide), lighting, and ratio (16:9 / 1:1)."
+    },
+    "tips": {
+      "shortcutsTitle": "KEYBOARD SHORTCUTS",
+      "kbEnter": "Execute task",
+      "kbShiftEnter": "New line in input",
+      "kbEsc": "Abort / Reset",
+      "memoryTitle": "LONG-TERM MEMORY",
+      "memoryDesc": "After each run, the system saves the goal and task summaries to long-term memory. On your next similar task, the Agent retrieves relevant history and injects it as context for smarter, personalized output.",
+      "quotaTitle": "QUOTA",
+      "quotaDesc": "Each account has daily run and token limits. Click 'Usage Stats' to view your current consumption and remaining quota.",
+      "modelTitle": "MODEL SELECTION",
+      "modelDesc": "DeepSeek / Kimi / GLM are ideal for everyday tasks — fast and cost-effective. Claude / GPT-5 excel at complex reasoning and high-quality writing. For images, try GPT Image 2 or Seedream.",
+      "optimizeTitle": "AI PROMPT OPTIMIZER",
+      "optimizeDesc": "After entering your goal, click 'Optimize' to let AI transform a vague description into a structured, precise prompt — significantly improving execution quality."
+    }
   }
 }

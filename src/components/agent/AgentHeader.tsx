@@ -1,4 +1,4 @@
-import { Cpu, Zap, CircleCheck, AlertCircle, Loader, Clock, LayoutGrid, Shield, LogOut, ChevronDown, TrendingUp, Globe, Globe2, BarChart2 } from "lucide-react";
+import { Cpu, Zap, CircleCheck, AlertCircle, Loader, Clock, LayoutGrid, Shield, LogOut, ChevronDown, TrendingUp, Globe, Globe2, BarChart2, HelpCircle } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import { useState, useRef, useEffect } from "react";
@@ -15,13 +15,14 @@ interface AgentHeaderProps {
   historyCount: number;
   onHistoryOpen: () => void;
   onUsageOpen: () => void;
+  onHelpOpen: () => void;
   sessionUsage: TokenUsage;
   taskManagerRunning: number;
   onTaskManagerOpen: () => void;
   onPlatformOpen: () => void;
 }
 
-export function AgentHeader({ status, currentGoal, historyCount, onHistoryOpen, onUsageOpen, sessionUsage, taskManagerRunning, onTaskManagerOpen, onPlatformOpen }: AgentHeaderProps) {
+export function AgentHeader({ status, currentGoal, historyCount, onHistoryOpen, onUsageOpen, onHelpOpen, sessionUsage, taskManagerRunning, onTaskManagerOpen, onPlatformOpen }: AgentHeaderProps) {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const { user, profile, isAdmin, signOut, refreshProfile } = useAuthContext();
@@ -156,6 +157,15 @@ export function AgentHeader({ status, currentGoal, historyCount, onHistoryOpen, 
             <span className="tracking-widest">{t("usage.menuItem")}</span>
           </button>
 
+          {/* Help button */}
+          <button
+            onClick={onHelpOpen}
+            className="flex items-center gap-1 px-1.5 sm:px-2 py-1 rounded border border-border bg-card text-xs text-muted-foreground hover:border-primary/40 hover:text-foreground transition-all duration-200"
+            title={t("guide.title")}
+          >
+            <HelpCircle className="w-3.5 h-3.5" />
+          </button>
+
           {/* Platform button — desktop only; on mobile it lives in the user dropdown */}
           <button
             onClick={onPlatformOpen}
@@ -255,6 +265,15 @@ export function AgentHeader({ status, currentGoal, historyCount, onHistoryOpen, 
                     >
                       <BarChart2 className="w-3.5 h-3.5 text-muted-foreground/50 group-hover:text-primary transition-colors" />
                       <span className="tracking-wider">{t("usage.menuItem")}</span>
+                    </button>
+
+                    {/* Mobile-only: help guide entry */}
+                    <button
+                      onClick={() => { setUserMenuOpen(false); onHelpOpen(); }}
+                      className="sm:hidden w-full flex items-center gap-3 px-4 py-2.5 text-xs text-muted-foreground hover:text-primary hover:bg-primary/5 transition-colors group border-b border-border/30"
+                    >
+                      <HelpCircle className="w-3.5 h-3.5 text-muted-foreground/50 group-hover:text-primary transition-colors" />
+                      <span className="tracking-wider">{t("guide.title")}</span>
                     </button>
                     {isAdmin && (
                       <button
