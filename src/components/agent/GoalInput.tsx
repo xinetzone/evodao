@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { Play, RotateCcw, Square, Wand2, Loader, Sparkles, ImageIcon, ChevronDown, Check, Paperclip, FileText, X, Loader2 } from "lucide-react";
+import { Play, RotateCcw, Square, Wand2, Loader, Sparkles, ImageIcon, ChevronDown, Check, Paperclip, FileText, X, Loader2, BookOpen } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { AgentStatus, OutputMode } from "@/hooks/useEvodaoAgent";
 import { ModelSelector } from "@/components/agent/ModelSelector";
@@ -7,6 +7,7 @@ import { ModelId, ImageModelId, IMAGE_MODELS, getAutoModel, IMAGE_MODEL_DISPLAY 
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from "@/lib/config";
 import { cn } from "@/lib/utils";
 import { useAttachments, Attachment } from "@/hooks/useAttachments";
+import { PromptLibraryModal } from "@/components/agent/PromptLibraryModal";
 
 interface GoalInputProps {
   status: AgentStatus;
@@ -75,6 +76,7 @@ export function GoalInput({
   const [isOptimizing, setIsOptimizing] = useState(false);
   const [isDetecting, setIsDetecting] = useState(false);
   const [detectedReason, setDetectedReason] = useState<string | null>(null);
+  const [libraryOpen, setLibraryOpen] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const placeholders: string[] = t("goalInput.placeholders", { returnObjects: true }) as string[];
@@ -356,6 +358,15 @@ export function GoalInput({
                   t("promptSuggestions.label")
                 )}
               </span>
+              {/* Library picker trigger */}
+              <button
+                onClick={() => setLibraryOpen(true)}
+                className="ml-auto flex items-center gap-1 px-1.5 py-0.5 text-[9px] text-muted-foreground/50 border border-border/40 rounded hover:border-primary/40 hover:text-primary/60 transition-all duration-150"
+                title={t("promptLib.openBtn")}
+              >
+                <BookOpen className="w-2.5 h-2.5" />
+                <span className="tracking-wider hidden sm:inline">{t("promptLib.openBtn")}</span>
+              </button>
             </div>
 
             {/* 2-column grid — all chips visible, no horizontal scroll */}
@@ -557,6 +568,14 @@ export function GoalInput({
           </div>
         </div>
       </div>
+
+      {/* Prompt Library Picker */}
+      <PromptLibraryModal
+        open={libraryOpen}
+        onClose={() => setLibraryOpen(false)}
+        onSelect={(text) => { handleSuggestionClick(text); setLibraryOpen(false); }}
+        currentMode={outputMode}
+      />
     </div>
   );
 }

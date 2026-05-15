@@ -43,6 +43,16 @@
       "创建一个自动化 git 分支和 PR 工作流的 CLI 工具"
     ]
   },
+  "promptLib": {
+    "title": "提示词库",
+    "search": "搜索提示词...",
+    "openBtn": "提示词库",
+    "allModes": "全部",
+    "noResults": "没有匹配的提示词",
+    "results": "条结果",
+    "apply": "使用此提示词",
+    "footer": "点击任意提示词将其填入输入框"
+  },
   "promptSuggestions": {
     "label": "推荐提示词",
     "loading": "正在生成建议...",

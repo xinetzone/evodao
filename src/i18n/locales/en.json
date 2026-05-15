@@ -43,6 +43,16 @@
       "Create a CLI tool to automate git branching and PR workflows"
     ]
   },
+  "promptLib": {
+    "title": "PROMPT LIBRARY",
+    "search": "Search prompts...",
+    "openBtn": "Library",
+    "allModes": "All",
+    "noResults": "No matching prompts",
+    "results": "results",
+    "apply": "Use this prompt",
+    "footer": "Click any prompt to fill the input box"
+  },
   "promptSuggestions": {
     "label": "SUGGESTIONS",
     "loading": "Generating suggestions...",
