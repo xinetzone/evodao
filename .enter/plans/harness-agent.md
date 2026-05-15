@@ -1,44 +1,47 @@
-# Plan: Enlarge GoalInput Font Sizes
+# Plan: Fix Panel Rendering via createPortal
 
 ## Context
-Screenshot shows all secondary text in the main input area is too small to read comfortably. The culprit is the extensive use of `text-[9px]` and `text-[10px]` custom sizes throughout `GoalInput.tsx`. The main textarea itself uses `text-sm` (14px) and is fine; everything around it is too small.
+The root page element has `overflow: hidden` (`<div className="w-full h-full flex flex-col bg-background overflow-hidden">`), which creates a stacking context. All `fixed`-positioned panels rendered inside this container are trapped within its bounds — their backdrop and translate animations don't escape the container. Only `PromptLibraryModal` and `ModelSelector` already apply the fix (`createPortal(…, document.body)`).
 
-## Scope
-**File: `src/components/agent/GoalInput.tsx` only** — header sizes are acceptable.
+The screenshot shows `UsagePanel`'s backdrop not covering the full viewport and the panel's z-index fighting with other stacking layers.
 
-## Size Mapping
+## Affected files
 
-| Current | → New | Tailwind equiv |
-|---------|-------|----------------|
-| `text-[9px]`  | `text-[11px]` | ~22% larger |
-| `text-[10px]` | `text-xs`     | 12px, ~20% larger |
+| File | Component |
+|------|-----------|
+| `src/components/agent/UsagePanel.tsx` | `fixed` backdrop + panel |
+| `src/components/agent/HistoryPanel.tsx` | `fixed` backdrop + panel |
+| `src/components/agent/TaskManagerPanel.tsx` | `fixed` backdrop + panel |
+| `src/components/agent/PlatformPanel.tsx` | `fixed` backdrop + panel |
+| `src/components/agent/HelpModal.tsx` | `fixed` modal |
+| `src/components/agent/AgentWorldModal.tsx` | `fixed` modal |
 
-## Affected Elements
+## Fix per file
 
-| Line(s) | Element |
-|---------|---------|
-| 218 | Intent auto-detect button label |
-| 239 | Mode toggle pills (任务模式/构建模式/探索问答/图像生成) |
-| 271 | Image model name in selector button |
-| 280 | Image model dropdown section header |
-| 288 | Image model dropdown items |
-| 315, 320, 325 | Mode hint text below pills |
-| 334 | Intent detection reason badge |
-| 343 | Suggestion loading indicator |
-| 351 | "推荐提示词" section label |
-| 364 | "提示词库" library picker button |
-| 379 | Suggestion chip text |
-| 397 | Attachment preview chip text |
-| 482 | "附件" attach button |
-| 500 | Char counter / "等待输入" hint |
-| 515 | Optimize (优化) button |
+For each file:
+1. Add `import { createPortal } from "react-dom";` (if not present)
+2. Wrap the returned JSX with `createPortal(<JSX>, document.body)`
+3. Guard with `if (!open) return null` before the portal
 
-## Implementation
-Single-pass edit of `GoalInput.tsx`:
-- Replace all `text-[9px]` → `text-[11px]`
-- Replace all `text-[10px]` → `text-xs`
-- Use `replace_all: true` for each substitution
+Pattern (already proven in PromptLibraryModal):
+```tsx
+import { createPortal } from "react-dom";
+
+export function SomePanel({ open, onClose }) {
+  if (!open) return null;
+  return createPortal(
+    <> {/* backdrop + panel JSX */} </>,
+    document.body
+  );
+}
+```
+
+## Notes
+- All panels already return `null` when `!open` — just move that guard before the portal
+- No z-index changes needed; existing z-40/z-50 values are correct once portal is used
+- No layout or style changes — pure structural fix
 
 ## Verification
+- Open each panel, confirm backdrop covers full viewport
+- Close each panel, confirm no visual artifacts remain
 - Run lint — expect 0 errors
-- Preview should show suggestion chips, mode pills, labels all ~20% larger
