@@ -1,88 +1,27 @@
-# Plan: User Guide (Help Modal)
+# Fix: Last Suggestion Chip Text Being "Swallowed"
 
-## Context
+## Root Cause
+`GoalInput.tsx` line 373 renders an **absolutely-positioned right-fade gradient**
+(`w-8 bg-gradient-to-l from-background to-transparent`) on top of the horizontally
+scrollable chip row. Because the scrollable flex container has no right padding,
+the gradient permanently overlaps the last chip's visible text — making characters
+look "swallowed."
 
-Add an in-app user guide to help users understand EVODAO's 4 modes (任务/构建/问答/图像),
-key features, and shortcuts. Accessible from a "?" button in the header.
+## Fix (1 file, 1 line)
 
----
+**`src/components/agent/GoalInput.tsx` — line 340**
 
-## Approach
+Add `pr-10` to the scrollable flex container so there is always clearance between
+the last chip and the gradient overlay:
 
-A centered **Dialog/Modal** with tab navigation — consistent with the app's existing modal
-style (PricingModal pattern). Content is fully i18n'd across zh/en.
-
----
-
-## New Files
-
-### `src/components/agent/HelpModal.tsx`
-
-A dialog with 6 tabs:
-
-| Tab | Key Content |
-|-----|-------------|
-| 快速入门 | 4-step getting started: 输入目标 → 选择模式 → 选择模型 → 执行 |
-| 任务模式 | Description + 3 use cases + example prompt |
-| 构建模式 | Description + 3 use cases + example prompt + ZIP export note |
-| 探索问答 | Description + multi-turn chat note + example prompt |
-| 图像生成 | Description + 3 use cases + example prompt |
-| 使用技巧 | Keyboard shortcuts table + memory feature + model tips |
-
-**Design:**
-- Reuse `Dialog / DialogContent` from `src/components/ui/dialog.tsx`
-- Left sidebar tabs (icon + label), right content area
-- Each mode tab has: colored icon, title, subtitle/desc, use-case bullets, example prompt chip
-- Tips tab: keyboard shortcut table + feature cards
-
----
-
-## Modified Files
-
-### `src/components/agent/AgentHeader.tsx`
-- Add `onHelpOpen: () => void` prop
-- Add `HelpCircle` icon button (desktop: in header button row; mobile: in user dropdown)
-
-### `src/pages/Index.tsx`
-- Add `const [helpOpen, setHelpOpen] = useState(false)`
-- Pass `onHelpOpen={() => setHelpOpen(true)}` to `<AgentHeader>`
-- Render `<HelpModal open={helpOpen} onClose={() => setHelpOpen(false)} />`
-
-### `src/i18n/locales/zh.json` + `en.json`
-Add `guide` section with all tab titles, content strings, and tip keys (~50 keys total).
-
----
-
-## i18n Keys Structure
-
-```json
-"guide": {
-  "title": "使用指南",
-  "tabs": { "start": "快速入门", "task": "任务模式", "agent": "构建模式",
-            "qa": "探索问答", "image": "图像生成", "tips": "使用技巧" },
-  "start": { "step1Title": "输入目标", "step1Desc": "...",
-             "step2Title": "选择模式", "step2Desc": "...",
-             "step3Title": "选择模型", "step3Desc": "...",
-             "step4Title": "执行", "step4Desc": "..." },
-  "task": { "desc": "...", "uc1": "...", "uc2": "...", "uc3": "...", "example": "..." },
-  "agent": { "desc": "...", "uc1": "...", "uc2": "...", "uc3": "...", "example": "..." },
-  "qa": { "desc": "...", "uc1": "...", "uc2": "...", "uc3": "...", "example": "..." },
-  "image": { "desc": "...", "uc1": "...", "uc2": "...", "uc3": "...", "example": "..." },
-  "tips": {
-    "shortcutsTitle": "快捷键",
-    "shortcuts": [["Enter", "执行任务"], ["Shift+Enter", "换行"], ["Esc", "重置/关闭"]],
-    "memoryTitle": "长期记忆", "memoryDesc": "...",
-    "quotaTitle": "配额说明", "quotaDesc": "...",
-    "modelTitle": "模型选择", "modelDesc": "..."
-  }
-}
+```diff
+- <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5 scrollbar-none">
++ <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5 scrollbar-none pr-10">
 ```
 
----
+No other changes needed — the gradient, `max-w`, `truncate`, and `slice(0,42)`
+logic all stay as-is.
 
 ## Verification
-
-1. Click "?" button → modal opens with Quick Start tab selected
-2. Navigate all 6 tabs, content renders with correct icons
-3. Toggle language → all text switches zh↔en
-4. Mobile: "?" accessible from user dropdown
+After the fix the last chip ("制定抖音/小红书30天短视频内容日历…") should display
+its full (truncated) text without any pixel overlap from the gradient.
