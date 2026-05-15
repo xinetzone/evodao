@@ -100,7 +100,7 @@ export function EvolutionPanel({
         ) : (
           <div className="px-4 py-3 flex items-center gap-2">
             <span className="inline-block w-1.5 h-3 bg-primary animate-blink" />
-            <span className="text-[11px] text-muted-foreground animate-pulse font-mono">analyzing...</span>
+            <span className="text-[11px] text-muted-foreground animate-pulse font-mono">{t("evolution.analyzing")}</span>
           </div>
         )}
       </div>

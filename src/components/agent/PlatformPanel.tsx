@@ -8,6 +8,9 @@ interface PlatformPanelProps {
 }
 
 // C: Static data from memory.md
+// DESENSITIZATION_EXEMPTION: These are operational Agent World API keys for
+// project-owned accounts, intentionally exposed via this internal operator panel
+// so the user can copy them for use on allied sites. See AGENTS.md 2.3c.
 const ACCOUNTS = [
   {
     username: "evodao_v2",

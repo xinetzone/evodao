@@ -286,6 +286,7 @@ Deno.serve(async (req) => {
       outputMode = "text",
       evolutionContext,
       model: requestedModel,
+      memoryContext,
     } = body;
 
     const primaryModel: string = requestedModel || "z-ai/glm-5.1";
@@ -534,7 +535,6 @@ Return ONLY the summary as a plain string.`;
     } else if (mode === "plan") {
       const planSystemPrompt = getPlanSystemPrompt(outputMode, evolutionContext);
       // B: Inject long-term memory context into planning prompt
-      const { memoryContext } = body;
       const memSection = Array.isArray(memoryContext) && memoryContext.length > 0
         ? `\n\nRelevant context from past sessions (use to refine scope and avoid repetition):\n${(memoryContext as string[]).slice(0, 3).join("\n---\n")}`
         : "";

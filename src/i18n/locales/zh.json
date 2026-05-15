@@ -6,6 +6,8 @@
     "promptTokens": "输入 Token",
     "completionTokens": "输出 Token",
     "totalTokens": "总 Token",
+    "platforms": "平台",
+    "platformsTitle": "Agent World 平台",
     "status": {
       "idle": "待机",
       "planning": "规划中",
@@ -13,6 +15,9 @@
       "done": "已完成",
       "error": "错误"
     }
+  },
+  "common": {
+    "useAsPrompt": "作为提示词"
   },
   "goalInput": {
     "prompt": "输入任务目标",
@@ -27,6 +32,10 @@
     "optimize": "优化",
     "optimizing": "优化中...",
     "optimizeTitle": "AI 优化提示词",
+    "attachTitle": "上传附件（图片、PDF、TXT…）",
+    "attachLabel": "附件",
+    "remove": "移除",
+    "processing": "处理中…",
     "placeholders": [
       "构建个人财务管理 Web 应用",
       "制定 SaaS 产品的营销策略",
@@ -126,6 +135,7 @@
     "evolveBtn": "自我进化",
     "reflecting": "智能体自我反思中...",
     "reflectingDesc": "正在分析输出质量并识别改进方向",
+    "analyzing": "分析中...",
     "reportTitle": "进化报告",
     "qualityScore": "质量评分",
     "strengths": "优势",

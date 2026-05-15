@@ -27,7 +27,7 @@ import { SUPABASE_URL, SUPABASE_ANON_KEY } from "@/lib/config";
 import { PlatformPanel } from "@/components/agent/PlatformPanel";
 
 const Index = () => {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const history = useAgentHistory();
   const taskManager = useTaskManager();
   const aiImage = useAIImage();
@@ -584,7 +584,7 @@ const Index = () => {
           }}
         >
           <PenLine className="w-3 h-3" />
-          {t("common.useAsPrompt", { defaultValue: i18n.language === "zh" ? "作为提示词" : "Use as Prompt" })}
+          {t("common.useAsPrompt")}
         </button>,
         document.body
       )}

@@ -6,6 +6,8 @@
     "promptTokens": "Prompt tokens",
     "completionTokens": "Completion tokens",
     "totalTokens": "Total tokens",
+    "platforms": "Platforms",
+    "platformsTitle": "Agent World Platforms",
     "status": {
       "idle": "READY",
       "planning": "PLANNING",
@@ -13,6 +15,9 @@
       "done": "COMPLETE",
       "error": "ERROR"
     }
+  },
+  "common": {
+    "useAsPrompt": "Use as Prompt"
   },
   "goalInput": {
     "prompt": "ENTER MISSION OBJECTIVE",
@@ -27,6 +32,10 @@
     "optimize": "OPTIMIZE",
     "optimizing": "OPTIMIZING...",
     "optimizeTitle": "Optimize prompt with AI",
+    "attachTitle": "Attach file (image, PDF, TXT…)",
+    "attachLabel": "Attach",
+    "remove": "Remove",
+    "processing": "Processing…",
     "placeholders": [
       "Build a personal finance tracker web application",
       "Create a marketing strategy for a SaaS product",
@@ -126,6 +135,7 @@
     "evolveBtn": "EVOLVE",
     "reflecting": "AGENT SELF-REFLECTING...",
     "reflectingDesc": "Analyzing output quality and identifying improvements",
+    "analyzing": "analyzing...",
     "reportTitle": "EVOLUTION REPORT",
     "qualityScore": "QUALITY SCORE",
     "strengths": "STRENGTHS",

@@ -403,7 +403,7 @@ export function GoalInput({
               <button
                 onClick={() => removeAttachment(att.id)}
                 className="shrink-0 text-muted-foreground/50 hover:text-destructive transition-colors"
-                title="移除"
+                title={t("goalInput.remove")}
               >
                 <X className="w-3 h-3" />
               </button>
@@ -464,11 +464,11 @@ export function GoalInput({
               <button
                 onClick={() => fileInputRef.current?.click()}
                 disabled={isRunning}
-                title="上传附件（图片、PDF、TXT…）"
+                title={t("goalInput.attachTitle")}
                 className="flex items-center gap-1 px-2 py-1.5 text-[10px] text-muted-foreground border border-border rounded hover:border-primary/40 hover:text-foreground transition-all duration-200 disabled:opacity-40"
               >
                 <Paperclip className="w-3 h-3" />
-                <span className="hidden sm:inline tracking-wider">附件</span>
+                <span className="hidden sm:inline tracking-wider">{t("goalInput.attachLabel")}</span>
                 {attachments.length > 0 && (
                   <span className="ml-0.5 font-bold text-primary">{attachments.length}</span>
                 )}
@@ -547,7 +547,7 @@ export function GoalInput({
                   ) : (
                     <Play className="w-3 h-3" />
                   )}
-                  {hasLoading ? "处理中…" : outputMode === "qa" ? t("goalInput.send") : outputMode === "image" ? t("goalInput.generate") : t("goalInput.execute")}
+                  {hasLoading ? t("goalInput.processing") : outputMode === "qa" ? t("goalInput.send") : outputMode === "image" ? t("goalInput.generate") : t("goalInput.execute")}
                 </button>
               )}
             </div>

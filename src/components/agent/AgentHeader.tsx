@@ -149,10 +149,10 @@ export function AgentHeader({ status, currentGoal, historyCount, onHistoryOpen, 
           <button
             onClick={onPlatformOpen}
             className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded border border-border bg-card text-xs text-muted-foreground hover:border-primary/40 hover:text-foreground transition-all duration-200"
-            title="Agent World Platforms"
+            title={t("header.platformsTitle")}
           >
             <Globe2 className="w-3.5 h-3.5" />
-            <span className="tracking-widest">Platforms</span>
+            <span className="tracking-widest">{t("header.platforms")}</span>
           </button>
 
           {/* Language switcher — desktop only; on mobile it lives in the user dropdown */}
@@ -234,7 +234,7 @@ export function AgentHeader({ status, currentGoal, historyCount, onHistoryOpen, 
                       className="sm:hidden w-full flex items-center gap-3 px-4 py-2.5 text-xs text-muted-foreground hover:text-primary hover:bg-primary/5 transition-colors group border-b border-border/30"
                     >
                       <Globe2 className="w-3.5 h-3.5 text-muted-foreground/50 group-hover:text-primary transition-colors" />
-                      <span className="tracking-wider">Platforms</span>
+                      <span className="tracking-wider">{t("header.platforms")}</span>
                     </button>
                     {isAdmin && (
                       <button
