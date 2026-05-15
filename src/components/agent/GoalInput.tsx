@@ -36,7 +36,7 @@ export function GoalInput({
   const [goal, setGoal] = useState("");
   const [outputMode, setOutputMode] = useState<OutputMode>("text");
   const [manualModel, setManualModel] = useState<ModelId | null>(null);
-  const [imageModel, setImageModel] = useState<ImageModelId>("doubao/seedream-4.5");
+  const [imageModel, setImageModel] = useState<ImageModelId>("google/gemini-3-pro-image-preview");
   const [imageModelOpen, setImageModelOpen] = useState(false);
   const imageModelRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);

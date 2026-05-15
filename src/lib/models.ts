@@ -16,6 +16,7 @@ export type ModelId = (typeof MODELS)[number];
 
 /** Image generation models */
 export const IMAGE_MODELS = [
+  "google/gemini-3-pro-image-preview",
   "google/gemini-3.1-flash-image-preview",
   "doubao/seedream-4.5",
 ] as const;
@@ -37,8 +38,9 @@ export const MODEL_DISPLAY: Record<ModelId, { name: string; desc: string; descZh
 
 /** Image model display info */
 export const IMAGE_MODEL_DISPLAY: Record<ImageModelId, { name: string; desc: string; descZh: string }> = {
-  "google/gemini-3.1-flash-image-preview": { name: "Gemini Flash Image",  desc: "Balanced speed and quality",      descZh: "速度与质量均衡" },
-  "doubao/seedream-4.5":                   { name: "Seedream 4.5",        desc: "ByteDance creative image model",  descZh: "字节跳动创意图像" },
+  "google/gemini-3-pro-image-preview":     { name: "Nano Banana Pro",    desc: "Highest quality, supports img2img",  descZh: "最高画质，支持图生图" },
+  "google/gemini-3.1-flash-image-preview": { name: "Gemini Flash Image",  desc: "Balanced speed and quality",         descZh: "速度与质量均衡" },
+  "doubao/seedream-4.5":                   { name: "Seedream 4.5",        desc: "ByteDance creative image model",     descZh: "字节跳动创意图像" },
 };
 
 /**
@@ -61,6 +63,7 @@ export const MODEL_PRICING: Record<string, number> = {
  * Estimated USD cost per image generation (flat rate, not token-based).
  */
 export const IMAGE_PRICING: Record<string, number> = {
+  "google/gemini-3-pro-image-preview":     0.04,
   "google/gemini-3.1-flash-image-preview": 0.02,
   "doubao/seedream-4.5":                   0.015,
 };
