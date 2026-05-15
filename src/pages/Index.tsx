@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
-import { useEvodaoAgent, HistoryEntry } from "@/hooks/useEvodaoAgent";
+import { useEvodaoAgent, HistoryEntry, TokenUsage } from "@/hooks/useEvodaoAgent";
 import { useAgentHistory } from "@/hooks/useAgentHistory";
 import { useTaskManager } from "@/hooks/useTaskManager";
 import { useAIImage } from "@/hooks/useAIImage";
@@ -40,6 +40,8 @@ const Index = () => {
   const [pendingLogId, setPendingLogId] = useState<string | null>(null);
   const [pendingModel, setPendingModel] = useState<string>("");
   const [statsRefreshKey, setStatsRefreshKey] = useState(0);
+  // Snapshot of sessionUsage at run start — used to compute per-run token delta
+  const [runStartUsage, setRunStartUsage] = useState<TokenUsage>({ promptTokens: 0, completionTokens: 0, totalTokens: 0 });
   const [historyOpen, setHistoryOpen] = useState(false);
   const [taskManagerOpen, setTaskManagerOpen] = useState(false);
   const [platformOpen, setPlatformOpen] = useState(false);
@@ -146,11 +148,18 @@ const Index = () => {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [qaMessages]);
 
+  // Compute token delta for this run (current session total minus snapshot at run start)
+  const getRunDelta = useCallback((): TokenUsage => ({
+    promptTokens: Math.max(0, sessionUsage.promptTokens - runStartUsage.promptTokens),
+    completionTokens: Math.max(0, sessionUsage.completionTokens - runStartUsage.completionTokens),
+    totalTokens: Math.max(0, sessionUsage.totalTokens - runStartUsage.totalTokens),
+  }), [sessionUsage, runStartUsage]);
+
   // Reset suggestions on full reset
   const handleReset = () => {
-    // Capture & finalize partial token usage BEFORE reset() zeroes sessionUsage
-    if (pendingLogId && sessionUsage.totalTokens > 0) {
-      finalizeUsage(pendingLogId, sessionUsage, pendingModel);
+    // Capture & finalize partial token delta BEFORE reset() zeroes sessionUsage
+    if (pendingLogId && sessionUsage.totalTokens > runStartUsage.totalTokens) {
+      finalizeUsage(pendingLogId, getRunDelta(), pendingModel);
       setPendingLogId(null);
       setPendingModel("");
       setStatsRefreshKey((k) => k + 1);
@@ -208,14 +217,14 @@ const Index = () => {
       status === "error" &&
       (prevStatusRef.current === "executing" || prevStatusRef.current === "planning");
 
-    if ((isDoneTransition || isQAFinished || isError) && pendingLogId && sessionUsage.totalTokens > 0) {
-      finalizeUsage(pendingLogId, sessionUsage, pendingModel);
+    if ((isDoneTransition || isQAFinished || isError) && pendingLogId && sessionUsage.totalTokens > runStartUsage.totalTokens) {
+      finalizeUsage(pendingLogId, getRunDelta(), pendingModel);
       setPendingLogId(null);
       setPendingModel("");
       setStatsRefreshKey((k) => k + 1);
     }
     prevStatusRef.current = status;
-  }, [status, pendingLogId, pendingModel, sessionUsage, finalizeUsage, outputMode]);
+  }, [status, pendingLogId, pendingModel, sessionUsage, finalizeUsage, outputMode, getRunDelta, runStartUsage]);
 
   // Back-fill quality_score into long-term memory after QA evaluation (Agent 自我进化)
   useEffect(() => {
@@ -307,6 +316,8 @@ const Index = () => {
                 setQuotaExceeded(quotaResult);
                 return;
               }
+              // Snapshot usage so we log only this run's delta (sessionUsage is cumulative)
+              setRunStartUsage(sessionUsage);
               // Record usage before running; store logId for token finalization
               const logId = await recordUsage(mode, model);
               setPendingLogId(logId);

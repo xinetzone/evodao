@@ -615,8 +615,6 @@ export function useEvodaoAgent() {
       setOutputMode("qa");
       setCurrentGoal(goal);
       setError(null);
-      // Reset per-run token counter so each QA turn logs clean token counts
-      setSessionUsage({ promptTokens: 0, completionTokens: 0, totalTokens: 0 });
       // Track the model for display + evolution continuity
       const resolvedModel = model || getAutoModel(mode);
       setCurrentModel(resolvedModel);
@@ -788,8 +786,6 @@ export function useEvodaoAgent() {
     setActiveTaskIds(new Set());
     setExtractedFiles([]);
     setSavedSession(null);
-    // Reset per-run token counter so each run logs clean token counts
-    setSessionUsage({ promptTokens: 0, completionTokens: 0, totalTokens: 0 });
     // Track the model for display + evolution continuity
     const resolvedModel = model || getAutoModel(mode);
     setCurrentModel(resolvedModel);
