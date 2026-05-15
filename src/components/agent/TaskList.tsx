@@ -201,7 +201,7 @@ export function TaskList({ tasks, taskStatuses, activeTaskIds }: TaskListProps) 
                   <div className="flex-1 h-px bg-border/40" />
                   <div className="flex items-center gap-1.5 px-2">
                     <ArrowDown className="w-3 h-3 text-primary/30" />
-                    <span className="text-[9px] text-muted-foreground/40 font-mono tracking-widest">THEN</span>
+                    <span className="text-[9px] text-muted-foreground/40 font-mono tracking-widest">{t("taskList.then")}</span>
                     <ArrowDown className="w-3 h-3 text-primary/30" />
                   </div>
                   <div className="flex-1 h-px bg-border/40" />
@@ -211,8 +211,8 @@ export function TaskList({ tasks, taskStatuses, activeTaskIds }: TaskListProps) 
               {/* Level label */}
               <div className="flex items-center gap-1.5 mb-2">
                 <span className="text-[9px] text-muted-foreground/30 font-mono tracking-widest">
-                  {levelIdx === 0 ? "PARALLEL START" : `STAGE ${levelIdx + 1}`}
-                  {levelTasks.length > 1 ? ` · ${levelTasks.length}× parallel` : ""}
+                  {levelIdx === 0 ? t("taskList.parallelStart") : t("taskList.stage", { n: levelIdx + 1 })}
+                  {levelTasks.length > 1 ? ` · ${t("taskList.parallelCount", { count: levelTasks.length })}` : ""}
                 </span>
               </div>
 

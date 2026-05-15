@@ -102,7 +102,11 @@
     "heading": "任务分解",
     "subTaskCount": "// 识别到 {{count}} 个子任务",
     "completed": "{{done}} / {{total}} 已完成",
-    "dependsOn": "依赖任务:"
+    "dependsOn": "依赖任务:",
+    "parallelStart": "并行开始",
+    "stage": "阶段 {{n}}",
+    "then": "然后",
+    "parallelCount": "{{count}}× 并行"
   },
   "terminal": {
     "heading": "执行输出",

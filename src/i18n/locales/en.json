@@ -102,7 +102,11 @@
     "heading": "TASK DECOMPOSITION",
     "subTaskCount": "// {{count}} sub-tasks identified",
     "completed": "{{done}} / {{total}} completed",
-    "dependsOn": "depends on:"
+    "dependsOn": "depends on:",
+    "parallelStart": "PARALLEL START",
+    "stage": "STAGE {{n}}",
+    "then": "THEN",
+    "parallelCount": "{{count}}× parallel"
   },
   "terminal": {
     "heading": "EXECUTION OUTPUT",
