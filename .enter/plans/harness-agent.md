@@ -1,126 +1,105 @@
-# Plan: Track Real Token Consumption Including Incomplete Tasks
+# Plan: Fix Token Tracking — Cumulative Display + Accurate Per-Run Logs
 
-## Context
+## Problem with Last Change
 
-The `usage_logs` table exists and is read by `useUserUsage`, but it's not getting
-populated correctly. Two-phase logging already exists (`recordUsage` at run start,
-`finalizeUsage` at run end) but has these bugs:
+The previous fix added `setSessionUsage({ …zeros })` at the start of each `runAgent` call.
+This **broke** the intended behaviour:
+- `sessionUsage` is shown in the header as a cumulative session counter (all runs total).
+  Resetting it on every new run wiped that live display.
 
-1. **SessionUsage accumulates across runs** — `runAgent` never resets `sessionUsage`,
-   so if the user runs A then B without a full `reset()`, run B's `finalizeUsage` logs
-   A's tokens + B's tokens (overcounting).
-2. **Error/abort runs never finalized** — `finalizeUsage` only fires on
-   `status === "done"` or QA `idle`. On `status === "error"` and on user abort
-   (which calls `reset()` → `status = "idle"`), the pending log row stays at 0 tokens.
-3. **Abort race condition** — `reset()` zeroes `sessionUsage` in the same React batch
-   as setting `status = "idle"`, so a `useEffect` watching status can't see the tokens.
-   Must capture tokens in `handleReset` *before* calling `reset()`.
+## Root Cause
+
+There are two separate concerns that need different handling:
+
+| Concern | What it shows | Should reset? |
+|---------|--------------|---------------|
+| `sessionUsage` in header | Live cumulative total for this browser session | ❌ Never — accumulates forever |
+| `usage_logs` rows in DB | Per-run token cost for stats panel | N/A — one row per run |
+
+The bug is that `finalizeUsage` was called with the *cumulative* `sessionUsage` instead
+of the *delta* (tokens used only in this run). That inflates every log row after the first.
+
+## Solution: Per-Run Delta via Snapshot
+
+1. Capture `sessionUsage` as a **snapshot** immediately before each run starts.
+2. At finalization time, compute `delta = sessionUsage − snapshot` and pass that to
+   `finalizeUsage` instead of the raw `sessionUsage`.
+3. `sessionUsage` continues to accumulate undisturbed for the header display.
 
 ## Critical Files
 
-- `src/hooks/useEvodaoAgent.ts` — add sessionUsage reset at start of each runAgent call
-- `src/pages/Index.tsx` — fix handleReset + status useEffect; add statsRefreshKey
-- `src/components/agent/UsagePanel.tsx` — accept refreshKey prop to re-fetch after runs
+- `src/hooks/useEvodaoAgent.ts` — revert the two `setSessionUsage` resets added last change
+- `src/pages/Index.tsx` — add `runStartUsage` snapshot state; compute delta in finalization
 
 ## Exact Changes
 
-### 1. `src/hooks/useEvodaoAgent.ts`
+### 1. `src/hooks/useEvodaoAgent.ts` — revert
 
-In `runAgent`, at the very top of BOTH the QA branch and the task/agent branch,
-add a sessionUsage reset **before any async work** so each run starts from zero:
-
+Remove the two lines added in the last commit:
 ```typescript
-// QA mode start:
+// QA mode start — DELETE this line:
 setSessionUsage({ promptTokens: 0, completionTokens: 0, totalTokens: 0 });
 
-// Task/agent mode start (right after setExtractedFiles([])):
+// Task mode start — DELETE this line:
 setSessionUsage({ promptTokens: 0, completionTokens: 0, totalTokens: 0 });
 ```
 
 ### 2. `src/pages/Index.tsx`
 
-**A. Add `statsRefreshKey` state** (near pendingLogId):
+**A. Add `runStartUsage` snapshot state** (near `pendingLogId`):
 ```typescript
-const [statsRefreshKey, setStatsRefreshKey] = useState(0);
+const [runStartUsage, setRunStartUsage] = useState<TokenUsage>({
+  promptTokens: 0, completionTokens: 0, totalTokens: 0
+});
 ```
 
-**B. Update `handleReset`** — capture + finalize partial usage BEFORE calling `reset()`:
+**B. Capture snapshot right before `recordUsage`** (inside the onSubmit handler):
 ```typescript
-const handleReset = () => {
-  // Finalize partial usage before reset() zeroes sessionUsage
-  if (pendingLogId && sessionUsage.totalTokens > 0) {
-    finalizeUsage(pendingLogId, sessionUsage, pendingModel);
-    setPendingLogId(null);
-    setPendingModel("");
-    setStatsRefreshKey((k) => k + 1);
-  }
-  setSuggestions([]);
-  setSuggestionsAI(false);
-  prevQACountRef.current = 0;
-  aiImage.clearImages();
-  setLastRunMode("");
-  memory.clearMemories();
-  reset();
-};
+// Snapshot current usage so we can log only this run's delta
+setRunStartUsage(sessionUsage);
+const logId = await recordUsage(mode, model);
+setPendingLogId(logId);
+setPendingModel(model);
 ```
 
-**C. Extend status `useEffect`** — add error case + increment statsRefreshKey:
+**C. Helper inside the component** — compute delta before passing to finalizeUsage:
 ```typescript
-const isError =
-  status === "error" &&
-  (prevStatusRef.current === "executing" || prevStatusRef.current === "planning");
-
-if ((isDoneTransition || isQAFinished || isError) && pendingLogId && sessionUsage.totalTokens > 0) {
-  finalizeUsage(pendingLogId, sessionUsage, pendingModel);
-  setPendingLogId(null);
-  setPendingModel("");
-  setStatsRefreshKey((k) => k + 1);
-}
+// Reusable helper (no hook, just a local function defined once inside the component)
+const getRunDelta = useCallback((): TokenUsage => ({
+  promptTokens: Math.max(0, sessionUsage.promptTokens - runStartUsage.promptTokens),
+  completionTokens: Math.max(0, sessionUsage.completionTokens - runStartUsage.completionTokens),
+  totalTokens: Math.max(0, sessionUsage.totalTokens - runStartUsage.totalTokens),
+}), [sessionUsage, runStartUsage]);
 ```
 
-**D. Pass `statsRefreshKey` to UsagePanel**:
-```tsx
-<UsagePanel open={usagePanelOpen} onClose={...} refreshKey={statsRefreshKey} />
-```
+**D. Update all three `finalizeUsage` call sites** to pass `getRunDelta()`:
 
-### 3. `src/components/agent/UsagePanel.tsx`
-
-**A. Add `refreshKey` to props interface**:
+1. In `handleReset` (abort path):
 ```typescript
-interface UsagePanelProps {
-  open: boolean;
-  onClose: () => void;
-  refreshKey?: number;
-}
-```
-
-**B. Accept `refreshKey` in component and trigger fetchStats when it changes**:
-```typescript
-export function UsagePanel({ open, onClose, refreshKey }: UsagePanelProps) {
-  ...
-  // Fetch on open; also re-fetch whenever refreshKey increments (run just finalized)
-  useEffect(() => {
-    if (open) fetchStats();
-  }, [open, refreshKey]);
+if (pendingLogId && sessionUsage.totalTokens > runStartUsage.totalTokens) {
+  finalizeUsage(pendingLogId, getRunDelta(), pendingModel);
   ...
 }
 ```
 
-## What This Fixes
+2. In the status `useEffect` (done / QA-finished / error):
+```typescript
+if ((...) && pendingLogId && sessionUsage.totalTokens > runStartUsage.totalTokens) {
+  finalizeUsage(pendingLogId, getRunDelta(), pendingModel);
+  ...
+}
+```
 
-| Scenario | Before | After |
-|----------|--------|-------|
-| Successful run | ✅ logged | ✅ logged |
-| Run with error | ❌ 0 tokens in DB | ✅ partial tokens logged |
-| User aborts (Stop button) | ❌ 0 tokens in DB | ✅ partial tokens logged |
-| QA error | ❌ 0 tokens in DB | ✅ tokens logged |
-| 2nd run without reset | ❌ cumulative tokens | ✅ accurate per-run tokens |
-| UsagePanel auto-refresh | ❌ stale after run | ✅ live after finalization |
+## What This Achieves
+
+- `sessionUsage` in the header continues to grow across all runs — cumulative as intended
+- Each `usage_logs` row records only that run's token delta — accurate per-run stats
+- Abort / error / done all still get logged correctly (from the abort/error fixes done previously)
+- `UsagePanel` auto-refresh after finalization (from `statsRefreshKey`) is kept intact
 
 ## Verification
 
-After changes:
-1. Run an agent task → complete → open UsagePanel → verify non-zero tokens in recent log
-2. Start a run → click Stop midway → open UsagePanel → verify partial tokens logged
-3. Start a run that errors → open UsagePanel → verify error run tokens logged
-4. Run two tasks back-to-back → verify each log row shows only that run's tokens
+1. Run task A → header shows e.g. 1200 tokens total
+2. Run task B immediately → header grows to e.g. 1800 tokens total (cumulative)
+3. Open UsagePanel → two rows: task A shows ~1200, task B shows ~600 (deltas, not cumulative)
+4. Start task C, click Stop → partial row appears with only task C's partial tokens
