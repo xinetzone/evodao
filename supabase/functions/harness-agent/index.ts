@@ -18,7 +18,7 @@ function isClaudeModel(model: string): boolean {
 
 function getLanguageInstruction(lang?: string): string {
   if (lang === "zh") {
-    return `\n\nCRITICAL LANGUAGE RULE: The user interface is set to Chinese (简体中文). You MUST respond entirely in Simplified Chinese. ALL output — task titles, descriptions, analysis, summaries, evaluation text, prose, and explanations — MUST be in Chinese. Only code identifiers, file paths, CLI commands, and reserved programming keywords may remain in English. Never mix languages. Respond in Chinese only.`;
+    return `[LANGUAGE: zh] 无论用户使用何种语言提问，你的所有文字输出必须使用简体中文。代码标识符、文件路径、命令行指令可以保留英文，其余内容必须是中文。这是强制要求。\n\n`;
   }
   return "";
 }
@@ -47,7 +47,7 @@ function getPlanSystemPrompt(outputMode: string, evolutionContext?: EvolutionCon
   const evoSection = getEvolutionSection(evolutionContext);
   const langInstruction = getLanguageInstruction(lang);
   if (outputMode === "agent") {
-    return `You are a senior software architect planning the implementation of an agent project.
+    return `${langInstruction}You are a senior software architect planning the implementation of an agent project.
 Decompose the goal into 3-6 implementation tasks. Each task should produce one or more concrete code files.
 Return ONLY a valid JSON array with no markdown fences, no explanation. Use this exact format:
 [{"id":1,"title":"Short Task Title","description":"One or two sentences describing what files this task creates.","dependsOn":[],"tools":["code"]},{"id":2,"title":"...","description":"...","dependsOn":[1],"tools":["code","write"]}]
@@ -61,9 +61,9 @@ Rules for "dependsOn":
 Rules for "tools":
 - Declare the capabilities this task primarily relies on.
 - Valid values: "code" (write/generate code), "write" (prose/docs), "analyze" (research/summarize), "search" (find info), "design" (UI/UX/visual).
-- Each task should list 1-3 relevant tools.${evoSection}${langInstruction}`;
+- Each task should list 1-3 relevant tools.${evoSection}`;
   }
-  return `You are a precise task planning agent. Given a goal, decompose it into 3-6 concrete, actionable sub-tasks.
+  return `${langInstruction}You are a precise task planning agent. Given a goal, decompose it into 3-6 concrete, actionable sub-tasks.
 Return ONLY a valid JSON array with no markdown fences, no explanation, no extra text. Use this exact format:
 [{"id":1,"title":"Short Task Title","description":"One or two sentences describing what this task involves.","dependsOn":[],"tools":["analyze"]},{"id":2,"title":"...","description":"...","dependsOn":[1],"tools":["write"]}]
 
@@ -76,7 +76,7 @@ Rules for "dependsOn":
 Rules for "tools":
 - Declare the capabilities this task primarily relies on.
 - Valid values: "code" (write/generate code), "write" (prose/docs), "analyze" (research/summarize), "search" (find info), "design" (UI/UX/visual).
-- Each task should list 1-3 relevant tools.${evoSection}${langInstruction}`;
+- Each task should list 1-3 relevant tools.${evoSection}`;
 }
 
 function getExecuteSystemPrompt(outputMode: string, tools?: string[], evolutionContext?: EvolutionContext, lang?: string): string {
@@ -86,7 +86,7 @@ function getExecuteSystemPrompt(outputMode: string, tools?: string[], evolutionC
     ? `\n\nThis task uses tools: [${tools.join(", ")}]. Tailor your response to leverage these capabilities.`
     : "";
   if (outputMode === "agent") {
-    return `You are an expert software engineer implementing part of an agent project.
+    return `${langInstruction}You are an expert software engineer implementing part of an agent project.
 For EVERY file you create, you MUST use this exact format (language:filepath on the opening fence):
 
 \`\`\`python:src/agent.py
@@ -101,9 +101,9 @@ Rules:
 - Use realistic relative file paths (e.g. src/agent.py, config/settings.json, README.md)
 - Write complete, working code — no placeholders or TODOs
 - Multiple files per task is encouraged
-- Always include a README.md with setup and usage instructions in the first or last task${toolHints}${evoSection}${langInstruction}`;
+- Always include a README.md with setup and usage instructions in the first or last task${toolHints}${evoSection}`;
   }
-  return `You are a skilled execution agent. Carry out assigned tasks thoroughly and produce high-quality, detailed outputs. Be specific, practical, and thorough. Use clear structure with headers and bullet points where helpful.${toolHints}${evoSection}${langInstruction}`;
+  return `${langInstruction}You are a skilled execution agent. Carry out assigned tasks thoroughly and produce high-quality, detailed outputs. Be specific, practical, and thorough. Use clear structure with headers and bullet points where helpful.${toolHints}${evoSection}`;
 }
 
 /**
@@ -348,7 +348,7 @@ Return ONLY valid JSON, no markdown fences:
       if (taskSummary) contextInfo += `\n\nCompleted work summary:\n${taskSummary}`;
       if (lastQA) contextInfo += `\n\nLast Q&A exchange:\n${lastQA}`;
 
-      const prompt = `You are a creative AI prompt engineer. Based on the following completed conversation context, generate 3 diverse, high-quality follow-up prompts the user might want to explore next.
+      const prompt = `${getLanguageInstruction(lang)}You are a creative AI prompt engineer. Based on the following completed conversation context, generate 3 diverse, high-quality follow-up prompts the user might want to explore next.
 
 ${contextInfo}
 
@@ -359,7 +359,7 @@ Rules:
 - Tailor them for "${modeLabel}" mode
 
 Return ONLY a JSON array of exactly 3 strings. No explanations, no markdown fences.
-["prompt 1", "prompt 2", "prompt 3"]${getLanguageInstruction(lang)}`;
+["prompt 1", "prompt 2", "prompt 3"]`;
 
       const response = await fetch(API_BASE, {
         method: "POST",
@@ -394,11 +394,11 @@ Return ONLY a JSON array of exactly 3 strings. No explanations, no markdown fenc
         ? "a question (make it precise, specific, and likely to get a comprehensive answer)"
         : "an autonomous AI agent task goal (be clear, actionable, and specific)";
 
-      const prompt = `You are an expert prompt engineer. Rewrite the following prompt to be more effective for ${modeDesc}.
+      const prompt = `${getLanguageInstruction(lang)}You are an expert prompt engineer. Rewrite the following prompt to be more effective for ${modeDesc}.
 
 Original prompt: "${goal}"
 
-Return ONLY the rewritten prompt as a plain string — no JSON, no markdown, no explanation.${getLanguageInstruction(lang)}`;
+Return ONLY the rewritten prompt as a plain string — no JSON, no markdown, no explanation.`;
 
       const response = await fetch(API_BASE, {
         method: "POST",
@@ -475,13 +475,13 @@ Example: ["id1", "id2"]`;
         .map(([id, output]) => `Task ${id}:\n${(output as string).substring(0, 800)}`)
         .join("\n\n---\n\n");
 
-      const prompt = `Summarize the following AI agent session in 2-3 sentences. Focus on: what was accomplished, key outputs or code produced, and any important decisions made.
+      const prompt = `${getLanguageInstruction(lang)}Summarize the following AI agent session in 2-3 sentences. Focus on: what was accomplished, key outputs or code produced, and any important decisions made.
 
 Goal: ${goal}
 Outputs:
 ${outputText}
 
-Return ONLY the summary as a plain string.${getLanguageInstruction(lang)}`;
+Return ONLY the summary as a plain string.`;
 
       const response = await fetch(API_BASE, {
         method: "POST",
@@ -507,7 +507,9 @@ Return ONLY the summary as a plain string.${getLanguageInstruction(lang)}`;
         ? messages
         : [{ role: "user", content: goal }];
 
-      const chatSystemPrompt = `You are a knowledgeable, helpful assistant. Answer clearly and accurately. Use markdown formatting (headers, bullet points, code blocks) when it aids readability.${getLanguageInstruction(lang)}`;
+      const chatSystemPrompt = lang === "zh"
+        ? `[LANGUAGE: zh] 你的所有回复必须使用简体中文，无论用户用何种语言提问。代码标识符、文件路径、命令行指令可以保留英文。\n\n你是一位博学、乐于助人的AI助手。回答清晰准确，必要时使用Markdown格式（标题、列表、代码块）提升可读性。`
+        : `You are a knowledgeable, helpful assistant. Answer clearly and accurately. Use markdown formatting (headers, bullet points, code blocks) when it aids readability.`;
 
       const { response, isAnthropic } = await callLLMStream(
         AI_API_TOKEN,
@@ -616,7 +618,7 @@ Return ONLY the summary as a plain string.${getLanguageInstruction(lang)}`;
         return `Task ${t.id}: ${t.title}\n${output}`;
       }).join("\n\n---\n\n");
 
-      const reflectSystemPrompt = `You are a critical AI quality evaluator providing real-time analysis. Review the completed agent run and respond in TWO parts:
+      const reflectSystemPrompt = `${getLanguageInstruction(lang)}You are a critical AI quality evaluator providing real-time analysis. Review the completed agent run and respond in TWO parts:
 
 PART 1 — Write a concise human-readable assessment (3-5 sentences). Cover: what was accomplished well, the main weakness, and the most important improvement direction. Be honest and specific.
 
@@ -627,7 +629,7 @@ Rules for RESULT_JSON:
 - qualityScore: integer 0-100
 - strengths/weaknesses/improvements: arrays of 2 specific strings each
 - evolvedGoal: one refined sentence addressing weaknesses
-- Output RESULT_JSON on a single line with no line breaks inside the JSON${getLanguageInstruction(lang)}`;
+- Output RESULT_JSON on a single line with no line breaks inside the JSON`;
 
       const reflectUserContent = `Original Goal: ${goal}\n\nCompleted Tasks and Outputs:\n${taskSummaryText}`;
 
