@@ -252,10 +252,10 @@ const Index = () => {
 
           {/* Grid lines decoration */}
           <div
-            className="fixed inset-0 pointer-events-none opacity-[0.03]"
+            className="fixed inset-0 pointer-events-none opacity-[0.025]"
             style={{
               backgroundImage:
-                "linear-gradient(hsl(142 100% 50%) 1px, transparent 1px), linear-gradient(90deg, hsl(142 100% 50%) 1px, transparent 1px)",
+                "linear-gradient(hsl(var(--primary)) 1px, transparent 1px), linear-gradient(90deg, hsl(var(--primary)) 1px, transparent 1px)",
               backgroundSize: "60px 60px",
             }}
           />

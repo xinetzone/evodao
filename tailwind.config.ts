@@ -20,6 +20,7 @@ export default {
 		},
 		extend: {
 			fontFamily: {
+				sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
 				mono: ['JetBrains Mono', 'Fira Code', 'Cascadia Code', 'Consolas', 'monospace'],
 			},
 			colors: {
@@ -56,11 +57,11 @@ export default {
 					DEFAULT: 'hsl(var(--card))',
 					foreground: 'hsl(var(--card-foreground))'
 				},
-				terminal: {
-					green: 'hsl(var(--terminal-green))',
-					'green-dim': 'hsl(var(--terminal-green-dim))',
-					surface: 'hsl(var(--terminal-surface))',
-					'surface-hover': 'hsl(var(--terminal-surface-hover))',
+				neon: {
+					blue: 'hsl(var(--neon-blue))',
+					'blue-dim': 'hsl(var(--neon-blue-dim))',
+					surface: 'hsl(var(--neon-surface))',
+					'surface-hover': 'hsl(var(--neon-surface-hover))',
 				},
 				sidebar: {
 					DEFAULT: 'hsl(var(--sidebar-background))',
@@ -92,8 +93,8 @@ export default {
 					'50%': { opacity: '0' },
 				},
 				'pulse-glow': {
-					'0%, 100%': { boxShadow: '0 0 8px hsl(142 100% 50% / 0.3)' },
-					'50%': { boxShadow: '0 0 24px hsl(142 100% 50% / 0.7)' },
+					'0%, 100%': { boxShadow: '0 0 8px hsl(217 100% 64% / 0.28)' },
+					'50%': { boxShadow: '0 0 28px hsl(217 100% 64% / 0.60)' },
 				},
 				'fade-in': {
 					from: { opacity: '0', transform: 'translateY(8px)' },
