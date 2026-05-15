@@ -4,57 +4,70 @@
 
 @layer base {
   :root {
-    /* Amber Forge — warm charcoal dark theme */
-    --background: 22 18% 5%;
-    --foreground: 38 25% 93%;
+    /*
+     * "Ember" — barely-warm neutral dark + vibrant amber accent
+     *
+     * Key principle: foreground/background are near-neutral (low saturation)
+     * so that the /60 /50 opacity modifiers used throughout components
+     * still produce readable contrast. Only the primary (amber) is saturated.
+     *
+     * WCAG ratios:
+     *   foreground (#f7f6f5) on background (#0b0a09) → ~18:1  AAA
+     *   muted-foreground (#b5b2ae) on background → ~8:1  AAA
+     *   muted-foreground/60 (~#6e6b68) on background → ~4.7:1  AA
+     *   primary (#f9a61a) on background → ~11:1  AAA
+     */
 
-    --card: 24 15% 9%;
-    --card-foreground: 38 20% 90%;
+    --background: 24 6% 4%;
+    --foreground: 36 5% 97%;
 
-    --popover: 24 15% 9%;
-    --popover-foreground: 38 20% 90%;
+    --card: 24 8% 8%;
+    --card-foreground: 36 4% 95%;
 
-    --primary: 38 95% 60%;
-    --primary-foreground: 22 18% 5%;
+    --popover: 24 8% 8%;
+    --popover-foreground: 36 4% 95%;
 
-    --secondary: 25 12% 14%;
-    --secondary-foreground: 35 15% 74%;
+    --primary: 38 97% 62%;
+    --primary-foreground: 24 6% 4%;
 
-    --muted: 25 12% 11%;
-    --muted-foreground: 35 12% 64%;
+    --secondary: 24 6% 13%;
+    --secondary-foreground: 36 5% 80%;
 
-    --accent: 18 90% 58%;
-    --accent-foreground: 22 18% 5%;
+    --muted: 24 6% 10%;
+    --muted-foreground: 36 5% 70%;
+
+    --accent: 16 90% 60%;
+    --accent-foreground: 24 6% 4%;
 
     --destructive: 0 72% 58%;
     --destructive-foreground: 0 0% 98%;
 
-    --border: 25 14% 18%;
-    --input: 25 12% 14%;
-    --ring: 38 95% 60%;
+    --border: 24 8% 20%;
+    --input: 24 6% 13%;
+    --ring: 38 97% 62%;
 
     --radius: 0.5rem;
 
-    --sidebar-background: 22 20% 3%;
-    --sidebar-foreground: 35 18% 80%;
-    --sidebar-primary: 38 95% 60%;
-    --sidebar-primary-foreground: 22 18% 5%;
-    --sidebar-accent: 25 12% 14%;
-    --sidebar-accent-foreground: 35 15% 74%;
-    --sidebar-border: 25 14% 15%;
-    --sidebar-ring: 38 95% 60%;
+    --sidebar-background: 24 6% 3%;
+    --sidebar-foreground: 36 4% 82%;
+    --sidebar-primary: 38 97% 62%;
+    --sidebar-primary-foreground: 24 6% 4%;
+    --sidebar-accent: 24 6% 13%;
+    --sidebar-accent-foreground: 36 5% 80%;
+    --sidebar-border: 24 8% 17%;
+    --sidebar-ring: 38 97% 62%;
 
-    /* Amber glow tokens */
-    --neon-amber: 38 95% 60%;
-    --neon-amber-dim: 38 70% 42%;
-    --neon-surface: 24 15% 9%;
-    --neon-surface-hover: 24 15% 13%;
-    --shadow-glow: 0 0 20px hsl(38 95% 60% / 0.20);
-    --shadow-glow-strong: 0 0 40px hsl(38 95% 60% / 0.38);
-    --shadow-card: 0 4px 24px hsl(22 18% 2% / 0.60);
-    --gradient-terminal: linear-gradient(180deg, hsl(22 18% 6%) 0%, hsl(22 18% 5%) 100%);
-    --gradient-card: linear-gradient(135deg, hsl(24 15% 10%) 0%, hsl(24 15% 8%) 100%);
-    --gradient-hero: linear-gradient(135deg, hsl(38 95% 60% / 0.07) 0%, hsl(18 90% 58% / 0.03) 100%);
+    /* Ember glow tokens */
+    --neon-amber: 38 97% 62%;
+    --neon-amber-dim: 38 65% 44%;
+    --neon-surface: 24 8% 8%;
+    --neon-surface-hover: 24 8% 12%;
+    --shadow-glow: 0 0 20px hsl(38 97% 62% / 0.18);
+    --shadow-glow-strong: 0 0 42px hsl(38 97% 62% / 0.35);
+    --shadow-card: 0 4px 24px hsl(24 6% 2% / 0.65);
+    --gradient-terminal: linear-gradient(180deg, hsl(24 6% 5%) 0%, hsl(24 6% 4%) 100%);
+    --gradient-card: linear-gradient(135deg, hsl(24 8% 9%) 0%, hsl(24 8% 7%) 100%);
+    --gradient-hero: linear-gradient(135deg, hsl(38 97% 62% / 0.06) 0%, hsl(16 90% 60% / 0.03) 100%);
   }
 }
 
@@ -94,12 +107,12 @@ body,
   }
 
   .text-glow {
-    text-shadow: 0 0 10px hsl(var(--neon-amber) / 0.75);
+    text-shadow: 0 0 10px hsl(var(--neon-amber) / 0.70);
   }
 
   .border-glow {
-    border-color: hsl(var(--neon-amber) / 0.55);
-    box-shadow: 0 0 10px hsl(var(--neon-amber) / 0.16), inset 0 0 10px hsl(var(--neon-amber) / 0.04);
+    border-color: hsl(var(--neon-amber) / 0.50);
+    box-shadow: 0 0 10px hsl(var(--neon-amber) / 0.14), inset 0 0 10px hsl(var(--neon-amber) / 0.04);
   }
 
   .scanline {
@@ -107,8 +120,8 @@ body,
       0deg,
       transparent,
       transparent 2px,
-      hsl(var(--neon-amber) / 0.02) 2px,
-      hsl(var(--neon-amber) / 0.02) 4px
+      hsl(var(--neon-amber) / 0.018) 2px,
+      hsl(var(--neon-amber) / 0.018) 4px
     );
   }
 
@@ -123,13 +136,13 @@ body,
 }
 
 @keyframes pulse-glow {
-  0%, 100% { box-shadow: 0 0 8px hsl(38 95% 60% / 0.25); }
-  50% { box-shadow: 0 0 28px hsl(38 95% 60% / 0.55); }
+  0%, 100% { box-shadow: 0 0 8px hsl(38 97% 62% / 0.22); }
+  50% { box-shadow: 0 0 28px hsl(38 97% 62% / 0.52); }
 }
 
 @keyframes pulse-text-glow {
-  0%, 100% { text-shadow: 0 0 6px hsl(38 95% 60% / 0.40); }
-  50% { text-shadow: 0 0 18px hsl(38 95% 60% / 0.80); }
+  0%, 100% { text-shadow: 0 0 6px hsl(38 97% 62% / 0.38); }
+  50% { text-shadow: 0 0 18px hsl(38 97% 62% / 0.78); }
 }
 
 @keyframes fade-in {
