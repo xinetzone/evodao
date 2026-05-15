@@ -432,7 +432,7 @@ const Index = () => {
                 <p className="text-xs font-bold text-primary tracking-wider text-glow">
                   {t("index.missionAccomplished")}
                 </p>
-                <p className="text-[11px] text-foreground/60 mt-0.5">
+                <p className="text-[11px] text-foreground/75 mt-0.5">
                   {t("index.missionDone", { count: tasks.length })}
                 </p>
               </div>
@@ -478,10 +478,10 @@ const Index = () => {
                 </div>
               </div>
 
-              <h2 className="text-base font-bold text-foreground/70 tracking-[0.25em] mb-2">
+              <h2 className="text-base font-bold text-foreground/85 tracking-[0.25em] mb-2">
                 {t("index.standby")}
               </h2>
-              <p className="text-xs text-muted-foreground/60 max-w-sm mx-auto leading-relaxed text-center mb-8">
+              <p className="text-xs text-muted-foreground/80 max-w-sm mx-auto leading-relaxed text-center mb-8">
                 {t("index.standbyDesc")}
               </p>
 
@@ -491,13 +491,13 @@ const Index = () => {
                     key={i}
                     className="rounded border border-border/50 bg-card/30 p-3.5 hover:border-primary/30 hover:bg-card/60 transition-all duration-200"
                   >
-                    <div className="text-[9px] text-primary/50 tracking-widest font-bold mb-1.5 font-mono">
+                    <div className="text-[9px] text-primary/70 tracking-widest font-bold mb-1.5 font-mono">
                       STEP {String(i + 1).padStart(2, "0")}
                     </div>
-                    <div className="text-xs font-semibold text-foreground/70 tracking-wider mb-1">
+                    <div className="text-xs font-semibold text-foreground/80 tracking-wider mb-1">
                       {item.label}
                     </div>
-                    <div className="text-[10px] text-muted-foreground/60 leading-relaxed">
+                    <div className="text-[10px] text-muted-foreground/75 leading-relaxed">
                       {item.desc}
                     </div>
                   </div>

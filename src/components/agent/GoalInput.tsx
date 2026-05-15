@@ -201,7 +201,7 @@ export function GoalInput({
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
           <span className="text-primary">$</span>
           <span className="tracking-wider">{t("goalInput.prompt")}</span>
-          <span className="hidden sm:inline text-muted-foreground/40">{t("goalInput.hint")}</span>
+          <span className="hidden sm:inline text-muted-foreground/60">{t("goalInput.hint")}</span>
         </div>
 
         {/* Mode toggle pills + model selector */}
@@ -345,7 +345,7 @@ export function GoalInput({
           </div>
         ) : (
           <>
-            <span className="text-[9px] text-muted-foreground/40 tracking-widest font-bold shrink-0">
+            <span className="text-[9px] text-muted-foreground tracking-widest font-bold shrink-0">
               {suggestionsAI ? (
                 <span className="flex items-center gap-1 text-primary/50">
                   <Sparkles className="w-2.5 h-2.5" />
@@ -360,7 +360,7 @@ export function GoalInput({
                 key={i}
                 onClick={() => handleSuggestionClick(s)}
                 disabled={isRunning}
-                className="shrink-0 px-2 py-0.5 text-[10px] text-muted-foreground/70 border border-border/60 rounded hover:border-primary/40 hover:text-foreground hover:bg-primary/5 transition-all duration-150 truncate max-w-[200px] sm:max-w-[240px] text-left"
+                className="shrink-0 px-2 py-0.5 text-[10px] text-foreground/65 border border-border/60 rounded hover:border-primary/40 hover:text-foreground hover:bg-primary/5 transition-all duration-150 truncate max-w-[200px] sm:max-w-[240px] text-left"
                 title={s}
               >
                 {s.length > 42 ? s.slice(0, 42) + "…" : s}
@@ -450,7 +450,7 @@ export function GoalInput({
               placeholder={activePlaceholders[placeholderIndex % activePlaceholders.length]}
               rows={3}
               className={cn(
-                "w-full bg-transparent text-sm resize-none outline-none placeholder:text-muted-foreground/40",
+                "w-full bg-transparent text-sm resize-none outline-none placeholder:text-muted-foreground/55",
                 "leading-relaxed transition-colors duration-200",
                 isRunning ? "text-muted-foreground cursor-not-allowed" : "text-foreground"
               )}

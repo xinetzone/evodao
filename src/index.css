@@ -73,6 +73,18 @@
 
   body {
     @apply bg-background text-foreground font-sans;
+    /* Felt / textile texture — two diagonal gradient layers create a woven diamond pattern */
+    background-image:
+      repeating-linear-gradient(
+        45deg,
+        transparent 0px, transparent 3px,
+        hsl(36 40% 45% / 0.055) 3px, hsl(36 40% 45% / 0.055) 4px
+      ),
+      repeating-linear-gradient(
+        -45deg,
+        transparent 0px, transparent 3px,
+        hsl(36 40% 45% / 0.045) 3px, hsl(36 40% 45% / 0.045) 4px
+      );
   }
 
   /* Keep monospace for code & terminal content */
