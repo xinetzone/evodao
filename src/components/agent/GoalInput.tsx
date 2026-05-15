@@ -1,9 +1,9 @@
 import { useState, useRef, useEffect } from "react";
-import { Play, RotateCcw, Square, Wand2, Loader, Sparkles, ImageIcon, ChevronDown, Check, Paperclip, FileText, X, Loader2, BookOpen } from "lucide-react";
+import { Play, RotateCcw, Square, Wand2, Loader, Sparkles, Paperclip, FileText, X, Loader2, BookOpen } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { AgentStatus, OutputMode } from "@/hooks/useEvodaoAgent";
 import { ModelSelector } from "@/components/agent/ModelSelector";
-import { ModelId, ImageModelId, IMAGE_MODELS, getAutoModel, IMAGE_MODEL_DISPLAY } from "@/lib/models";
+import { ModelId, ImageModelId, getAutoModel } from "@/lib/models";
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from "@/lib/config";
 import { cn } from "@/lib/utils";
 import { useAttachments, Attachment } from "@/hooks/useAttachments";
@@ -37,8 +37,6 @@ export function GoalInput({
   const [outputMode, setOutputMode] = useState<OutputMode>("text");
   const [manualModel, setManualModel] = useState<ModelId | null>(null);
   const [imageModel, setImageModel] = useState<ImageModelId>("google/gemini-3-pro-image-preview");
-  const [imageModelOpen, setImageModelOpen] = useState(false);
-  const imageModelRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { attachments, hasLoading, addFiles, removeAttachment, clearAttachments } = useAttachments();
 
@@ -64,15 +62,6 @@ export function GoalInput({
     }
   }, [pendingPrompt, onPendingPromptConsumed]);
 
-  useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      if (imageModelRef.current && !imageModelRef.current.contains(e.target as Node)) {
-        setImageModelOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, []);
   const [isOptimizing, setIsOptimizing] = useState(false);
   const [isDetecting, setIsDetecting] = useState(false);
   const [detectedReason, setDetectedReason] = useState<string | null>(null);
@@ -184,7 +173,7 @@ export function GoalInput({
       if (!resp.ok) throw new Error("Intent detection failed");
       const data = await resp.json();
       if (data.outputMode) {
-        setOutputMode(data.outputMode as OutputMode);
+        setOutputMode((data.outputMode === "image" ? "text" : data.outputMode) as OutputMode);
         setDetectedReason(data.reason || null);
         // auto-clear reason badge after 6 seconds
         setTimeout(() => setDetectedReason(null), 6000);
@@ -230,7 +219,7 @@ export function GoalInput({
             </button>
           )}
           <div className="flex items-center gap-0.5 p-0.5 rounded border border-border bg-card">
-            {(["text", "agent", "qa", "image"] as OutputMode[]).map((m) => (
+            {(["text", "agent", "qa"] as OutputMode[]).map((m) => (
               <button
                 key={m}
                 onClick={() => setOutputMode(m)}
@@ -246,67 +235,23 @@ export function GoalInput({
                 <span className="sm:hidden">
                   {m === "text" ? t("agentMode.taskModeShort") || "任务"
                     : m === "agent" ? t("agentMode.agentBuildShort") || "构建"
-                    : m === "qa" ? t("agentMode.qaChatShort") || "问答"
-                    : t("agentMode.imageGenShort") || "图像"}
+                    : t("agentMode.qaChatShort") || "问答"}
                 </span>
                 <span className="hidden sm:inline">
                   {m === "text" ? t("agentMode.taskMode")
                     : m === "agent" ? t("agentMode.agentBuild")
-                    : m === "qa" ? t("agentMode.qaChat")
-                    : t("agentMode.imageGen")}
+                    : t("agentMode.qaChat")}
                 </span>
               </button>
             ))}
           </div>
 
-          {/* Image model selector — visible in image mode only */}
-          {outputMode === "image" ? (
-            <div className="relative" ref={imageModelRef}>
-              <button
-                onClick={() => setImageModelOpen(!imageModelOpen)}
-                disabled={isRunning}
-                className="flex items-center gap-1.5 pl-2 pr-2 py-1 rounded border border-border bg-card hover:border-primary/40 transition-all duration-200 disabled:opacity-50"
-              >
-                <ImageIcon className="w-2.5 h-2.5 text-primary/60 shrink-0" />
-                <span className="text-[11px] font-bold tracking-widest text-foreground/80 font-mono max-w-[100px] truncate">
-                  {IMAGE_MODEL_DISPLAY[imageModel]?.name ?? imageModel.split("/")[1]}
-                </span>
-                <ChevronDown className={cn("w-2.5 h-2.5 text-muted-foreground/50 transition-transform duration-200 shrink-0", imageModelOpen && "rotate-180")} />
-              </button>
-
-              {imageModelOpen && (
-                <div className="absolute right-0 top-full mt-1 w-44 rounded border border-border/80 bg-card shadow-xl z-[60] overflow-hidden animate-fade-in">
-                  <div className="px-2.5 py-1.5 border-b border-border/40">
-                    <p className="text-[11px] text-muted-foreground/50 tracking-widest font-mono">IMAGE MODEL</p>
-                  </div>
-                  <div className="py-0.5">
-                    {IMAGE_MODELS.map((m) => (
-                      <button
-                        key={m}
-                        onClick={() => { setImageModel(m); setImageModelOpen(false); }}
-                        className={cn(
-                          "w-full flex items-center justify-between gap-2 px-3 py-2 text-xs tracking-wider transition-colors",
-                          m === imageModel
-                            ? "text-primary bg-primary/10"
-                            : "text-muted-foreground hover:text-foreground hover:bg-muted/30"
-                        )}
-                      >
-                        <span className="font-mono font-bold">{IMAGE_MODEL_DISPLAY[m]?.name ?? m.split("/")[1]}</span>
-                        {m === imageModel && <Check className="w-3 h-3 text-primary shrink-0" />}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          ) : (
-            <ModelSelector
+          <ModelSelector
               outputMode={outputMode}
               manualModel={manualModel}
               onChange={setManualModel}
               disabled={isRunning}
             />
-          )}
         </div>
       </div>
 
@@ -321,11 +266,7 @@ export function GoalInput({
           {t("agentMode.qaChatHint")}
         </p>
       )}
-      {outputMode === "image" && (
-        <p className="text-xs text-primary/60 tracking-wider mb-2 pl-4 border-l border-primary/30">
-          {t("agentMode.imageGenHint")}
-        </p>
-      )}
+      {outputMode === "image" && null}
 
       {/* Intent detection reason badge */}
       {detectedReason && (
@@ -561,7 +502,7 @@ export function GoalInput({
                   ) : (
                     <Play className="w-3 h-3" />
                   )}
-                  {hasLoading ? t("goalInput.processing") : outputMode === "qa" ? t("goalInput.send") : outputMode === "image" ? t("goalInput.generate") : t("goalInput.execute")}
+                  {hasLoading ? t("goalInput.processing") : outputMode === "qa" ? t("goalInput.send") : t("goalInput.execute")}
                 </button>
               )}
             </div>
