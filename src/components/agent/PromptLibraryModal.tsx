@@ -112,7 +112,7 @@ export function PromptLibraryModal({ open, onClose, onSelect, currentMode }: Pro
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      className="fixed inset-0 z-50 flex items-start justify-center pt-20 px-4 pb-4"
       onKeyDown={(e) => e.key === "Escape" && onClose()}
     >
       {/* Backdrop */}
@@ -122,7 +122,7 @@ export function PromptLibraryModal({ open, onClose, onSelect, currentMode }: Pro
       <div
         className="relative z-10 w-full max-w-3xl flex flex-col rounded-xl border border-border/80 bg-card overflow-hidden"
         style={{
-          maxHeight: "82vh",
+          maxHeight: "calc(100vh - 100px)",
           boxShadow: "0 8px 40px hsl(36 30% 20% / 0.18), 0 0 0 1px hsl(38 22% 76% / 0.5)",
         }}
         onClick={(e) => e.stopPropagation()}
