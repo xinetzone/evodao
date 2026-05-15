@@ -337,7 +337,7 @@ export function GoalInput({
 
       {/* Prompt suggestion chips */}
       <div className="relative mb-3 min-h-[26px]">
-        <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5 scrollbar-none">
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5 scrollbar-none pr-10">
         {suggestionsLoading ? (
           <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground/60">
             <Loader className="w-3 h-3 animate-spin" />
