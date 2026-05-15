@@ -215,7 +215,7 @@ export function GoalInput({
               disabled={isDetecting}
               title={t("intent.detecting")}
               className={cn(
-                "flex items-center gap-1 px-2 py-1 text-[9px] font-bold tracking-widest rounded border transition-all duration-200",
+                "flex items-center gap-1 px-2 py-1 text-[11px] font-bold tracking-widest rounded border transition-all duration-200",
                 isDetecting
                   ? "border-primary/20 text-primary/30 cursor-not-allowed"
                   : "border-primary/20 text-primary/40 hover:border-primary/50 hover:text-primary/70 hover:bg-primary/5"
@@ -236,7 +236,7 @@ export function GoalInput({
                 onClick={() => setOutputMode(m)}
                 disabled={isRunning}
                 className={cn(
-                  "px-1.5 sm:px-2.5 py-0.5 sm:py-1 text-[10px] font-semibold tracking-widest rounded transition-all duration-150",
+                  "px-1.5 sm:px-2.5 py-0.5 sm:py-1 text-xs font-semibold tracking-widest rounded transition-all duration-150",
                   outputMode === m
                     ? "bg-primary text-primary-foreground"
                     : "text-muted-foreground hover:text-foreground"
@@ -268,7 +268,7 @@ export function GoalInput({
                 className="flex items-center gap-1.5 pl-2 pr-2 py-1 rounded border border-border bg-card hover:border-primary/40 transition-all duration-200 disabled:opacity-50"
               >
                 <ImageIcon className="w-2.5 h-2.5 text-primary/60 shrink-0" />
-                <span className="text-[9px] font-bold tracking-widest text-foreground/80 font-mono max-w-[100px] truncate">
+                <span className="text-[11px] font-bold tracking-widest text-foreground/80 font-mono max-w-[100px] truncate">
                   {IMAGE_MODEL_DISPLAY[imageModel]?.name ?? imageModel.split("/")[1]}
                 </span>
                 <ChevronDown className={cn("w-2.5 h-2.5 text-muted-foreground/50 transition-transform duration-200 shrink-0", imageModelOpen && "rotate-180")} />
@@ -277,7 +277,7 @@ export function GoalInput({
               {imageModelOpen && (
                 <div className="absolute right-0 top-full mt-1 w-44 rounded border border-border/80 bg-card shadow-xl z-[60] overflow-hidden animate-fade-in">
                   <div className="px-2.5 py-1.5 border-b border-border/40">
-                    <p className="text-[9px] text-muted-foreground/50 tracking-widest font-mono">IMAGE MODEL</p>
+                    <p className="text-[11px] text-muted-foreground/50 tracking-widest font-mono">IMAGE MODEL</p>
                   </div>
                   <div className="py-0.5">
                     {IMAGE_MODELS.map((m) => (
@@ -285,7 +285,7 @@ export function GoalInput({
                         key={m}
                         onClick={() => { setImageModel(m); setImageModelOpen(false); }}
                         className={cn(
-                          "w-full flex items-center justify-between gap-2 px-3 py-2 text-[10px] tracking-wider transition-colors",
+                          "w-full flex items-center justify-between gap-2 px-3 py-2 text-xs tracking-wider transition-colors",
                           m === imageModel
                             ? "text-primary bg-primary/10"
                             : "text-muted-foreground hover:text-foreground hover:bg-muted/30"
@@ -312,17 +312,17 @@ export function GoalInput({
 
       {/* Mode hint */}
       {outputMode === "agent" && (
-        <p className="text-[10px] text-primary/60 tracking-wider mb-2 pl-4 border-l border-primary/30">
+        <p className="text-xs text-primary/60 tracking-wider mb-2 pl-4 border-l border-primary/30">
           {t("agentMode.agentBuildHint")}
         </p>
       )}
       {outputMode === "qa" && (
-        <p className="text-[10px] text-primary/60 tracking-wider mb-2 pl-4 border-l border-primary/30">
+        <p className="text-xs text-primary/60 tracking-wider mb-2 pl-4 border-l border-primary/30">
           {t("agentMode.qaChatHint")}
         </p>
       )}
       {outputMode === "image" && (
-        <p className="text-[10px] text-primary/60 tracking-wider mb-2 pl-4 border-l border-primary/30">
+        <p className="text-xs text-primary/60 tracking-wider mb-2 pl-4 border-l border-primary/30">
           {t("agentMode.imageGenHint")}
         </p>
       )}
@@ -331,7 +331,7 @@ export function GoalInput({
       {detectedReason && (
         <div className="flex items-center gap-1.5 mb-2 px-3 py-1 rounded border border-primary/20 bg-primary/5 w-fit">
           <Sparkles className="w-2.5 h-2.5 text-primary/60 shrink-0" />
-          <span className="text-[10px] text-primary/70 tracking-wide">
+          <span className="text-xs text-primary/70 tracking-wide">
             <span className="font-bold">{t("intent.reason")}</span>{detectedReason}
           </span>
         </div>
@@ -340,7 +340,7 @@ export function GoalInput({
       {/* Prompt suggestion chips */}
       <div className="mb-3">
         {suggestionsLoading ? (
-          <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground/60 mb-1.5">
+          <div className="flex items-center gap-1.5 text-xs text-muted-foreground/60 mb-1.5">
             <Loader className="w-3 h-3 animate-spin" />
             {t("promptSuggestions.loading")}
           </div>
@@ -348,7 +348,7 @@ export function GoalInput({
           <>
             {/* Label */}
             <div className="flex items-center gap-1.5 mb-1.5">
-              <span className="text-[9px] text-muted-foreground tracking-widest font-bold shrink-0">
+              <span className="text-[11px] text-muted-foreground tracking-widest font-bold shrink-0">
                 {suggestionsAI ? (
                   <span className="flex items-center gap-1 text-primary/50">
                     <Sparkles className="w-2.5 h-2.5" />
@@ -361,7 +361,7 @@ export function GoalInput({
               {/* Library picker trigger */}
               <button
                 onClick={() => setLibraryOpen(true)}
-                className="ml-auto flex items-center gap-1 px-1.5 py-0.5 text-[9px] text-muted-foreground/50 border border-border/40 rounded hover:border-primary/40 hover:text-primary/60 transition-all duration-150"
+                className="ml-auto flex items-center gap-1 px-1.5 py-0.5 text-[11px] text-muted-foreground/50 border border-border/40 rounded hover:border-primary/40 hover:text-primary/60 transition-all duration-150"
                 title={t("promptLib.openBtn")}
               >
                 <BookOpen className="w-2.5 h-2.5" />
@@ -376,7 +376,7 @@ export function GoalInput({
                   key={i}
                   onClick={() => handleSuggestionClick(s)}
                   disabled={isRunning}
-                  className="px-2.5 py-1 text-[10px] text-foreground/65 border border-border/60 rounded hover:border-primary/40 hover:text-foreground hover:bg-primary/5 transition-all duration-150 truncate text-left w-full"
+                  className="px-2.5 py-1 text-xs text-foreground/65 border border-border/60 rounded hover:border-primary/40 hover:text-foreground hover:bg-primary/5 transition-all duration-150 truncate text-left w-full"
                   title={s}
                 >
                   {s}
@@ -394,7 +394,7 @@ export function GoalInput({
             <div
               key={att.id}
               className={cn(
-                "flex items-center gap-1.5 shrink-0 px-2 py-1 rounded border text-[10px] max-w-[160px]",
+                "flex items-center gap-1.5 shrink-0 px-2 py-1 rounded border text-xs max-w-[160px]",
                 att.error
                   ? "border-destructive/40 bg-destructive/5 text-destructive"
                   : "border-border bg-card text-muted-foreground"
@@ -479,7 +479,7 @@ export function GoalInput({
                 onClick={() => fileInputRef.current?.click()}
                 disabled={isRunning}
                 title={t("goalInput.attachTitle")}
-                className="flex items-center gap-1 px-2 py-1.5 text-[10px] text-muted-foreground border border-border rounded hover:border-primary/40 hover:text-foreground transition-all duration-200 disabled:opacity-40"
+                className="flex items-center gap-1 px-2 py-1.5 text-xs text-muted-foreground border border-border rounded hover:border-primary/40 hover:text-foreground transition-all duration-200 disabled:opacity-40"
               >
                 <Paperclip className="w-3 h-3" />
                 <span className="hidden sm:inline tracking-wider">{t("goalInput.attachLabel")}</span>
@@ -497,7 +497,7 @@ export function GoalInput({
                 onChange={(e) => handleFiles(e.target.files)}
                 onClick={(e) => { (e.target as HTMLInputElement).value = ""; }}
               />
-              <p className="text-[10px] text-muted-foreground/60 tracking-wider">
+              <p className="text-xs text-muted-foreground/60 tracking-wider">
                 {goal.length > 0
                   ? t("goalInput.chars", { count: goal.length })
                   : t("goalInput.awaiting")}
@@ -512,7 +512,7 @@ export function GoalInput({
                   disabled={isOptimizing}
                   title={t("goalInput.optimizeTitle")}
                   className={cn(
-                    "flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-semibold tracking-widest rounded border transition-all duration-200",
+                    "flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold tracking-widest rounded border transition-all duration-200",
                     isOptimizing
                       ? "border-primary/30 text-primary/60 cursor-not-allowed"
                       : "border-primary/30 text-primary/70 hover:border-primary/60 hover:text-primary hover:bg-primary/5"
