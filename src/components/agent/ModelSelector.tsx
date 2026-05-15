@@ -13,10 +13,16 @@ interface ModelSelectorProps {
   disabled?: boolean;
 }
 
+interface DropdownPos {
+  top: number;
+  right: number;
+  width: number;
+}
+
 export function ModelSelector({ outputMode, manualModel, onChange, disabled }: ModelSelectorProps) {
   const { t, i18n } = useTranslation();
   const [open, setOpen] = useState(false);
-  const [dropdownPos, setDropdownPos] = useState<{ top: number; right: number } | null>(null);
+  const [dropdownPos, setDropdownPos] = useState<DropdownPos | null>(null);
   // triggerRef: for position calculation; dropdownRef: wrapper for outside-click; portalRef: portal content for outside-click
   const triggerRef = useRef<HTMLButtonElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -31,14 +37,16 @@ export function ModelSelector({ outputMode, manualModel, onChange, disabled }: M
       ? (MODEL_DISPLAY[id]?.descZh ?? "")
       : (MODEL_DISPLAY[id]?.desc ?? "");
 
-  // Compute fixed position when opening
+  // Compute fixed position when opening — clamp so left edge stays ≥ 8px from viewport
   useEffect(() => {
     if (open && triggerRef.current) {
       const rect = triggerRef.current.getBoundingClientRect();
-      setDropdownPos({
-        top: rect.bottom + 6,
-        right: window.innerWidth - rect.right,
-      });
+      const vw = window.innerWidth;
+      const width = Math.min(220, vw - 16);          // shrink on very narrow screens
+      const idealRight = vw - rect.right;
+      const leftEdge = vw - idealRight - width;
+      const right = leftEdge < 8 ? Math.max(0, vw - width - 8) : idealRight;
+      setDropdownPos({ top: rect.bottom + 6, right: Math.max(0, right), width });
     }
   }, [open]);
 
@@ -57,8 +65,13 @@ export function ModelSelector({ outputMode, manualModel, onChange, disabled }: M
   const dropdownContent = (
     <div
       ref={portalRef}
-      style={{ position: "fixed", top: dropdownPos?.top ?? 0, right: dropdownPos?.right ?? 0 }}
-      className="z-[200] w-[220px] rounded border border-border bg-card shadow-xl shadow-black/50 overflow-y-auto max-h-[70vh] animate-fade-in"
+      style={{
+        position: "fixed",
+        top: dropdownPos?.top ?? 0,
+        right: dropdownPos?.right ?? 0,
+        width: dropdownPos?.width ?? 220,
+      }}
+      className="z-[200] rounded border border-border bg-card shadow-xl shadow-black/50 overflow-y-auto max-h-[70vh] animate-fade-in"
     >
       {/* AUTO option */}
       <button

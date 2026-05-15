@@ -21,7 +21,7 @@ interface AgentHeaderProps {
 }
 
 export function AgentHeader({ status, currentGoal, historyCount, onHistoryOpen, sessionUsage, taskManagerRunning, onTaskManagerOpen, onPlatformOpen }: AgentHeaderProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const { user, profile, isAdmin, signOut, refreshProfile } = useAuthContext();
   const [userMenuOpen, setUserMenuOpen] = useState(false);
@@ -118,7 +118,7 @@ export function AgentHeader({ status, currentGoal, historyCount, onHistoryOpen, 
           {/* Task Manager button */}
           <button
             onClick={onTaskManagerOpen}
-            className="relative flex items-center gap-1.5 px-2 sm:px-2.5 py-1 rounded border border-border bg-card text-xs text-muted-foreground hover:border-primary/40 hover:text-foreground transition-all duration-200"
+            className="relative flex items-center gap-1.5 px-1.5 sm:px-2.5 py-1 rounded border border-border bg-card text-xs text-muted-foreground hover:border-primary/40 hover:text-foreground transition-all duration-200"
             title={t("taskManager.title")}
           >
             <LayoutGrid className="w-3.5 h-3.5" />
@@ -133,7 +133,7 @@ export function AgentHeader({ status, currentGoal, historyCount, onHistoryOpen, 
           {/* History button */}
           <button
             onClick={onHistoryOpen}
-            className="relative flex items-center gap-1.5 px-2 sm:px-2.5 py-1 rounded border border-border bg-card text-xs text-muted-foreground hover:border-primary/40 hover:text-foreground transition-all duration-200"
+            className="relative flex items-center gap-1.5 px-1.5 sm:px-2.5 py-1 rounded border border-border bg-card text-xs text-muted-foreground hover:border-primary/40 hover:text-foreground transition-all duration-200"
             title={t("history.title")}
           >
             <Clock className="w-3.5 h-3.5" />
@@ -145,17 +145,20 @@ export function AgentHeader({ status, currentGoal, historyCount, onHistoryOpen, 
             )}
           </button>
 
-          {/* Platform button — C: Agent World platform panel */}
+          {/* Platform button — desktop only; on mobile it lives in the user dropdown */}
           <button
             onClick={onPlatformOpen}
-            className="flex items-center gap-1.5 px-2 sm:px-2.5 py-1 rounded border border-border bg-card text-xs text-muted-foreground hover:border-primary/40 hover:text-foreground transition-all duration-200"
+            className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded border border-border bg-card text-xs text-muted-foreground hover:border-primary/40 hover:text-foreground transition-all duration-200"
             title="Agent World Platforms"
           >
             <Globe2 className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline tracking-widest">Platforms</span>
+            <span className="tracking-widest">Platforms</span>
           </button>
 
-          <LanguageSwitcher />
+          {/* Language switcher — desktop only; on mobile it lives in the user dropdown */}
+          <div className="hidden sm:flex">
+            <LanguageSwitcher />
+          </div>
 
           {/* User menu */}
           {user && (
@@ -216,6 +219,23 @@ export function AgentHeader({ status, currentGoal, historyCount, onHistoryOpen, 
 
                   {/* Menu items */}
                   <div className="py-1">
+                    {/* Mobile-only: language toggle */}
+                    <div className="sm:hidden flex items-center gap-2 px-4 py-2.5 border-b border-border/30">
+                      <Globe className="w-3.5 h-3.5 text-muted-foreground/50 shrink-0" />
+                      <span className="text-xs text-muted-foreground tracking-wider flex-1">
+                        {i18n.language === "zh" ? "语言" : "Language"}
+                      </span>
+                      <LanguageSwitcher />
+                    </div>
+
+                    {/* Mobile-only: platforms entry */}
+                    <button
+                      onClick={() => { setUserMenuOpen(false); onPlatformOpen(); }}
+                      className="sm:hidden w-full flex items-center gap-3 px-4 py-2.5 text-xs text-muted-foreground hover:text-primary hover:bg-primary/5 transition-colors group border-b border-border/30"
+                    >
+                      <Globe2 className="w-3.5 h-3.5 text-muted-foreground/50 group-hover:text-primary transition-colors" />
+                      <span className="tracking-wider">Platforms</span>
+                    </button>
                     {isAdmin && (
                       <button
                         onClick={() => { setUserMenuOpen(false); navigate("/admin"); }}

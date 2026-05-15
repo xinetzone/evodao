@@ -226,16 +226,25 @@ export function GoalInput({
                 onClick={() => setOutputMode(m)}
                 disabled={isRunning}
                 className={cn(
-                  "px-2 sm:px-2.5 py-0.5 sm:py-1 text-[10px] font-semibold tracking-widest rounded transition-all duration-150",
+                  "px-1.5 sm:px-2.5 py-0.5 sm:py-1 text-[10px] font-semibold tracking-widest rounded transition-all duration-150",
                   outputMode === m
                     ? "bg-primary text-primary-foreground"
                     : "text-muted-foreground hover:text-foreground"
                 )}
               >
-                {m === "text" ? t("agentMode.taskMode")
-                  : m === "agent" ? t("agentMode.agentBuild")
-                  : m === "qa" ? t("agentMode.qaChat")
-                  : t("agentMode.imageGen")}
+                {/* Abbreviated labels on mobile, full labels on sm+ */}
+                <span className="sm:hidden">
+                  {m === "text" ? t("agentMode.taskModeShort") || "任务"
+                    : m === "agent" ? t("agentMode.agentBuildShort") || "构建"
+                    : m === "qa" ? t("agentMode.qaChatShort") || "问答"
+                    : t("agentMode.imageGenShort") || "图像"}
+                </span>
+                <span className="hidden sm:inline">
+                  {m === "text" ? t("agentMode.taskMode")
+                    : m === "agent" ? t("agentMode.agentBuild")
+                    : m === "qa" ? t("agentMode.qaChat")
+                    : t("agentMode.imageGen")}
+                </span>
               </button>
             ))}
           </div>
@@ -319,7 +328,8 @@ export function GoalInput({
       )}
 
       {/* Prompt suggestion chips */}
-      <div className="flex items-center gap-1.5 mb-3 min-h-[26px] overflow-x-auto pb-0.5 scrollbar-none">
+      <div className="relative mb-3 min-h-[26px]">
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5 scrollbar-none">
         {suggestionsLoading ? (
           <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground/60">
             <Loader className="w-3 h-3 animate-spin" />
@@ -350,6 +360,9 @@ export function GoalInput({
             ))}
           </>
         )}
+        </div>
+        {/* Right fade hint for overflow scroll */}
+        <div className="pointer-events-none absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-background to-transparent" />
       </div>
 
       {/* Attachment preview strip */}

@@ -156,7 +156,11 @@
       "Minimalist black and white abstract landscape painting",
       "Glowing crystal palace floating in space, surrealist style",
       "Mysterious bioluminescent creature in the deep ocean, cinematic lighting"
-    ]
+    ],
+    "taskModeShort": "Task",
+    "agentBuildShort": "Build",
+    "qaChatShort": "Q&A",
+    "imageGenShort": "Image"
   },
   "modelSelector": {
     "label": "MODEL",

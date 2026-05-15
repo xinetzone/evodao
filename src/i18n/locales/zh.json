@@ -156,7 +156,11 @@
       "极简主义风格的黑白抽象山水画",
       "宇宙中漂浮的发光水晶宫殿，超现实主义",
       "深海中发光的神秘生物，电影级光影效果"
-    ]
+    ],
+    "taskModeShort": "任务",
+    "agentBuildShort": "构建",
+    "qaChatShort": "问答",
+    "imageGenShort": "图像"
   },
   "modelSelector": {
     "label": "模型",
