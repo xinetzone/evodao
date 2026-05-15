@@ -110,8 +110,7 @@ export function UsagePanel({ open, onClose, refreshKey }: UsagePanelProps) {
 
   useEffect(() => {
     if (open) fetchStats();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, refreshKey]); // re-fetch when a run finalizes (refreshKey increments)
+  }, [open, refreshKey, fetchStats]); // fetchStats ref changes when userId loads
 
   const hasQuotas =
     profile?.daily_run_limit != null ||

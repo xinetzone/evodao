@@ -416,7 +416,8 @@ export function useEvodaoAgent() {
           ).choices?.[0];
           if (!choice) return;
           if (choice.delta?.content) onChunk(choice.delta.content);
-          if (choice.finish_reason) settle(() => resolve());
+          // Do NOT settle on finish_reason: the usage chunk arrives AFTER finish_reason
+          // in OpenAI stream format. Wait for [DONE] or onclose to avoid aborting early.
         },
 
         onerror(err) {
@@ -740,7 +741,10 @@ export function useEvodaoAgent() {
                   return updated;
                 });
               }
-              if (choice.finish_reason) settle(() => resolve());
+              if (choice.finish_reason) {
+                // Do NOT settle here — usage chunk arrives AFTER finish_reason.
+                // [DONE] or onclose will settle once all chunks (including usage) arrive.
+              }
             },
 
             onerror(err) {
