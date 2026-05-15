@@ -85,10 +85,31 @@ const FALLBACK_MESSAGES: Record<string, string> = {
   insufficient_credits: "AI credits have been exhausted. Please contact the administrator.",
   permission_error: "AI capability is disabled. Please contact the administrator.",
   api_error: "Service temporarily unavailable.",
+  timeout_error: "Request timed out. Please try again.",
+  connection_error: "Connection failed. Please try again.",
 };
 
+/** Sanitize raw backend error strings (Go struct dumps, TCP errors) into readable messages. */
+function sanitizeError(raw: string): string {
+  if (!raw) return "";
+  // Go struct dump: &{uuid uuid "message" ...}
+  if (raw.startsWith("&{") || raw.includes("read tcp") || raw.includes("All attempts fail")) {
+    if (/connection.timed.out|read.*timeout|i\/o timeout/i.test(raw)) {
+      return "Request timed out. Please try again.";
+    }
+    if (/connection.refused|connection.reset|EOF/i.test(raw)) {
+      return "Connection failed. Please try again.";
+    }
+    return "Service temporarily unavailable. Please try again.";
+  }
+  if (/connection.timed.out|read.*timeout|i\/o timeout/i.test(raw)) {
+    return "Request timed out. Please try again.";
+  }
+  return raw;
+}
+
 function getUserErrorMessage(code: string, backendMessage: string): string {
-  if (backendMessage) return backendMessage;
+  if (backendMessage) return sanitizeError(backendMessage);
   return FALLBACK_MESSAGES[code] || "Service temporarily unavailable.";
 }
 
@@ -258,18 +279,33 @@ export function useEvodaoAgent() {
     model?: string,
     memoryContext?: string[]  // B: inject long-term memory into plan phase
   ): Promise<Task[]> => {
-    const response = await fetch(EDGE_FUNCTION_URL, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
-      },
-      body: JSON.stringify({ mode: "plan", goal, outputMode: mode, evolutionContext: evolutionCtx, model, memoryContext, lang: i18n.language }),
-    });
+    // 60 s client-side timeout for the planning fetch
+    const planAbort = new AbortController();
+    const timeoutId = setTimeout(() => planAbort.abort(), 60_000);
+
+    let response: Response;
+    try {
+      response = await fetch(EDGE_FUNCTION_URL, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+        },
+        body: JSON.stringify({ mode: "plan", goal, outputMode: mode, evolutionContext: evolutionCtx, model, memoryContext, lang: i18n.language }),
+        signal: planAbort.signal,
+      });
+    } catch (err) {
+      if (err instanceof Error && err.name === "AbortError") {
+        throw new Error("Request timed out. Please try again.");
+      }
+      throw new Error("Connection failed. Please try again.");
+    } finally {
+      clearTimeout(timeoutId);
+    }
 
     if (!response.ok) {
-      const text = await response.text();
-      throw new Error(`Planning failed (${response.status}): ${text}`);
+      const text = await response.text().catch(() => "");
+      throw new Error(sanitizeError(`Planning failed (${response.status}): ${text}`) || `Planning failed (${response.status})`);
     }
 
     const data = await response.json();
@@ -733,7 +769,7 @@ export function useEvodaoAgent() {
       } catch (err: unknown) {
         if (err instanceof Error && err.name === "AbortError") return;
         setQaMessages((prev) => prev.slice(0, -1)); // remove pending assistant
-        setError(err instanceof Error ? err.message : "Chat failed");
+        setError(err instanceof Error ? sanitizeError(err.message) : "Chat failed");
         setStatus("error");
       }
       return;
@@ -776,7 +812,7 @@ export function useEvodaoAgent() {
       await runExecutionLoop(goal, plannedTasks, initialStatuses, {}, mode, [], onComplete, evolutionCtx, model, memoryContext);
     } catch (err: unknown) {
       if (err instanceof Error && err.name === "AbortError") return;
-      setError(err instanceof Error ? err.message : "Agent failed");
+      setError(err instanceof Error ? sanitizeError(err.message) : "Agent failed");
       setStatus("error");
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -807,7 +843,7 @@ export function useEvodaoAgent() {
       await runExecutionLoop(goal, rTasks, rStatuses, rOutputs, rMode, rFiles, onComplete);
     } catch (err: unknown) {
       if (err instanceof Error && err.name === "AbortError") return;
-      setError(err instanceof Error ? err.message : "Agent failed");
+      setError(err instanceof Error ? sanitizeError(err.message) : "Agent failed");
       setStatus("error");
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
