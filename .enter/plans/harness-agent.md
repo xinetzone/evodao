@@ -1,51 +1,57 @@
-# Plan: Force Chinese Output in QA Mode When Interface Is Chinese
+# Plan: Force Chinese Output Across ALL Modes
 
 ## Context
 
-In QA (探索问答) mode with Chinese interface selected, the LLM (e.g., GLM 5.1)
-responds in English when the user sends an English word like "hi".
+All agent modes (chat, plan, execute, reflect, suggest, optimize) currently append
+the language rule at the END of English system prompts. Models (GLM, Gemini, etc.)
+default to mirroring the user's input language and ignore trailing rules.
 
-**Root cause**: The current approach appends a `CRITICAL LANGUAGE RULE` instruction
-at the END of an English system prompt. Many models (especially GLM) default to
-mirroring the user's input language and override the trailing instruction.
+## Fix: Move Language Instruction to PREFIX
 
-The language rule at the end:
+Change `getLanguageInstruction` to return a preamble that goes BEFORE the role
+description, so the model reads the language rule first.
+
+Also rewrite the chat system prompt entirely in Chinese when lang === "zh".
+
+## File: `supabase/functions/harness-agent/index.ts`
+
+### 1. Rewrite `getLanguageInstruction` as a prefix
+
 ```
-You are a knowledgeable, helpful assistant... CRITICAL LANGUAGE RULE: ... respond in Chinese
+// BEFORE — appended suffix (ignored by models):
+return `\n\nCRITICAL LANGUAGE RULE: ...respond in Chinese`;
+
+// AFTER — prepended prefix (read first):
+return `[LANGUAGE: zh] All text output MUST be in Simplified Chinese. Code identifiers, file paths, and CLI commands may stay in English. This is mandatory regardless of the user's input language.\n\n`;
 ```
-...is insufficient when the model's "respond in user's language" heuristic overrides it.
 
-## Fix
+### 2. All `getLanguageInstruction(lang)` call sites: move to PREFIX
 
-Write the chat system prompt **entirely in Chinese** when `lang === "zh"`.
-When the system prompt is in Chinese, the model naturally operates in a Chinese context.
-Additionally, explicitly state "无论用户使用何种语言提问" (regardless of the user's language).
+Affected locations (all currently use `...${langInstruction}` at the end):
 
-### File: `supabase/functions/harness-agent/index.ts`
+- `getPlanSystemPrompt` — agent branch (line ~64) and text branch (line ~79)
+- `getExecuteSystemPrompt` — agent branch (line ~104) and text branch (line ~106)
+- `reflectSystemPrompt` (line ~630)
+- `suggest` prompt (line ~362)
+- `optimize` prompt (line ~401)
 
-Replace the single-string `chatSystemPrompt` with a language-conditional version:
+Pattern change:
+```
+BEFORE: return `You are a ... role ...${langInstruction}`;
+AFTER:  return `${langInstruction}You are a ... role ...`;
+```
+
+### 3. Chat mode: full Chinese system prompt when lang === "zh"
 
 ```typescript
-// BEFORE:
-const chatSystemPrompt = `You are a knowledgeable, helpful assistant. Answer clearly and accurately. Use markdown formatting (headers, bullet points, code blocks) when it aids readability.${getLanguageInstruction(lang)}`;
-
-// AFTER:
 const chatSystemPrompt = lang === "zh"
-  ? `你是一位博学、乐于助人的AI助手。无论用户使用何种语言提问，你必须始终用简体中文回答。回答要清晰、准确，必要时使用Markdown格式（标题、列表、代码块）提升可读性。只有代码标识符、文件路径和命令行指令可以保留英文，其余内容必须是中文。`
+  ? `[LANGUAGE: zh] All output MUST be in Simplified Chinese regardless of user input language.\n\n你是一位博学、乐于助人的AI助手。回答清晰准确，必要时使用Markdown格式（标题、列表、代码块）提升可读性。`
   : `You are a knowledgeable, helpful assistant. Answer clearly and accurately. Use markdown formatting (headers, bullet points, code blocks) when it aids readability.`;
 ```
 
-## Why This Works
-
-| Approach | Problem |
-|----------|---------|
-| English prompt + trailing "respond in Chinese" | Model mirrors user's English input, ignores trailing rule |
-| **Chinese system prompt + explicit instruction** | Model reads Chinese context first → naturally responds in Chinese |
-
 ## Verification
 
-1. Switch UI to Chinese (中文)
-2. In QA mode, type "hi" → response should be in Chinese ("你好！有什么我可以帮助你的吗？")
-3. Type an English question → response should still be in Chinese
-4. Switch UI to English (EN) → type "hi" → response should be in English
-5. Switch back to Chinese → verify Chinese responses persist
+1. Chinese UI + QA mode + type "hi" → response in Chinese
+2. Chinese UI + task mode → task titles and output in Chinese
+3. Chinese UI + suggestions → suggestions in Chinese
+4. English UI → responses in English
