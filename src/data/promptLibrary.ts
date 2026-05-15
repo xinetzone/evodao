@@ -287,6 +287,69 @@ export const PROMPT_THEMES: PromptTheme[] = [
       },
     ],
   },
+
+  // ── 传统文化 · 帛书版道德经专题 ───────────────────────────────────────────
+  {
+    id: "culture",
+    labelZh: "传统文化",
+    labelEn: "Classical Culture",
+    descZh: "帛书版道德经 · 易经 · 诗词 · 国画",
+    descEn: "Silk-text Tao Te Ching · I Ching · Classical poetry & ink art",
+    items: [
+      // ── 帛书版道德经 ──
+      {
+        mode: "qa",
+        zh: "深度对比帛书版道德经（马王堆甲本/乙本）与王弼通行本的核心差异：以第一章「道，可道也，非恒道也」vs「道可道，非常道」为切入点，分析「恒」→「常」的避讳背景、德经在前道经在后的编排逻辑，以及这些差异如何根本性地改变了对老子哲学的解读。",
+        en: "Compare the Mawangdui silk manuscripts (Text A/B) and Wang Bi's received Tao Te Ching: starting from 'Dao, ke Dao ye, fei heng Dao ye' vs. 'Dao ke Dao, fei chang Dao', analyze the taboo substitution of heng→chang, the De-before-Dao chapter ordering, and how these differences fundamentally reframe Laozi's philosophy.",
+      },
+      {
+        mode: "qa",
+        zh: "帛书版道德经「德经」开篇（通行本第38章）：「上德不德，是以有德；下德不失德，是以无德」——请从帛书版原文出发，对比通行本字句差异，深度解析「德」的本义（得也）、「玄德」的哲学层次，以及老子「无为」与「有为之德」的张力关系。",
+        en: "Analyze the opening of the De Jing in the silk manuscript (Chapter 38 in received text): 'Upper de is not de, therefore it has de; lower de does not lose de, therefore it has no de.' Trace textual variants, unpack the original meaning of de (attainment), the philosophical levels of xuan de, and the tension between wu wei and intentional virtue.",
+      },
+      {
+        mode: "qa",
+        zh: "帛书版道德经第19章：甲本作「绝智弃辩，民利百倍；绝巧弃利，盗贼无有；绝为弃虑，民复孝慈」，通行本改为「绝圣弃智」。这一字的之差如何颠覆了对老子政治哲学的理解？请结合先秦诸子思想背景展开论述。",
+        en: "In Chapter 19 of the silk text, Text A reads 'jue zhi qi bian' (abandon wisdom and debate) while the received text says 'jue sheng qi zhi' (abandon sagehood and wisdom). How does this single-character shift overturn our understanding of Laozi's political philosophy? Discuss in the context of pre-Qin intellectual history.",
+      },
+      {
+        mode: "text",
+        zh: "以帛书版道德经原文（非通行本）为依据，提炼10条适合现代创业者的管理哲学。每条需包含：帛书版原文引用、与通行本的差异说明、现代商业情境下的白话解读、以及一个真实创业案例印证。聚焦「曲则全」「知足者富」「为学日益，为道日损」等核心命题。",
+        en: "Drawing exclusively from the silk manuscript text (not the received version), distill 10 management philosophies for modern founders. Each entry must include: silk text quotation, comparison with received text variant, plain-language business interpretation, and a real startup case study. Focus on key propositions like 'bend and be whole', 'those who know sufficiency are wealthy', and 'in learning, daily increase; in the Dao, daily decrease'.",
+      },
+      {
+        mode: "agent",
+        zh: "用 React 构建一个「帛书版道德经三本对照阅读器」：左中右三栏分别展示帛书甲本、帛书乙本、王弼通行本；支持按章节（1-81章，保持帛书「德经在前」顺序）跳转；关键异文高亮显示（红色标注）；底部附现代白话译文；支持暗色主题。",
+        en: "Build a React 'Three-Text Tao Te Ching Collation Reader' with three columns for Silk Text A, Silk Text B, and Wang Bi's received text. Features: chapter navigation (1-81, preserving silk De-before-Dao order), red-highlight of key textual variants, modern Chinese translation at the bottom, and dark mode support.",
+      },
+      // ── 广义传统文化 ──
+      {
+        mode: "qa",
+        zh: "《周易》六十四卦的符号体系（阴阳爻、八卦、卦序）如何映射现代复杂性理论与系统思维？以乾、坤、泰、否、既济、未济六卦为例，用控制论、耗散结构、混沌理论等现代语言重新诠释易经的变化哲学。",
+        en: "How does the I Ching's 64-hexagram symbol system (yin-yang lines, eight trigrams, hexagram sequence) map onto modern complexity theory and systems thinking? Using Qian, Kun, Tai, Pi, Ji Ji, and Wei Ji as examples, reinterpret the I Ching's philosophy of change through cybernetics, dissipative structures, and chaos theory.",
+      },
+      {
+        mode: "text",
+        zh: "写一篇关于「中国传统色」的深度文章（3000字）：从石青、赭石、缃色、月白、黛色、霁青到琉璃黄，逐一解析每种颜色的矿物/植物来源、历史命名由来、在敦煌壁画/宋代院体画/明清瓷器中的具体应用，以及其背后的文化象征体系。",
+        en: "Write a 3000-word deep-dive on traditional Chinese colors: stone blue (shi qing), ochre (zhe shi), light yellow (xiang se), moon white, ink black (dai se), clearsky blue (ji qing), and glaze yellow. For each, trace mineral/plant origins, historical naming, specific uses in Dunhuang murals, Song dynasty court painting, Ming-Qing porcelain, and the underlying cultural symbolism.",
+      },
+      {
+        mode: "text",
+        zh: "以盛唐边塞诗的笔法（七言绝句，五首）以「AI 时代的算法工程师」为主题创作：要求融合边塞诗的核心意象（征途/孤城/胡笳/飞雪/烽火）与现代算法工程情境（模型训练/梯度下降/数据荒漠/算力竞逐），每首附注创作思路与意象对应说明。",
+        en: "Write 5 seven-character quatrains in the style of High Tang frontier poetry on the theme of 'algorithm engineers in the AI era'. Fuse frontier imagery (march routes, solitary fortress, nomad flute, flying snow, beacon fires) with modern AI engineering contexts (model training, gradient descent, data desert, compute competition). Annotate each poem with creative notes.",
+      },
+      {
+        mode: "image",
+        zh: "马王堆帛书风格艺术图：黄褐色丝绸底质上的墨书文字纹理，隶书与篆书过渡期字体风格，帛面有自然老化的丝纹和折痕，残旧卷边效果，局部字迹晕散如水墨在丝绢上渗开，考古文物感，暖黄调，高清微距特写，写实摄影风格。",
+        en: "Mawangdui silk manuscript artistic image: ink-brush text on aged yellow-brown silk fabric, transitional clerical-seal script style, natural silk weave texture with aging fold creases, tattered edge effects, ink characters bleeding softly into silk fibers, archaeological artifact aesthetic, warm yellow tones, high-resolution macro close-up, photorealistic style.",
+      },
+      {
+        mode: "image",
+        zh: "宋代文人画意境，水墨长卷横幅构图，远山淡墨层叠、云雾流动，中景竹径通幽，近景茅屋半掩，一位古装文士端坐案前展卷研读，案上置笔洗砚台竹简数枚，留白构图，笔墨疏淡有致，意境清远空灵，传统中国画风格。",
+        en: "Song dynasty literati painting aesthetic, horizontal handscroll composition, distant mountains in layered pale ink washes, drifting mist, bamboo path in midground, thatched study half-hidden in foreground, a scholar in traditional robes reading an unrolled scroll at a low desk, brush washer and ink stone visible, generous blank-space composition, sparse deliberate brushwork, serene and transcendent mood, traditional Chinese ink painting style.",
+      },
+    ],
+  },
 ];
 
 // Legacy flat array for backward compat if needed

@@ -4,7 +4,7 @@ import { useTranslation } from "react-i18next";
 import {
   X, Search, BookOpen, ArrowRight,
   Briefcase, PenLine, BarChart2, Code2, Bot, Palette, GraduationCap,
-  FileText, Wrench, MessageSquare, ImageIcon,
+  FileText, Wrench, MessageSquare, ImageIcon, ScrollText,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { PROMPT_THEMES, PromptTheme, PromptItem } from "@/data/promptLibrary";
@@ -39,6 +39,7 @@ const THEME_ICONS: Record<string, React.ElementType> = {
   aieng:       Bot,
   visual:      Palette,
   learning:    GraduationCap,
+  culture:     ScrollText,
 };
 
 const THEME_COLORS: Record<string, string> = {
@@ -49,6 +50,7 @@ const THEME_COLORS: Record<string, string> = {
   aieng:       "text-rose-500   border-rose-400/30   bg-rose-400/8",
   visual:      "text-orange-500 border-orange-400/30 bg-orange-400/8",
   learning:    "text-teal-500   border-teal-400/30   bg-teal-400/8",
+  culture:     "text-lime-700   border-lime-500/30   bg-lime-500/8",
 };
 
 /* ── Mode chip on each card ────────────────────────────────────────────── */
