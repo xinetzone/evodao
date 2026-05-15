@@ -5,64 +5,65 @@
 @layer base {
   :root {
     /*
-     * "Cream" — milk yellow light theme + rich amber accent
+     * "Dusk" — deep dark blue-black + warm orange-coral primary + lavender accent
+     * Inspired by the Enter.pro gradient aesthetic (orange → purple)
      *
      * WCAG ratios:
-     *   foreground (#1c1814) on background (#fdf4d0) → ~16:1  AAA
-     *   muted-foreground (#7a6e5c) on background → ~5.5:1  AA
-     *   primary (#c07a0a) on background → ~5.2:1  AA
+     *   foreground (#e0e4f0) on background (#0c0e17) → ~15:1  AAA
+     *   muted-foreground on background → ~5.6:1  AA
+     *   primary (#f0723e) on background → ~5.3:1  AA
      */
 
-    --background: 46 80% 90%;
-    --foreground: 24 12% 11%;
+    --background: 222 20% 7%;
+    --foreground: 220 12% 90%;
 
-    --card: 44 60% 97%;
-    --card-foreground: 24 10% 14%;
+    --card: 222 16% 11%;
+    --card-foreground: 220 10% 88%;
 
-    --popover: 44 60% 97%;
-    --popover-foreground: 24 10% 14%;
+    --popover: 222 16% 11%;
+    --popover-foreground: 220 10% 88%;
 
-    --primary: 36 92% 40%;
-    --primary-foreground: 46 80% 96%;
+    --primary: 20 88% 58%;
+    --primary-foreground: 0 0% 100%;
 
-    --secondary: 40 30% 85%;
-    --secondary-foreground: 24 10% 22%;
+    --secondary: 265 18% 18%;
+    --secondary-foreground: 265 35% 78%;
 
-    --muted: 42 35% 86%;
-    --muted-foreground: 28 10% 42%;
+    --muted: 220 14% 14%;
+    --muted-foreground: 220 8% 52%;
 
-    --accent: 16 85% 45%;
-    --accent-foreground: 46 80% 96%;
+    --accent: 268 48% 68%;
+    --accent-foreground: 0 0% 100%;
 
-    --destructive: 0 72% 50%;
+    --destructive: 0 72% 52%;
     --destructive-foreground: 0 0% 98%;
 
-    --border: 38 22% 76%;
-    --input: 40 30% 88%;
-    --ring: 36 92% 40%;
+    --border: 220 10% 18%;
+    --input: 220 14% 14%;
+    --ring: 20 88% 58%;
 
     --radius: 0.5rem;
 
-    --sidebar-background: 44 70% 86%;
-    --sidebar-foreground: 24 12% 18%;
-    --sidebar-primary: 36 92% 40%;
-    --sidebar-primary-foreground: 46 80% 96%;
-    --sidebar-accent: 40 30% 82%;
-    --sidebar-accent-foreground: 24 10% 22%;
-    --sidebar-border: 38 20% 72%;
-    --sidebar-ring: 36 92% 40%;
+    --sidebar-background: 222 18% 9%;
+    --sidebar-foreground: 220 10% 82%;
+    --sidebar-primary: 20 88% 58%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 265 18% 18%;
+    --sidebar-accent-foreground: 265 35% 78%;
+    --sidebar-border: 220 10% 18%;
+    --sidebar-ring: 20 88% 58%;
 
-    /* Amber glow tokens — lighter for light mode */
-    --neon-amber: 36 92% 40%;
-    --neon-amber-dim: 36 60% 52%;
-    --neon-surface: 44 60% 97%;
-    --neon-surface-hover: 42 40% 92%;
-    --shadow-glow: 0 0 16px hsl(36 92% 40% / 0.18);
-    --shadow-glow-strong: 0 0 32px hsl(36 92% 40% / 0.32);
-    --shadow-card: 0 2px 16px hsl(36 30% 30% / 0.12);
-    --gradient-terminal: linear-gradient(180deg, hsl(44 60% 97%) 0%, hsl(44 55% 95%) 100%);
-    --gradient-card: linear-gradient(135deg, hsl(44 60% 98%) 0%, hsl(44 50% 95%) 100%);
-    --gradient-hero: linear-gradient(135deg, hsl(36 92% 40% / 0.06) 0%, hsl(16 85% 45% / 0.03) 100%);
+    /* Custom glow / surface tokens — updated to orange + purple palette */
+    --neon-amber: 20 88% 58%;
+    --neon-amber-dim: 20 60% 48%;
+    --neon-surface: 222 16% 11%;
+    --neon-surface-hover: 222 16% 15%;
+    --shadow-glow: 0 0 16px hsl(20 88% 58% / 0.20);
+    --shadow-glow-strong: 0 0 36px hsl(20 88% 58% / 0.38);
+    --shadow-card: 0 2px 20px hsl(222 20% 4% / 0.60);
+    --gradient-terminal: linear-gradient(180deg, hsl(222 16% 11%) 0%, hsl(222 18% 9%) 100%);
+    --gradient-card: linear-gradient(135deg, hsl(222 16% 12%) 0%, hsl(222 18% 9%) 100%);
+    --gradient-hero: linear-gradient(135deg, hsl(20 88% 58% / 0.07) 0%, hsl(268 48% 68% / 0.05) 100%);
   }
 }
 
@@ -73,18 +74,10 @@
 
   body {
     @apply bg-background text-foreground font-sans;
-    /* Felt / textile texture — two diagonal gradient layers create a woven diamond pattern */
+    /* Subtle orange (bottom-right) + lavender (top-left) light spheres — echoing the Enter.pro gradient */
     background-image:
-      repeating-linear-gradient(
-        45deg,
-        transparent 0px, transparent 3px,
-        hsl(36 40% 45% / 0.055) 3px, hsl(36 40% 45% / 0.055) 4px
-      ),
-      repeating-linear-gradient(
-        -45deg,
-        transparent 0px, transparent 3px,
-        hsl(36 40% 45% / 0.045) 3px, hsl(36 40% 45% / 0.045) 4px
-      );
+      radial-gradient(ellipse at 88% 98%, hsl(20 88% 58% / 0.11) 0%, transparent 48%),
+      radial-gradient(ellipse at 12% 2%,  hsl(268 48% 68% / 0.08) 0%, transparent 42%);
   }
 
   /* Keep monospace for code & terminal content */
@@ -114,12 +107,12 @@ body,
   }
 
   .text-glow {
-    text-shadow: 0 0 8px hsl(var(--neon-amber) / 0.45);
+    text-shadow: 0 0 10px hsl(var(--neon-amber) / 0.55);
   }
 
   .border-glow {
     border-color: hsl(var(--neon-amber) / 0.55);
-    box-shadow: 0 0 8px hsl(var(--neon-amber) / 0.16);
+    box-shadow: 0 0 10px hsl(var(--neon-amber) / 0.18);
   }
 
   .scanline {
@@ -127,8 +120,8 @@ body,
       0deg,
       transparent,
       transparent 2px,
-      hsl(var(--neon-amber) / 0.025) 2px,
-      hsl(var(--neon-amber) / 0.025) 4px
+      hsl(var(--neon-amber) / 0.018) 2px,
+      hsl(var(--neon-amber) / 0.018) 4px
     );
   }
 
@@ -143,13 +136,13 @@ body,
 }
 
 @keyframes pulse-glow {
-  0%, 100% { box-shadow: 0 0 6px hsl(36 92% 40% / 0.20); }
-  50% { box-shadow: 0 0 22px hsl(36 92% 40% / 0.45); }
+  0%, 100% { box-shadow: 0 0 6px hsl(20 88% 58% / 0.22); }
+  50% { box-shadow: 0 0 26px hsl(20 88% 58% / 0.50); }
 }
 
 @keyframes pulse-text-glow {
-  0%, 100% { text-shadow: 0 0 5px hsl(36 92% 40% / 0.35); }
-  50% { text-shadow: 0 0 14px hsl(36 92% 40% / 0.70); }
+  0%, 100% { text-shadow: 0 0 6px hsl(20 88% 58% / 0.40); }
+  50% { text-shadow: 0 0 18px hsl(20 88% 58% / 0.80); }
 }
 
 @keyframes fade-in {
