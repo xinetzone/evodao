@@ -39,6 +39,7 @@ const Index = () => {
   const [pricingOpen, setPricingOpen] = useState(false);
   const [pendingLogId, setPendingLogId] = useState<string | null>(null);
   const [pendingModel, setPendingModel] = useState<string>("");
+  const [statsRefreshKey, setStatsRefreshKey] = useState(0);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [taskManagerOpen, setTaskManagerOpen] = useState(false);
   const [platformOpen, setPlatformOpen] = useState(false);
@@ -147,6 +148,13 @@ const Index = () => {
 
   // Reset suggestions on full reset
   const handleReset = () => {
+    // Capture & finalize partial token usage BEFORE reset() zeroes sessionUsage
+    if (pendingLogId && sessionUsage.totalTokens > 0) {
+      finalizeUsage(pendingLogId, sessionUsage, pendingModel);
+      setPendingLogId(null);
+      setPendingModel("");
+      setStatsRefreshKey((k) => k + 1);
+    }
     setSuggestions([]);
     setSuggestionsAI(false);
     prevQACountRef.current = 0;
@@ -195,11 +203,16 @@ const Index = () => {
     const isDoneTransition = prevStatusRef.current !== "done" && status === "done";
     const isQAFinished =
       prevStatusRef.current === "executing" && status === "idle" && outputMode === "qa";
+    // Also finalize on error so partial tokens from incomplete tasks get logged
+    const isError =
+      status === "error" &&
+      (prevStatusRef.current === "executing" || prevStatusRef.current === "planning");
 
-    if ((isDoneTransition || isQAFinished) && pendingLogId && sessionUsage.totalTokens > 0) {
+    if ((isDoneTransition || isQAFinished || isError) && pendingLogId && sessionUsage.totalTokens > 0) {
       finalizeUsage(pendingLogId, sessionUsage, pendingModel);
       setPendingLogId(null);
       setPendingModel("");
+      setStatsRefreshKey((k) => k + 1);
     }
     prevStatusRef.current = status;
   }, [status, pendingLogId, pendingModel, sessionUsage, finalizeUsage, outputMode]);
@@ -565,7 +578,7 @@ const Index = () => {
       />
 
       <PlatformPanel open={platformOpen} onClose={() => setPlatformOpen(false)} />
-      <UsagePanel open={usageOpen} onClose={() => setUsageOpen(false)} />
+      <UsagePanel open={usageOpen} onClose={() => setUsageOpen(false)} refreshKey={statsRefreshKey} />
       <HelpModal open={helpOpen} onClose={() => setHelpOpen(false)} />
 
       <QuotaExceededModal

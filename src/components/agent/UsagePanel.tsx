@@ -10,6 +10,7 @@ import { MODEL_DISPLAY, IMAGE_MODEL_DISPLAY } from "@/lib/models";
 interface UsagePanelProps {
   open: boolean;
   onClose: () => void;
+  refreshKey?: number;
 }
 
 /* ── Formatting helpers ──────────────────────────────────────────────── */
@@ -101,7 +102,7 @@ const MODE_BADGE: Record<string, string> = {
 };
 
 /* ── Main panel ─────────────────────────────────────────────────────── */
-export function UsagePanel({ open, onClose }: UsagePanelProps) {
+export function UsagePanel({ open, onClose, refreshKey }: UsagePanelProps) {
   const { t, i18n } = useTranslation();
   const lang = i18n.language;
   const { profile } = useAuthContext();
@@ -110,7 +111,7 @@ export function UsagePanel({ open, onClose }: UsagePanelProps) {
   useEffect(() => {
     if (open) fetchStats();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open]); // intentionally omit fetchStats — identity is stable enough via userId dep
+  }, [open, refreshKey]); // re-fetch when a run finalizes (refreshKey increments)
 
   const hasQuotas =
     profile?.daily_run_limit != null ||
