@@ -31,7 +31,7 @@ export function GoalInput({
   suggestionsLoading = false,
   suggestionsAI = false,
 }: GoalInputProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [goal, setGoal] = useState("");
   const [outputMode, setOutputMode] = useState<OutputMode>("text");
   const [manualModel, setManualModel] = useState<ModelId | null>(null);
@@ -150,7 +150,7 @@ export function GoalInput({
           "Content-Type": "application/json",
           Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
         },
-        body: JSON.stringify({ mode: "optimize", goal: goal.trim(), outputMode }),
+        body: JSON.stringify({ mode: "optimize", goal: goal.trim(), outputMode, lang: i18n.language }),
       });
       if (!resp.ok) throw new Error("Optimize failed");
       const data = await resp.json();

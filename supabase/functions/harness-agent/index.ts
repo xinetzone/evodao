@@ -16,6 +16,13 @@ function isClaudeModel(model: string): boolean {
   return model.startsWith("anthropic/");
 }
 
+function getLanguageInstruction(lang?: string): string {
+  if (lang === "zh") {
+    return `\n\nCRITICAL LANGUAGE RULE: The user interface is set to Chinese (简体中文). You MUST respond entirely in Simplified Chinese. ALL output — task titles, descriptions, analysis, summaries, evaluation text, prose, and explanations — MUST be in Chinese. Only code identifiers, file paths, CLI commands, and reserved programming keywords may remain in English. Never mix languages. Respond in Chinese only.`;
+  }
+  return "";
+}
+
 interface EvolutionContext {
   round: number;
   qualityScore: number;
@@ -36,8 +43,9 @@ Refined goal: ${evolutionContext.evolvedGoal}
 Apply these improvements proactively throughout your response.`;
 }
 
-function getPlanSystemPrompt(outputMode: string, evolutionContext?: EvolutionContext): string {
+function getPlanSystemPrompt(outputMode: string, evolutionContext?: EvolutionContext, lang?: string): string {
   const evoSection = getEvolutionSection(evolutionContext);
+  const langInstruction = getLanguageInstruction(lang);
   if (outputMode === "agent") {
     return `You are a senior software architect planning the implementation of an agent project.
 Decompose the goal into 3-6 implementation tasks. Each task should produce one or more concrete code files.
@@ -53,7 +61,7 @@ Rules for "dependsOn":
 Rules for "tools":
 - Declare the capabilities this task primarily relies on.
 - Valid values: "code" (write/generate code), "write" (prose/docs), "analyze" (research/summarize), "search" (find info), "design" (UI/UX/visual).
-- Each task should list 1-3 relevant tools.${evoSection}`;
+- Each task should list 1-3 relevant tools.${evoSection}${langInstruction}`;
   }
   return `You are a precise task planning agent. Given a goal, decompose it into 3-6 concrete, actionable sub-tasks.
 Return ONLY a valid JSON array with no markdown fences, no explanation, no extra text. Use this exact format:
@@ -68,11 +76,12 @@ Rules for "dependsOn":
 Rules for "tools":
 - Declare the capabilities this task primarily relies on.
 - Valid values: "code" (write/generate code), "write" (prose/docs), "analyze" (research/summarize), "search" (find info), "design" (UI/UX/visual).
-- Each task should list 1-3 relevant tools.${evoSection}`;
+- Each task should list 1-3 relevant tools.${evoSection}${langInstruction}`;
 }
 
-function getExecuteSystemPrompt(outputMode: string, tools?: string[], evolutionContext?: EvolutionContext): string {
+function getExecuteSystemPrompt(outputMode: string, tools?: string[], evolutionContext?: EvolutionContext, lang?: string): string {
   const evoSection = getEvolutionSection(evolutionContext);
+  const langInstruction = getLanguageInstruction(lang);
   const toolHints = tools && tools.length > 0
     ? `\n\nThis task uses tools: [${tools.join(", ")}]. Tailor your response to leverage these capabilities.`
     : "";
@@ -92,9 +101,9 @@ Rules:
 - Use realistic relative file paths (e.g. src/agent.py, config/settings.json, README.md)
 - Write complete, working code — no placeholders or TODOs
 - Multiple files per task is encouraged
-- Always include a README.md with setup and usage instructions in the first or last task${toolHints}${evoSection}`;
+- Always include a README.md with setup and usage instructions in the first or last task${toolHints}${evoSection}${langInstruction}`;
   }
-  return `You are a skilled execution agent. Carry out assigned tasks thoroughly and produce high-quality, detailed outputs. Be specific, practical, and thorough. Use clear structure with headers and bullet points where helpful.${toolHints}${evoSection}`;
+  return `You are a skilled execution agent. Carry out assigned tasks thoroughly and produce high-quality, detailed outputs. Be specific, practical, and thorough. Use clear structure with headers and bullet points where helpful.${toolHints}${evoSection}${langInstruction}`;
 }
 
 /**
@@ -287,6 +296,7 @@ Deno.serve(async (req) => {
       evolutionContext,
       model: requestedModel,
       memoryContext,
+      lang,
     } = body;
 
     const primaryModel: string = requestedModel || "z-ai/glm-5.1";
@@ -349,7 +359,7 @@ Rules:
 - Tailor them for "${modeLabel}" mode
 
 Return ONLY a JSON array of exactly 3 strings. No explanations, no markdown fences.
-["prompt 1", "prompt 2", "prompt 3"]`;
+["prompt 1", "prompt 2", "prompt 3"]${getLanguageInstruction(lang)}`;
 
       const response = await fetch(API_BASE, {
         method: "POST",
@@ -388,7 +398,7 @@ Return ONLY a JSON array of exactly 3 strings. No explanations, no markdown fenc
 
 Original prompt: "${goal}"
 
-Return ONLY the rewritten prompt as a plain string — no JSON, no markdown, no explanation.`;
+Return ONLY the rewritten prompt as a plain string — no JSON, no markdown, no explanation.${getLanguageInstruction(lang)}`;
 
       const response = await fetch(API_BASE, {
         method: "POST",
@@ -471,7 +481,7 @@ Goal: ${goal}
 Outputs:
 ${outputText}
 
-Return ONLY the summary as a plain string.`;
+Return ONLY the summary as a plain string.${getLanguageInstruction(lang)}`;
 
       const response = await fetch(API_BASE, {
         method: "POST",
@@ -497,7 +507,7 @@ Return ONLY the summary as a plain string.`;
         ? messages
         : [{ role: "user", content: goal }];
 
-      const chatSystemPrompt = "You are a knowledgeable, helpful assistant. Answer clearly and accurately. Use markdown formatting (headers, bullet points, code blocks) when it aids readability.";
+      const chatSystemPrompt = `You are a knowledgeable, helpful assistant. Answer clearly and accurately. Use markdown formatting (headers, bullet points, code blocks) when it aids readability.${getLanguageInstruction(lang)}`;
 
       const { response, isAnthropic } = await callLLMStream(
         AI_API_TOKEN,
@@ -533,7 +543,7 @@ Return ONLY the summary as a plain string.`;
 
     // ── PLAN ─────────────────────────────────────────────────────────────────
     } else if (mode === "plan") {
-      const planSystemPrompt = getPlanSystemPrompt(outputMode, evolutionContext);
+      const planSystemPrompt = getPlanSystemPrompt(outputMode, evolutionContext, lang);
       // B: Inject long-term memory context into planning prompt
       const memSection = Array.isArray(memoryContext) && memoryContext.length > 0
         ? `\n\nRelevant context from past sessions (use to refine scope and avoid repetition):\n${(memoryContext as string[]).slice(0, 3).join("\n---\n")}`
@@ -564,7 +574,7 @@ Return ONLY the summary as a plain string.`;
         : `Overall Goal: ${goal}\n\nCurrent Task to Execute:\nTitle: ${task.title}\nDescription: ${task.description}${contextSection}\n\nPlease execute this task completely and provide detailed, actionable output.`;
 
       const taskTools: string[] | undefined = task?.tools;
-      const execSystemPrompt = getExecuteSystemPrompt(outputMode, taskTools, evolutionContext);
+      const execSystemPrompt = getExecuteSystemPrompt(outputMode, taskTools, evolutionContext, lang);
 
       const { response, isAnthropic } = await callLLMStream(
         AI_API_TOKEN,
@@ -617,7 +627,7 @@ Rules for RESULT_JSON:
 - qualityScore: integer 0-100
 - strengths/weaknesses/improvements: arrays of 2 specific strings each
 - evolvedGoal: one refined sentence addressing weaknesses
-- Output RESULT_JSON on a single line with no line breaks inside the JSON`;
+- Output RESULT_JSON on a single line with no line breaks inside the JSON${getLanguageInstruction(lang)}`;
 
       const reflectUserContent = `Original Goal: ${goal}\n\nCompleted Tasks and Outputs:\n${taskSummaryText}`;
 

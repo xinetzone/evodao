@@ -3,6 +3,7 @@ import { fetchEventSource } from "@microsoft/fetch-event-source";
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from "@/lib/config";
 import { parseFilesFromOutput } from "@/lib/parseFiles";
 import { getAutoModel } from "@/lib/models";
+import i18n from "@/i18n";
 
 export type AgentStatus = "idle" | "planning" | "executing" | "done" | "error";
 export type TaskStatus = "pending" | "blocked" | "running" | "completed" | "error";
@@ -263,7 +264,7 @@ export function useEvodaoAgent() {
         "Content-Type": "application/json",
         Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
       },
-      body: JSON.stringify({ mode: "plan", goal, outputMode: mode, evolutionContext: evolutionCtx, model, memoryContext }),
+      body: JSON.stringify({ mode: "plan", goal, outputMode: mode, evolutionContext: evolutionCtx, model, memoryContext, lang: i18n.language }),
     });
 
     if (!response.ok) {
@@ -319,6 +320,7 @@ export function useEvodaoAgent() {
           outputMode: mode,
           evolutionContext: evolutionCtx,
           model,
+          lang: i18n.language,
         }),
         signal: localController.signal,
 
@@ -634,7 +636,7 @@ export function useEvodaoAgent() {
               "Content-Type": "application/json",
               Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
             },
-            body: JSON.stringify({ mode: "chat", messages: messagesForAPI, model }),
+            body: JSON.stringify({ mode: "chat", messages: messagesForAPI, model, lang: i18n.language }),
             signal: controller.signal,
 
             async onopen(response) {
@@ -844,6 +846,7 @@ export function useEvodaoAgent() {
             goal: currentGoalRef.current,
             tasks: tasks,
             taskOutputs: taskOutputsRef.current,
+            lang: i18n.language,
           }),
           signal: controller.signal,
 

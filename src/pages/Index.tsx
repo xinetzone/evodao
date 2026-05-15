@@ -27,7 +27,7 @@ import { SUPABASE_URL, SUPABASE_ANON_KEY } from "@/lib/config";
 import { PlatformPanel } from "@/components/agent/PlatformPanel";
 
 const Index = () => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const history = useAgentHistory();
   const taskManager = useTaskManager();
   const aiImage = useAIImage();
@@ -99,7 +99,7 @@ const Index = () => {
       const resp = await fetch(`${SUPABASE_URL}/functions/v1/harness-agent`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${SUPABASE_ANON_KEY}` },
-        body: JSON.stringify({ mode: "suggest", goal, outputMode: mode, ...contextInfo }),
+        body: JSON.stringify({ mode: "suggest", goal, outputMode: mode, lang: i18n.language, ...contextInfo }),
       });
       if (!resp.ok) return;
       const data = await resp.json();
@@ -109,6 +109,7 @@ const Index = () => {
       }
     } catch { /* keep static suggestions */ }
     finally { setSuggestionsLoading(false); }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Trigger AI suggestions when task/agent run completes
