@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 import { X, Search, BookOpen, ArrowRight, FileText, Code2, MessageSquare, ImageIcon, Layers } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -110,7 +111,7 @@ export function PromptLibraryModal({ open, onClose, onSelect, currentMode }: Pro
 
   if (!open) return null;
 
-  return (
+  return createPortal(
     <div
       className="fixed inset-0 z-50 flex items-start justify-center pt-20 px-4 pb-4"
       onKeyDown={(e) => e.key === "Escape" && onClose()}
@@ -297,5 +298,5 @@ export function PromptLibraryModal({ open, onClose, onSelect, currentMode }: Pro
         </div>
       </div>
     </div>
-  );
+  , document.body);
 }
