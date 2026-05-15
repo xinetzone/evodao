@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 interface EvolutionPanelProps {
   evolutionStatus: EvolutionStatus;
   reflection: ReflectionResult | null;
+  reflectionStream: string;
   evolutionRound: number;
   maxRounds: number;
   onEvolve: () => void;
@@ -39,6 +40,7 @@ function ScoreRing({ score }: { score: number }) {
 export function EvolutionPanel({
   evolutionStatus,
   reflection,
+  reflectionStream,
   evolutionRound,
   maxRounds,
   onEvolve,
@@ -78,14 +80,29 @@ export function EvolutionPanel({
   // ── Reflecting ────────────────────────────────────────────────────────────
   if (evolutionStatus === "reflecting") {
     return (
-      <div className="animate-fade-in flex items-center gap-3 px-4 py-3 rounded border border-primary/30 bg-primary/5 terminal-glow">
-        <Loader className="w-4 h-4 text-primary animate-spin shrink-0" />
-        <div>
-          <p className="text-xs font-bold text-primary tracking-widest">
-            {t("evolution.reflecting")}
-          </p>
-          <p className="text-[10px] text-foreground/50 mt-0.5">{t("evolution.reflectingDesc")}</p>
+      <div className="animate-fade-in rounded border border-primary/30 bg-primary/5 terminal-glow overflow-hidden">
+        <div className="flex items-center gap-3 px-4 py-3 border-b border-primary/20">
+          <Loader className="w-4 h-4 text-primary animate-spin shrink-0" />
+          <div className="flex-1">
+            <p className="text-xs font-bold text-primary tracking-widest">
+              {t("evolution.reflecting")}
+            </p>
+            <p className="text-[10px] text-foreground/50 mt-0.5">{t("evolution.reflectingDesc")}</p>
+          </div>
         </div>
+        {reflectionStream ? (
+          <div className="p-4 max-h-52 overflow-y-auto">
+            <pre className="text-xs leading-relaxed whitespace-pre-wrap break-words text-foreground/80 font-mono">
+              {reflectionStream}
+              <span className="inline-block w-1.5 h-3 bg-primary ml-0.5 animate-blink align-middle" />
+            </pre>
+          </div>
+        ) : (
+          <div className="px-4 py-3 flex items-center gap-2">
+            <span className="inline-block w-1.5 h-3 bg-primary animate-blink" />
+            <span className="text-[11px] text-muted-foreground animate-pulse font-mono">analyzing...</span>
+          </div>
+        )}
       </div>
     );
   }

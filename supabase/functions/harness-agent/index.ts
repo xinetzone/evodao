@@ -197,7 +197,6 @@ async function callLLMNonStream(
       throw new Error(`Planning LLM error (Claude): ${txt}`);
     }
     const data = await res.json();
-    // Anthropic non-stream: { content: [{type:"text",text:"..."}] }
     const block = (data.content as Array<{ type: string; text?: string }>)
       ?.find((b) => b.type === "text");
     return block?.text ?? "[]";
@@ -534,7 +533,13 @@ Return ONLY the summary as a plain string.`;
     // ── PLAN ─────────────────────────────────────────────────────────────────
     } else if (mode === "plan") {
       const planSystemPrompt = getPlanSystemPrompt(outputMode, evolutionContext);
-      const content = await callLLMNonStream(AI_API_TOKEN, primaryModel, planSystemPrompt, `Goal: ${goal}`);
+      // B: Inject long-term memory context into planning prompt
+      const { memoryContext } = body;
+      const memSection = Array.isArray(memoryContext) && memoryContext.length > 0
+        ? `\n\nRelevant context from past sessions (use to refine scope and avoid repetition):\n${(memoryContext as string[]).slice(0, 3).join("\n---\n")}`
+        : "";
+      const planUserContent = `Goal: ${goal}${memSection}`;
+      const content = await callLLMNonStream(AI_API_TOKEN, primaryModel, planSystemPrompt, planUserContent);
 
       let taskList = [];
       try {
@@ -594,54 +599,46 @@ Return ONLY the summary as a plain string.`;
       });
 
     // ── REFLECT ───────────────────────────────────────────────────────────────
+    // A: Streaming reflect — tokens stream live; frontend extracts RESULT_JSON at end
     } else if (mode === "reflect") {
       const taskSummaryText = (tasks || []).map((t: { id: number; title: string }) => {
         const output = ((taskOutputs || {})[t.id] || "").substring(0, 600);
         return `Task ${t.id}: ${t.title}\n${output}`;
       }).join("\n\n---\n\n");
 
-      const reflectPrompt = `You are a critical AI quality evaluator. Review the following completed agent run and evaluate it honestly.
+      const reflectSystemPrompt = `You are a critical AI quality evaluator providing real-time analysis. Review the completed agent run and respond in TWO parts:
 
-Original Goal: ${goal}
+PART 1 — Write a concise human-readable assessment (3-5 sentences). Cover: what was accomplished well, the main weakness, and the most important improvement direction. Be honest and specific.
 
-Completed Tasks and Outputs:
-${taskSummaryText}
+PART 2 — Immediately after your assessment (no separator), output exactly this line:
+RESULT_JSON:{"qualityScore":NUMBER,"strengths":["..."],"weaknesses":["..."],"improvements":["..."],"evolvedGoal":"..."}
 
-Evaluate the quality. Be specific and constructive.
-Return ONLY this exact JSON (no markdown fences, no explanation outside the JSON):
-{
-  "qualityScore": 75,
-  "strengths": ["specific strength 1", "specific strength 2"],
-  "weaknesses": ["specific weakness 1", "specific weakness 2"],
-  "improvements": ["concrete improvement direction 1", "concrete improvement direction 2"],
-  "evolvedGoal": "a refined version of the original goal that addresses the weaknesses and builds on strengths"
-}`;
+Rules for RESULT_JSON:
+- qualityScore: integer 0-100
+- strengths/weaknesses/improvements: arrays of 2 specific strings each
+- evolvedGoal: one refined sentence addressing weaknesses
+- Output RESULT_JSON on a single line with no line breaks inside the JSON`;
 
-      const response = await fetch(API_BASE, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${AI_API_TOKEN}`, "Content-Type": "application/json" },
-        body: JSON.stringify({
-          model: UTILITY_MODEL,
-          messages: [{ role: "user", content: reflectPrompt }],
-          stream: false,
-        }),
-      });
+      const reflectUserContent = `Original Goal: ${goal}\n\nCompleted Tasks and Outputs:\n${taskSummaryText}`;
 
-      if (!response.ok) throw new Error("Reflection LLM error");
+      const { response, isAnthropic } = await callLLMStream(
+        AI_API_TOKEN,
+        UTILITY_MODEL,
+        reflectSystemPrompt,
+        [{ role: "user", content: reflectUserContent }],
+      );
 
-      const data = await response.json();
-      const content = data.choices?.[0]?.message?.content || "{}";
-
-      let result;
-      try {
-        const cleaned = content.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
-        result = JSON.parse(cleaned);
-      } catch {
-        throw new Error("Failed to parse reflection from AI response");
+      if (!response.ok) {
+        const text = await response.text();
+        throw new Error(`Reflection LLM error: ${text}`);
       }
 
-      return new Response(JSON.stringify(result), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      const responseBody = isAnthropic
+        ? translateAnthropicToOpenAI(response.body!)
+        : response.body!;
+
+      return new Response(responseBody, {
+        headers: { ...corsHeaders, "Content-Type": "text/event-stream", "Cache-Control": "no-cache" },
       });
 
     } else {

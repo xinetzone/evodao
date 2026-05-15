@@ -149,6 +149,7 @@ export function useEvodaoAgent() {
   // Evolution state
   const [evolutionStatus, setEvolutionStatus] = useState<EvolutionStatus>("idle");
   const [reflection, setReflection] = useState<ReflectionResult | null>(null);
+  const [reflectionStream, setReflectionStream] = useState<string>(""); // A: streaming reflect text
   const [evolutionRound, setEvolutionRound] = useState(0);
   // Q&A state
   const [qaMessages, setQaMessages] = useState<QAMessage[]>([]);
@@ -228,6 +229,7 @@ export function useEvodaoAgent() {
     setExtractedFiles([]);
     setEvolutionStatus("idle");
     setReflection(null);
+    setReflectionStream("");
     setEvolutionRound(0);
     setQaMessages([]);
     setSessionUsage({ promptTokens: 0, completionTokens: 0, totalTokens: 0 });
@@ -252,7 +254,8 @@ export function useEvodaoAgent() {
     goal: string,
     mode: OutputMode,
     evolutionCtx?: EvolutionContext,
-    model?: string
+    model?: string,
+    memoryContext?: string[]  // B: inject long-term memory into plan phase
   ): Promise<Task[]> => {
     const response = await fetch(EDGE_FUNCTION_URL, {
       method: "POST",
@@ -260,7 +263,7 @@ export function useEvodaoAgent() {
         "Content-Type": "application/json",
         Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
       },
-      body: JSON.stringify({ mode: "plan", goal, outputMode: mode, evolutionContext: evolutionCtx, model }),
+      body: JSON.stringify({ mode: "plan", goal, outputMode: mode, evolutionContext: evolutionCtx, model, memoryContext }),
     });
 
     if (!response.ok) {
@@ -753,11 +756,12 @@ export function useEvodaoAgent() {
       // Fresh run resets evolution
       setEvolutionStatus("idle");
       setReflection(null);
+      setReflectionStream("");
       setEvolutionRound(0);
     }
 
     try {
-      const plannedTasks = await planTasks(goal, mode, evolutionCtx, model);
+      const plannedTasks = await planTasks(goal, mode, evolutionCtx, model, memoryContext);
       setTasks(plannedTasks);
 
       const initialStatuses: Record<number, TaskStatus> = {};
@@ -809,34 +813,107 @@ export function useEvodaoAgent() {
 
   // ── Evolution actions ─────────────────────────────────────────────────────
 
-  /** Triggers self-reflection on the completed run */
+  /** Triggers self-reflection on the completed run — A: now streams live tokens */
   const evolve = useCallback(async () => {
     if (evolutionRoundRef.current >= MAX_EVOLUTION_ROUNDS) return;
     setEvolutionStatus("reflecting");
     setReflection(null);
+    setReflectionStream("");
+
+    let streamedText = "";
+    let settled = false;
+    const controller = new AbortController();
+
+    const settle = (fn: () => void) => {
+      if (settled) return;
+      settled = true;
+      controller.abort();
+      fn();
+    };
 
     try {
-      const response = await fetch(EDGE_FUNCTION_URL, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
-        },
-        body: JSON.stringify({
-          mode: "reflect",
-          goal: currentGoalRef.current,
-          tasks: tasks,
-          taskOutputs: taskOutputsRef.current,
-        }),
+      await new Promise<void>((resolve, reject) => {
+        fetchEventSource(EDGE_FUNCTION_URL, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+          },
+          body: JSON.stringify({
+            mode: "reflect",
+            goal: currentGoalRef.current,
+            tasks: tasks,
+            taskOutputs: taskOutputsRef.current,
+          }),
+          signal: controller.signal,
+
+          async onopen(response) {
+            if (!response.ok) {
+              const err = new Error(`Reflection failed: ${response.status}`);
+              settle(() => reject(err));
+              throw err;
+            }
+          },
+
+          onmessage(event) {
+            if (event.data === "[DONE]") {
+              // Extract RESULT_JSON from accumulated text
+              const jsonMatch = streamedText.match(/RESULT_JSON:\s*(\{[\s\S]*\})/);
+              if (jsonMatch) {
+                try {
+                  const result: ReflectionResult = JSON.parse(jsonMatch[1].trim());
+                  // Strip RESULT_JSON line from display text
+                  const displayText = streamedText.replace(/\n?RESULT_JSON:[\s\S]*$/, "").trim();
+                  setReflectionStream(displayText);
+                  setReflection(result);
+                  setEvolutionStatus("reflected");
+                } catch {
+                  setEvolutionStatus("idle");
+                }
+              } else {
+                setEvolutionStatus("idle");
+              }
+              settle(() => resolve());
+              return;
+            }
+            if (!event.data) return;
+            let data: Record<string, unknown>;
+            try { data = JSON.parse(event.data); } catch { return; }
+
+            const choice = (
+              data as { choices?: Array<{ delta?: { content?: string }; finish_reason?: string | null }> }
+            ).choices?.[0];
+            if (!choice) return;
+            if (choice.delta?.content) {
+              streamedText += choice.delta.content;
+              setReflectionStream(streamedText);
+            }
+            if (choice.finish_reason) {
+              // Server-side finish — parse if [DONE] already consumed, otherwise wait
+              const jsonMatch = streamedText.match(/RESULT_JSON:\s*(\{[\s\S]*\})/);
+              if (jsonMatch) {
+                try {
+                  const result: ReflectionResult = JSON.parse(jsonMatch[1].trim());
+                  const displayText = streamedText.replace(/\n?RESULT_JSON:[\s\S]*$/, "").trim();
+                  setReflectionStream(displayText);
+                  setReflection(result);
+                  setEvolutionStatus("reflected");
+                } catch { /* wait for [DONE] */ }
+              }
+              settle(() => resolve());
+            }
+          },
+
+          onerror(err) {
+            if (settled) throw err;
+            if (err instanceof Error && err.name === "AbortError") throw err;
+            settle(() => reject(err));
+            throw err;
+          },
+
+          onclose() { settle(() => resolve()); },
+        }).catch(() => { /* suppress unhandled rejection */ });
       });
-
-      if (!response.ok) {
-        throw new Error(`Reflection failed: ${response.status}`);
-      }
-
-      const result: ReflectionResult = await response.json();
-      setReflection(result);
-      setEvolutionStatus("reflected");
     } catch {
       setEvolutionStatus("idle");
     }
@@ -865,6 +942,7 @@ export function useEvodaoAgent() {
   const dismissEvolution = useCallback(() => {
     setEvolutionStatus("idle");
     setReflection(null);
+    setReflectionStream("");
   }, []);
 
   return {
@@ -881,6 +959,7 @@ export function useEvodaoAgent() {
     savedSession,
     evolutionStatus,
     reflection,
+    reflectionStream,
     evolutionRound,
     maxEvolutionRounds: MAX_EVOLUTION_ROUNDS,
     runAgent,

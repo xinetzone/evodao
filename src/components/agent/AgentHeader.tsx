@@ -1,4 +1,4 @@
-import { Cpu, Zap, CircleCheck, AlertCircle, Loader, Clock, LayoutGrid, Shield, LogOut, ChevronDown, TrendingUp, Globe } from "lucide-react";
+import { Cpu, Zap, CircleCheck, AlertCircle, Loader, Clock, LayoutGrid, Shield, LogOut, ChevronDown, TrendingUp, Globe, Globe2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import { useState, useRef, useEffect } from "react";
@@ -17,9 +17,10 @@ interface AgentHeaderProps {
   sessionUsage: TokenUsage;
   taskManagerRunning: number;
   onTaskManagerOpen: () => void;
+  onPlatformOpen: () => void;
 }
 
-export function AgentHeader({ status, currentGoal, historyCount, onHistoryOpen, sessionUsage, taskManagerRunning, onTaskManagerOpen }: AgentHeaderProps) {
+export function AgentHeader({ status, currentGoal, historyCount, onHistoryOpen, sessionUsage, taskManagerRunning, onTaskManagerOpen, onPlatformOpen }: AgentHeaderProps) {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { user, profile, isAdmin, signOut, refreshProfile } = useAuthContext();
@@ -142,6 +143,16 @@ export function AgentHeader({ status, currentGoal, historyCount, onHistoryOpen, 
                 {historyCount > 99 ? "99+" : historyCount}
               </span>
             )}
+          </button>
+
+          {/* Platform button — C: Agent World platform panel */}
+          <button
+            onClick={onPlatformOpen}
+            className="flex items-center gap-1.5 px-2 sm:px-2.5 py-1 rounded border border-border bg-card text-xs text-muted-foreground hover:border-primary/40 hover:text-foreground transition-all duration-200"
+            title="Agent World Platforms"
+          >
+            <Globe2 className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline tracking-widest">Platforms</span>
           </button>
 
           <LanguageSwitcher />
