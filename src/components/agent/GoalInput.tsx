@@ -49,11 +49,17 @@ export function GoalInput({
     onModelChange?.(effective);
   }, [outputMode, manualModel, imageModel, onModelChange]);
 
-  // Apply externally injected prompt (e.g. from text selection)
+  // Apply externally injected prompt (e.g. from text selection) — and select all for easy editing
   useEffect(() => {
     if (pendingPrompt) {
       setGoal(pendingPrompt);
       onPendingPromptConsumed?.();
+      setTimeout(() => {
+        if (textareaRef.current) {
+          textareaRef.current.focus();
+          textareaRef.current.select();
+        }
+      }, 0);
     }
   }, [pendingPrompt, onPendingPromptConsumed]);
 
@@ -125,10 +131,12 @@ export function GoalInput({
 
   const handleSuggestionClick = (text: string) => {
     setGoal(text);
+    // Focus and select-all so user can immediately type to replace the suggestion
     setTimeout(() => {
-      textareaRef.current?.focus();
-      const len = textareaRef.current?.value.length || 0;
-      textareaRef.current?.setSelectionRange(len, len);
+      if (textareaRef.current) {
+        textareaRef.current.focus();
+        textareaRef.current.select();
+      }
     }, 0);
   };
 
