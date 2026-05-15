@@ -37,10 +37,10 @@
     "remove": "Remove",
     "processing": "Processing…",
     "placeholders": [
-      "Build a personal finance tracker web application",
-      "Create a marketing strategy for a SaaS product",
-      "Design and implement a REST API for a blog platform",
-      "Analyze and optimize the performance of a React application"
+      "Build a web scraper that collects product prices from e-commerce sites daily",
+      "Create a 30-day short video content calendar for TikTok",
+      "Write a 60-second voiceover script for a tech product unboxing video",
+      "Create a CLI tool to automate git branching and PR workflows"
     ]
   },
   "promptSuggestions": {
@@ -169,8 +169,8 @@
     "imageGenPlaceholders": [
       "Cyberpunk futuristic cityscape at night with neon reflections on rain-soaked streets",
       "Minimalist black and white abstract landscape painting",
-      "Glowing crystal palace floating in space, surrealist style",
-      "Mysterious bioluminescent creature in the deep ocean, cinematic lighting"
+      "Mysterious bioluminescent creature in the deep ocean, cinematic lighting",
+      "9:16 vertical short video cover, tech-themed gradient background with bold title typography"
     ],
     "taskModeShort": "Task",
     "agentBuildShort": "Build",
