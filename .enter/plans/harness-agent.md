@@ -1,105 +1,69 @@
-# Plan: Fix Token Tracking — Cumulative Display + Accurate Per-Run Logs
+# Plan: Incomplete Task Should Not Affect New Runs
 
-## Problem with Last Change
+## Context
 
-The previous fix added `setSessionUsage({ …zeros })` at the start of each `runAgent` call.
-This **broke** the intended behaviour:
-- `sessionUsage` is shown in the header as a cumulative session counter (all runs total).
-  Resetting it on every new run wiped that live display.
+When an agent run is interrupted (page refresh, network drop), the session is
+auto-saved to `localStorage`. On next page load, a "resume" banner appears.
 
-## Root Cause
+**The problem**: The resume banner stays visible while the user types a completely
+new goal and clicks Execute. Until the user explicitly clicks "忽略", the old
+task's state lingers. Additionally:
 
-There are two separate concerns that need different handling:
+- `runAgent` task mode calls `setSavedSession(null)` (clears React state) but
+  never calls `localStorage.removeItem(STORAGE_KEY)` — so the old session can
+  persist in localStorage.
+- `runAgent` QA mode never calls `setSavedSession(null)` at all.
 
-| Concern | What it shows | Should reset? |
-|---------|--------------|---------------|
-| `sessionUsage` in header | Live cumulative total for this browser session | ❌ Never — accumulates forever |
-| `usage_logs` rows in DB | Per-run token cost for stats panel | N/A — one row per run |
+## Fix
 
-The bug is that `finalizeUsage` was called with the *cumulative* `sessionUsage` instead
-of the *delta* (tokens used only in this run). That inflates every log row after the first.
+Three targeted changes:
 
-## Solution: Per-Run Delta via Snapshot
+### 1. `src/pages/Index.tsx` — dismiss banner immediately on new run
 
-1. Capture `sessionUsage` as a **snapshot** immediately before each run starts.
-2. At finalization time, compute `delta = sessionUsage − snapshot` and pass that to
-   `finalizeUsage` instead of the raw `sessionUsage`.
-3. `sessionUsage` continues to accumulate undisturbed for the header display.
+In the `onRun` callback, call `dismissSavedSession()` right at the top (before
+quota check) so the banner vanishes the moment the user submits a new goal:
+
+```typescript
+onRun={async (goal, mode, model, attachments) => {
+  // Clear any pending resume session immediately — new run takes priority
+  dismissSavedSession();
+  // ... rest of existing handler
+```
+
+### 2. `src/hooks/useEvodaoAgent.ts` — also clear localStorage in runAgent task mode
+
+Right after `setSavedSession(null)` at task mode start, also remove from localStorage:
+
+```typescript
+setSavedSession(null);
+localStorage.removeItem(STORAGE_KEY);   // ← add this line
+```
+
+### 3. `src/hooks/useEvodaoAgent.ts` — QA mode also clears saved session
+
+At the top of the QA branch (after `setError(null)`), add:
+
+```typescript
+setSavedSession(null);
+localStorage.removeItem(STORAGE_KEY);
+```
 
 ## Critical Files
 
-- `src/hooks/useEvodaoAgent.ts` — revert the two `setSessionUsage` resets added last change
-- `src/pages/Index.tsx` — add `runStartUsage` snapshot state; compute delta in finalization
+- `src/pages/Index.tsx` — add `dismissSavedSession()` at top of `onRun`
+- `src/hooks/useEvodaoAgent.ts` — add localStorage cleanup in both task and QA modes
 
-## Exact Changes
+## Result
 
-### 1. `src/hooks/useEvodaoAgent.ts` — revert
-
-Remove the two lines added in the last commit:
-```typescript
-// QA mode start — DELETE this line:
-setSessionUsage({ promptTokens: 0, completionTokens: 0, totalTokens: 0 });
-
-// Task mode start — DELETE this line:
-setSessionUsage({ promptTokens: 0, completionTokens: 0, totalTokens: 0 });
-```
-
-### 2. `src/pages/Index.tsx`
-
-**A. Add `runStartUsage` snapshot state** (near `pendingLogId`):
-```typescript
-const [runStartUsage, setRunStartUsage] = useState<TokenUsage>({
-  promptTokens: 0, completionTokens: 0, totalTokens: 0
-});
-```
-
-**B. Capture snapshot right before `recordUsage`** (inside the onSubmit handler):
-```typescript
-// Snapshot current usage so we can log only this run's delta
-setRunStartUsage(sessionUsage);
-const logId = await recordUsage(mode, model);
-setPendingLogId(logId);
-setPendingModel(model);
-```
-
-**C. Helper inside the component** — compute delta before passing to finalizeUsage:
-```typescript
-// Reusable helper (no hook, just a local function defined once inside the component)
-const getRunDelta = useCallback((): TokenUsage => ({
-  promptTokens: Math.max(0, sessionUsage.promptTokens - runStartUsage.promptTokens),
-  completionTokens: Math.max(0, sessionUsage.completionTokens - runStartUsage.completionTokens),
-  totalTokens: Math.max(0, sessionUsage.totalTokens - runStartUsage.totalTokens),
-}), [sessionUsage, runStartUsage]);
-```
-
-**D. Update all three `finalizeUsage` call sites** to pass `getRunDelta()`:
-
-1. In `handleReset` (abort path):
-```typescript
-if (pendingLogId && sessionUsage.totalTokens > runStartUsage.totalTokens) {
-  finalizeUsage(pendingLogId, getRunDelta(), pendingModel);
-  ...
-}
-```
-
-2. In the status `useEffect` (done / QA-finished / error):
-```typescript
-if ((...) && pendingLogId && sessionUsage.totalTokens > runStartUsage.totalTokens) {
-  finalizeUsage(pendingLogId, getRunDelta(), pendingModel);
-  ...
-}
-```
-
-## What This Achieves
-
-- `sessionUsage` in the header continues to grow across all runs — cumulative as intended
-- Each `usage_logs` row records only that run's token delta — accurate per-run stats
-- Abort / error / done all still get logged correctly (from the abort/error fixes done previously)
-- `UsagePanel` auto-refresh after finalization (from `statsRefreshKey`) is kept intact
+- Resume banner disappears immediately when user clicks Execute ✅
+- Starting a new run always fully clears the old saved session ✅
+- QA runs also clear the saved session (previously not cleared) ✅
+- If user wants to resume, they can still click "继续执行" BEFORE submitting ✅
 
 ## Verification
 
-1. Run task A → header shows e.g. 1200 tokens total
-2. Run task B immediately → header grows to e.g. 1800 tokens total (cumulative)
-3. Open UsagePanel → two rows: task A shows ~1200, task B shows ~600 (deltas, not cumulative)
-4. Start task C, click Stop → partial row appears with only task C's partial tokens
+1. Run a task, interrupt mid-way (simulate page-refresh scenario by clicking Reset
+   mid-execution then reloading) → confirm resume banner appears
+2. Type a new different goal → click Execute → confirm banner disappears instantly
+   and the NEW task runs (not the old one)
+3. Check localStorage after new run completes → old session key should be gone
