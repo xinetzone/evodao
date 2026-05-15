@@ -5,69 +5,64 @@
 @layer base {
   :root {
     /*
-     * "Ember" — barely-warm neutral dark + vibrant amber accent
-     *
-     * Key principle: foreground/background are near-neutral (low saturation)
-     * so that the /60 /50 opacity modifiers used throughout components
-     * still produce readable contrast. Only the primary (amber) is saturated.
+     * "Cream" — milk yellow light theme + rich amber accent
      *
      * WCAG ratios:
-     *   foreground (#f7f6f5) on background (#0b0a09) → ~18:1  AAA
-     *   muted-foreground (#b5b2ae) on background → ~8:1  AAA
-     *   muted-foreground/60 (~#6e6b68) on background → ~4.7:1  AA
-     *   primary (#f9a61a) on background → ~11:1  AAA
+     *   foreground (#1c1814) on background (#fdf4d0) → ~16:1  AAA
+     *   muted-foreground (#7a6e5c) on background → ~5.5:1  AA
+     *   primary (#c07a0a) on background → ~5.2:1  AA
      */
 
-    --background: 24 6% 4%;
-    --foreground: 36 5% 97%;
+    --background: 46 80% 90%;
+    --foreground: 24 12% 11%;
 
-    --card: 24 8% 8%;
-    --card-foreground: 36 4% 95%;
+    --card: 44 60% 97%;
+    --card-foreground: 24 10% 14%;
 
-    --popover: 24 8% 8%;
-    --popover-foreground: 36 4% 95%;
+    --popover: 44 60% 97%;
+    --popover-foreground: 24 10% 14%;
 
-    --primary: 38 97% 62%;
-    --primary-foreground: 24 6% 4%;
+    --primary: 36 92% 40%;
+    --primary-foreground: 46 80% 96%;
 
-    --secondary: 24 6% 13%;
-    --secondary-foreground: 36 5% 80%;
+    --secondary: 40 30% 85%;
+    --secondary-foreground: 24 10% 22%;
 
-    --muted: 24 6% 10%;
-    --muted-foreground: 36 5% 70%;
+    --muted: 42 35% 86%;
+    --muted-foreground: 28 10% 42%;
 
-    --accent: 16 90% 60%;
-    --accent-foreground: 24 6% 4%;
+    --accent: 16 85% 45%;
+    --accent-foreground: 46 80% 96%;
 
-    --destructive: 0 72% 58%;
+    --destructive: 0 72% 50%;
     --destructive-foreground: 0 0% 98%;
 
-    --border: 24 8% 20%;
-    --input: 24 6% 13%;
-    --ring: 38 97% 62%;
+    --border: 38 22% 76%;
+    --input: 40 30% 88%;
+    --ring: 36 92% 40%;
 
     --radius: 0.5rem;
 
-    --sidebar-background: 24 6% 3%;
-    --sidebar-foreground: 36 4% 82%;
-    --sidebar-primary: 38 97% 62%;
-    --sidebar-primary-foreground: 24 6% 4%;
-    --sidebar-accent: 24 6% 13%;
-    --sidebar-accent-foreground: 36 5% 80%;
-    --sidebar-border: 24 8% 17%;
-    --sidebar-ring: 38 97% 62%;
+    --sidebar-background: 44 70% 86%;
+    --sidebar-foreground: 24 12% 18%;
+    --sidebar-primary: 36 92% 40%;
+    --sidebar-primary-foreground: 46 80% 96%;
+    --sidebar-accent: 40 30% 82%;
+    --sidebar-accent-foreground: 24 10% 22%;
+    --sidebar-border: 38 20% 72%;
+    --sidebar-ring: 36 92% 40%;
 
-    /* Ember glow tokens */
-    --neon-amber: 38 97% 62%;
-    --neon-amber-dim: 38 65% 44%;
-    --neon-surface: 24 8% 8%;
-    --neon-surface-hover: 24 8% 12%;
-    --shadow-glow: 0 0 20px hsl(38 97% 62% / 0.18);
-    --shadow-glow-strong: 0 0 42px hsl(38 97% 62% / 0.35);
-    --shadow-card: 0 4px 24px hsl(24 6% 2% / 0.65);
-    --gradient-terminal: linear-gradient(180deg, hsl(24 6% 5%) 0%, hsl(24 6% 4%) 100%);
-    --gradient-card: linear-gradient(135deg, hsl(24 8% 9%) 0%, hsl(24 8% 7%) 100%);
-    --gradient-hero: linear-gradient(135deg, hsl(38 97% 62% / 0.06) 0%, hsl(16 90% 60% / 0.03) 100%);
+    /* Amber glow tokens — lighter for light mode */
+    --neon-amber: 36 92% 40%;
+    --neon-amber-dim: 36 60% 52%;
+    --neon-surface: 44 60% 97%;
+    --neon-surface-hover: 42 40% 92%;
+    --shadow-glow: 0 0 16px hsl(36 92% 40% / 0.18);
+    --shadow-glow-strong: 0 0 32px hsl(36 92% 40% / 0.32);
+    --shadow-card: 0 2px 16px hsl(36 30% 30% / 0.12);
+    --gradient-terminal: linear-gradient(180deg, hsl(44 60% 97%) 0%, hsl(44 55% 95%) 100%);
+    --gradient-card: linear-gradient(135deg, hsl(44 60% 98%) 0%, hsl(44 50% 95%) 100%);
+    --gradient-hero: linear-gradient(135deg, hsl(36 92% 40% / 0.06) 0%, hsl(16 85% 45% / 0.03) 100%);
   }
 }
 
@@ -107,12 +102,12 @@ body,
   }
 
   .text-glow {
-    text-shadow: 0 0 10px hsl(var(--neon-amber) / 0.70);
+    text-shadow: 0 0 8px hsl(var(--neon-amber) / 0.45);
   }
 
   .border-glow {
-    border-color: hsl(var(--neon-amber) / 0.50);
-    box-shadow: 0 0 10px hsl(var(--neon-amber) / 0.14), inset 0 0 10px hsl(var(--neon-amber) / 0.04);
+    border-color: hsl(var(--neon-amber) / 0.55);
+    box-shadow: 0 0 8px hsl(var(--neon-amber) / 0.16);
   }
 
   .scanline {
@@ -120,8 +115,8 @@ body,
       0deg,
       transparent,
       transparent 2px,
-      hsl(var(--neon-amber) / 0.018) 2px,
-      hsl(var(--neon-amber) / 0.018) 4px
+      hsl(var(--neon-amber) / 0.025) 2px,
+      hsl(var(--neon-amber) / 0.025) 4px
     );
   }
 
@@ -136,13 +131,13 @@ body,
 }
 
 @keyframes pulse-glow {
-  0%, 100% { box-shadow: 0 0 8px hsl(38 97% 62% / 0.22); }
-  50% { box-shadow: 0 0 28px hsl(38 97% 62% / 0.52); }
+  0%, 100% { box-shadow: 0 0 6px hsl(36 92% 40% / 0.20); }
+  50% { box-shadow: 0 0 22px hsl(36 92% 40% / 0.45); }
 }
 
 @keyframes pulse-text-glow {
-  0%, 100% { text-shadow: 0 0 6px hsl(38 97% 62% / 0.38); }
-  50% { text-shadow: 0 0 18px hsl(38 97% 62% / 0.78); }
+  0%, 100% { text-shadow: 0 0 5px hsl(36 92% 40% / 0.35); }
+  50% { text-shadow: 0 0 14px hsl(36 92% 40% / 0.70); }
 }
 
 @keyframes fade-in {
