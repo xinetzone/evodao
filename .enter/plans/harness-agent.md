@@ -1,69 +1,51 @@
-# Plan: Incomplete Task Should Not Affect New Runs
+# Plan: Force Chinese Output in QA Mode When Interface Is Chinese
 
 ## Context
 
-When an agent run is interrupted (page refresh, network drop), the session is
-auto-saved to `localStorage`. On next page load, a "resume" banner appears.
+In QA (探索问答) mode with Chinese interface selected, the LLM (e.g., GLM 5.1)
+responds in English when the user sends an English word like "hi".
 
-**The problem**: The resume banner stays visible while the user types a completely
-new goal and clicks Execute. Until the user explicitly clicks "忽略", the old
-task's state lingers. Additionally:
+**Root cause**: The current approach appends a `CRITICAL LANGUAGE RULE` instruction
+at the END of an English system prompt. Many models (especially GLM) default to
+mirroring the user's input language and override the trailing instruction.
 
-- `runAgent` task mode calls `setSavedSession(null)` (clears React state) but
-  never calls `localStorage.removeItem(STORAGE_KEY)` — so the old session can
-  persist in localStorage.
-- `runAgent` QA mode never calls `setSavedSession(null)` at all.
+The language rule at the end:
+```
+You are a knowledgeable, helpful assistant... CRITICAL LANGUAGE RULE: ... respond in Chinese
+```
+...is insufficient when the model's "respond in user's language" heuristic overrides it.
 
 ## Fix
 
-Three targeted changes:
+Write the chat system prompt **entirely in Chinese** when `lang === "zh"`.
+When the system prompt is in Chinese, the model naturally operates in a Chinese context.
+Additionally, explicitly state "无论用户使用何种语言提问" (regardless of the user's language).
 
-### 1. `src/pages/Index.tsx` — dismiss banner immediately on new run
+### File: `supabase/functions/harness-agent/index.ts`
 
-In the `onRun` callback, call `dismissSavedSession()` right at the top (before
-quota check) so the banner vanishes the moment the user submits a new goal:
-
-```typescript
-onRun={async (goal, mode, model, attachments) => {
-  // Clear any pending resume session immediately — new run takes priority
-  dismissSavedSession();
-  // ... rest of existing handler
-```
-
-### 2. `src/hooks/useEvodaoAgent.ts` — also clear localStorage in runAgent task mode
-
-Right after `setSavedSession(null)` at task mode start, also remove from localStorage:
+Replace the single-string `chatSystemPrompt` with a language-conditional version:
 
 ```typescript
-setSavedSession(null);
-localStorage.removeItem(STORAGE_KEY);   // ← add this line
+// BEFORE:
+const chatSystemPrompt = `You are a knowledgeable, helpful assistant. Answer clearly and accurately. Use markdown formatting (headers, bullet points, code blocks) when it aids readability.${getLanguageInstruction(lang)}`;
+
+// AFTER:
+const chatSystemPrompt = lang === "zh"
+  ? `你是一位博学、乐于助人的AI助手。无论用户使用何种语言提问，你必须始终用简体中文回答。回答要清晰、准确，必要时使用Markdown格式（标题、列表、代码块）提升可读性。只有代码标识符、文件路径和命令行指令可以保留英文，其余内容必须是中文。`
+  : `You are a knowledgeable, helpful assistant. Answer clearly and accurately. Use markdown formatting (headers, bullet points, code blocks) when it aids readability.`;
 ```
 
-### 3. `src/hooks/useEvodaoAgent.ts` — QA mode also clears saved session
+## Why This Works
 
-At the top of the QA branch (after `setError(null)`), add:
-
-```typescript
-setSavedSession(null);
-localStorage.removeItem(STORAGE_KEY);
-```
-
-## Critical Files
-
-- `src/pages/Index.tsx` — add `dismissSavedSession()` at top of `onRun`
-- `src/hooks/useEvodaoAgent.ts` — add localStorage cleanup in both task and QA modes
-
-## Result
-
-- Resume banner disappears immediately when user clicks Execute ✅
-- Starting a new run always fully clears the old saved session ✅
-- QA runs also clear the saved session (previously not cleared) ✅
-- If user wants to resume, they can still click "继续执行" BEFORE submitting ✅
+| Approach | Problem |
+|----------|---------|
+| English prompt + trailing "respond in Chinese" | Model mirrors user's English input, ignores trailing rule |
+| **Chinese system prompt + explicit instruction** | Model reads Chinese context first → naturally responds in Chinese |
 
 ## Verification
 
-1. Run a task, interrupt mid-way (simulate page-refresh scenario by clicking Reset
-   mid-execution then reloading) → confirm resume banner appears
-2. Type a new different goal → click Execute → confirm banner disappears instantly
-   and the NEW task runs (not the old one)
-3. Check localStorage after new run completes → old session key should be gone
+1. Switch UI to Chinese (中文)
+2. In QA mode, type "hi" → response should be in Chinese ("你好！有什么我可以帮助你的吗？")
+3. Type an English question → response should still be in Chinese
+4. Switch UI to English (EN) → type "hi" → response should be in English
+5. Switch back to Chinese → verify Chinese responses persist
