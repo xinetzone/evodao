@@ -50,22 +50,27 @@
     "text": [
       "Build a web scraper that collects product prices from e-commerce sites daily",
       "Create a CLI tool to automate git branching and PR workflows",
-      "Write a detailed technical specification for a real-time chat application"
+      "Write a detailed technical specification for a real-time chat application",
+      "Create a 30-day short video content calendar for TikTok with topic planning and posting schedule",
+      "Write a complete 60-second voiceover script for a tech product unboxing short video"
     ],
     "agent": [
       "Build a Python FastAPI backend with JWT authentication and PostgreSQL",
       "Create a React dashboard with Chart.js and real-time WebSocket updates",
-      "Develop a LangChain agent that can browse the web and summarize articles"
+      "Develop a LangChain agent that can browse the web and summarize articles",
+      "Build a Python tool that scrapes trending short video topics and auto-generates script outlines in bulk"
     ],
     "qa": [
       "What are the key differences between RAG and fine-tuning for LLMs?",
       "How does transformer self-attention mechanism work under the hood?",
-      "Explain the trade-offs between microservices and monolithic architectures"
+      "Explain the trade-offs between microservices and monolithic architectures",
+      "How do short video algorithms determine content distribution and recommendation weight?"
     ],
     "image": [
       "Cyberpunk futuristic cityscape at night with neon reflections on rain-soaked streets",
       "Minimalist black and white abstract landscape painting",
-      "Mysterious bioluminescent creature in the deep ocean, cinematic lighting"
+      "Mysterious bioluminescent creature in the deep ocean, cinematic lighting",
+      "9:16 vertical short video cover design, tech-themed gradient background with bold title typography"
     ]
   },
   "imageGen": {
