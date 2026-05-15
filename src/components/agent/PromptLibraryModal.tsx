@@ -116,15 +116,12 @@ export function PromptLibraryModal({ open, onClose, onSelect, currentMode }: Pro
       onKeyDown={(e) => e.key === "Escape" && onClose()}
     >
       {/* Backdrop */}
-      <div className="absolute inset-0 bg-background/60 backdrop-blur-md" onClick={onClose} />
+      <div className="absolute inset-0 bg-background/85 backdrop-blur-sm" onClick={onClose} />
 
       {/* Modal card */}
       <div
         className="relative z-10 w-full max-w-3xl flex flex-col rounded-xl border border-border/80 bg-card overflow-hidden"
-        style={{
-          maxHeight: "calc(100vh - 100px)",
-          boxShadow: "0 8px 40px hsl(36 30% 20% / 0.18), 0 0 0 1px hsl(38 22% 76% / 0.5)",
-        }}
+        style={{ maxHeight: "calc(100vh - 100px)", boxShadow: "0 8px 40px hsl(36 30% 20% / 0.18), 0 0 0 1px hsl(38 22% 76% / 0.5)" }}
         onClick={(e) => e.stopPropagation()}
       >
         {/* ── Header ─────────────────────────────────────────────────────── */}
@@ -171,7 +168,7 @@ export function PromptLibraryModal({ open, onClose, onSelect, currentMode }: Pro
 
           {/* Sidebar */}
           {!search && (
-            <div className="w-36 shrink-0 border-r border-border/50 overflow-y-auto bg-background/20">
+            <div className="w-36 shrink-0 border-r border-border/50 overflow-y-auto bg-muted/20">
               {PROMPT_LIBRARY.map((cat, idx) => {
                 const isActive = activeCatId === cat.id;
                 const catStyle = MODE_STYLES[cat.mode];
@@ -248,7 +245,7 @@ export function PromptLibraryModal({ open, onClose, onSelect, currentMode }: Pro
                       key={i}
                       onClick={() => onSelect(text)}
                       className={cn(
-                        "group w-full text-left rounded-lg border border-border/50 bg-card/60",
+                        "group w-full text-left rounded-lg border border-border/50 bg-card",
                         "transition-all duration-200",
                         search ? cn(cardStyle.card) : cn(activeModeStyle.card)
                       )}
