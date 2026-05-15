@@ -25,6 +25,7 @@ import { AlertCircle, Trophy, RotateCcw, X, PenLine } from "lucide-react";
 import { MODEL_DISPLAY, IMAGE_MODEL_DISPLAY, ModelId, ImageModelId } from "@/lib/models";
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from "@/lib/config";
 import { PlatformPanel } from "@/components/agent/PlatformPanel";
+import { UsagePanel } from "@/components/agent/UsagePanel";
 
 const Index = () => {
   const { t, i18n } = useTranslation();
@@ -40,6 +41,7 @@ const Index = () => {
   const [historyOpen, setHistoryOpen] = useState(false);
   const [taskManagerOpen, setTaskManagerOpen] = useState(false);
   const [platformOpen, setPlatformOpen] = useState(false);
+  const [usageOpen, setUsageOpen] = useState(false);
   const [lastRunMode, setLastRunMode] = useState<string>("");
   const [activeImageModelId, setActiveImageModelId] = useState<string>("openai/gpt-image-2");
   // The model currently selected in the dropdown (before execution)
@@ -247,6 +249,7 @@ const Index = () => {
         taskManagerRunning={taskManager.runningCount}
         onTaskManagerOpen={() => setTaskManagerOpen(true)}
         onPlatformOpen={() => setPlatformOpen(true)}
+          onUsageOpen={() => setUsageOpen(true)}
       />
 
       <main className="flex-1 overflow-y-auto">
@@ -559,6 +562,7 @@ const Index = () => {
       />
 
       <PlatformPanel open={platformOpen} onClose={() => setPlatformOpen(false)} />
+      <UsagePanel open={usageOpen} onClose={() => setUsageOpen(false)} />
 
       <QuotaExceededModal
         result={quotaExceeded}
