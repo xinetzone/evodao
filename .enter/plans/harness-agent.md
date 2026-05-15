@@ -1,105 +1,105 @@
-# Plan: Optimize Agent Memory Logic & Performance
+# Plan: User Usage Dashboard Panel
 
 ## Context
 
-User asked to optimize "历史记忆逻辑与性能". Code analysis found multiple bugs and performance problems:
-
-| # | Severity | Issue |
-|---|----------|-------|
-| 1 | **Critical** | `agent_memory` has no `user_id` column — all users share the same memory pool (privacy bug) |
-| 2 | **Critical** | RLS policy on `agent_memory` is `public_all = true` — no row isolation |
-| 3 | **Perf** | `useMemory.ts` calls `createClient(SUPABASE_URL, SUPABASE_ANON_KEY)` inside every function instead of using the shared singleton |
-| 4 | **Perf** | `searchMemory` makes **2 DB round trips** (keyword ILIKE + recency fallback). Can be merged into 1 |
-| 5 | **Logic** | Keyword extraction uses `length > 3` filter — drops CJK characters (single char) and short acronyms (AI, ML, ...) |
-| 6 | **DB** | No index on `agent_memory` for the search column `goal`, ILIKE does full table scan |
+Add a side-drawer panel (consistent with HistoryPanel/TaskManagerPanel patterns) that gives
+each user a clear picture of their own token consumption, quota (积分余量), and estimated
+USD spending. Data sources:
+- `usage_logs` table: model_id, total_tokens, cost_usd, output_mode, created_at
+- `profiles` table: daily_run_limit, daily_image_limit, monthly_run_limit
 
 ---
 
-## Implementation Plan
+## New Files
 
-### Step 1: DB Migration
-
-```sql
--- 1. Add user_id column (nullable to safely handle existing rows)
-ALTER TABLE agent_memory
-  ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES auth.users ON DELETE CASCADE;
-
--- 2. Create composite index (user_id + quality_score + created_at) for fast retrieval
-CREATE INDEX IF NOT EXISTS agent_memory_user_quality_date
-  ON agent_memory (user_id, quality_score DESC NULLS LAST, created_at DESC);
-
--- 3. Fix RLS: drop public_all, add per-user isolation
-DROP POLICY IF EXISTS public_all ON agent_memory;
-CREATE POLICY own_memory ON agent_memory
-  FOR ALL USING (auth.uid() = user_id);
-```
-
----
-
-### Step 2: Rewrite `src/hooks/useMemory.ts`
-
-**Key changes:**
-
-a. **Remove `createClient` calls** — import and use singleton `supabase` from `@/integrations/supabase/client`
-
-b. **Inject `user` from `useAuthContext()`** — pass `user.id` to all DB operations (insert, update, and the composite index filter)
-
-c. **Single-query `searchMemory`** — instead of keyword ILIKE + recency fallback (2 queries), fetch the top 15 records for this user ordered by `(quality_score DESC NULLS LAST, created_at DESC)` in ONE query, then do client-side relevance scoring:
-
+### `src/hooks/useUserUsage.ts`
+Fetches the current user's usage stats from `usage_logs`. Returns:
 ```typescript
-// Single query: composite index on (user_id, quality_score DESC, created_at DESC)
-const { data } = await supabase
-  .from("agent_memory")
-  .select(SELECT)
-  .eq("user_id", user.id)           // RLS + explicit filter
-  .order("quality_score", { ascending: false, nullsFirst: false })
-  .order("created_at", { ascending: false })
-  .limit(15);                        // fetch candidate pool
-
-// Client-side relevance ranking
-const scored = (data ?? []).map(rowToItem).map((m) => ({
-  ...m,
-  _score: keywords.filter((k) => m.goal.toLowerCase().includes(k)).length,
-}));
-scored.sort((a, b) => b._score - a._score || (b.qualityScore ?? 0) - (a.qualityScore ?? 0));
-return scored.slice(0, limit);
+interface UserUsageStats {
+  // Today
+  todayRuns: number;
+  todayTokens: number;
+  todayCostUsd: number;
+  todayImageRuns: number;
+  // This month
+  monthRuns: number;
+  monthTokens: number;
+  monthCostUsd: number;
+  // Recent rows (last 30 records)
+  recentLogs: UsageLogRow[];
+  loading: boolean;
+}
 ```
+Single query: `select * from usage_logs where user_id = auth.uid() order by created_at desc limit 200`.  
+Then compute today / month aggregates **client-side** from those 200 rows (avoids 3 round trips).
 
-d. **Fix CJK keyword extraction** — change filter from `length > 3` to:
-- ASCII/Latin words: `length > 2`  
-- CJK-containing segments: `length >= 1` (CJK characters are 1 JS char each and already meaningful)
+### `src/components/agent/UsagePanel.tsx`
+A right-side drawer (same animation/positioning as HistoryPanel).
 
-```typescript
-const keywords = goal
-  .toLowerCase()
-  .split(/\s+/)
-  .filter((w) => w.length > 0)
-  .filter((w) => /[\u4e00-\u9fff]/.test(w) ? w.length >= 1 : w.length > 2)
-  .slice(0, 8);
-```
+**Layout (top → bottom):**
 
-e. **Add `user_id` to `saveMemory` insert**
+1. **Header** — Title "我的用量 / MY USAGE" + close button + refresh button
 
-f. **Guard all operations**: if `!user`, return early (no-op) — don't try to save/search memory for unauthenticated users
+2. **Today Overview** — 3 stat cards:
+   - 今日运行 `todayRuns / profile.daily_run_limit` (shows "无限制" when null)
+   - 今日 Token `todayTokens` (formatted as K/M)
+   - 今日费用 `$todayCostUsd`
+
+3. **Monthly Overview** — 2 stat cards:
+   - 本月运行 `monthRuns / profile.monthly_run_limit`
+   - 本月费用 `$monthCostUsd`
+
+4. **Quota Progress Bars** — only shown when profile limits exist:
+   - 今日运行配额 `todayRuns / daily_run_limit` (progress bar)
+   - 今日图片配额 `todayImageRuns / daily_image_limit`
+   - 本月运行配额 `monthRuns / monthly_run_limit`
+
+5. **Recent Runs** — scrollable table (last 30 rows):
+   - 时间 | 模式 | 模型 | Tokens | 费用
 
 ---
 
-### Step 3: No changes to `Index.tsx`
+## Modified Files
 
-All call sites (`searchMemory`, `saveMemory`, `updateMemoryScore`) stay the same — the hook handles user_id internally via `useAuthContext`.
+### `src/components/agent/AgentHeader.tsx`
+- Add `onUsageOpen: () => void` prop
+- Add "用量" button (BarChart2 icon) next to History button (desktop-visible)
+- Also add entry in user dropdown menu
+
+### `src/pages/Index.tsx`
+- Add `const [usageOpen, setUsageOpen] = useState(false)`
+- Pass `onUsageOpen={() => setUsageOpen(true)}` to `<AgentHeader>`
+- Render `<UsagePanel open={usageOpen} onClose={() => setUsageOpen(false)} />`
+
+### `src/i18n/locales/zh.json` + `en.json`
+Add `usage` section with keys:
+```json
+"usage": {
+  "title": "我的用量",
+  "todayRuns": "今日运行",
+  "todayTokens": "今日 Tokens",
+  "todayCost": "今日费用",
+  "monthRuns": "本月运行",
+  "monthCost": "本月费用",
+  "quotaSection": "配额状态",
+  "recentRuns": "最近运行",
+  "unlimited": "无限制",
+  "noData": "暂无运行记录",
+  "refresh": "刷新",
+  "mode": "模式",
+  "model": "模型",
+  "tokens": "Tokens",
+  "cost": "费用",
+  "time": "时间"
+}
+```
 
 ---
-
-## Files to Modify
-
-| File | Change |
-|------|--------|
-| DB migration (new) | Add `user_id` to `agent_memory`, fix RLS, add composite index |
-| `src/hooks/useMemory.ts` | Singleton client, user isolation, single query, CJK keywords |
 
 ## Verification
 
-1. Admin panel → Memories tab: check that each user only sees their own memories
-2. Run agent → memory cards appear showing past relevant sessions from the same user
-3. Switch to a different user account → confirm no cross-user memory leakage
-4. Performance: network tab should show only 1 request to `agent_memory` per agent start (not 2)
+1. Click "用量" button in header → drawer slides in from right
+2. Stats cards show today's run count, tokens, and cost
+3. Progress bars show when profile has limits set
+4. Recent runs table lists last 30 logs with model names
+5. All labels switch between zh/en with language toggle
